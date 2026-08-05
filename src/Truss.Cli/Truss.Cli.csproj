@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <PackageId>Truss.Cli</PackageId>
+    <PackAsTool>true</PackAsTool>
+    <ToolCommandName>truss</ToolCommandName>
+    <Description>The Truss command line: scaffold projects, add modules over time through the manifest, and generate bounded contexts, commands and queries.</Description>
+    <PackageTags>CLI;Scaffolding;DDD;CQRS;CleanArchitecture</PackageTags>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Spectre.Console" Version="0.*" />
+    <PackageReference Include="Spectre.Console.Cli" Version="0.*" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Truss.Cli.Tests" />
+  </ItemGroup>
+
+</Project>

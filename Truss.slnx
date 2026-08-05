@@ -3,6 +3,7 @@
     <Project Path="src/Truss.Application.Abstractions/Truss.Application.Abstractions.csproj" />
     <Project Path="src/Truss.Application/Truss.Application.csproj" />
     <Project Path="src/Truss.AspNetCore/Truss.AspNetCore.csproj" />
+    <Project Path="src/Truss.Cli/Truss.Cli.csproj" />
     <Project Path="src/Truss.Domain/Truss.Domain.csproj" />
     <Project Path="src/Truss.Generators/Truss.Generators.csproj" />
     <Project Path="src/Truss.Jobs.Abstractions/Truss.Jobs.Abstractions.csproj" />
@@ -21,6 +22,7 @@
   <Folder Name="/tests/">
     <Project Path="tests/Truss.Application.Tests/Truss.Application.Tests.csproj" />
     <Project Path="tests/Truss.AspNetCore.Tests/Truss.AspNetCore.Tests.csproj" />
+    <Project Path="tests/Truss.Cli.Tests/Truss.Cli.Tests.csproj" />
     <Project Path="tests/Truss.Domain.Tests/Truss.Domain.Tests.csproj" />
     <Project Path="tests/Truss.Generators.Tests/Truss.Generators.Tests.csproj" />
     <Project Path="tests/Truss.Jobs.Tests/Truss.Jobs.Tests.csproj" />
