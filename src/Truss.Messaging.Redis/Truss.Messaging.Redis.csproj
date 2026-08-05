@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <PackageId>Truss.Messaging.Redis</PackageId>
+    <Description>Redis transport for Truss messaging: durable delivery over Redis Streams with consumer groups, pending message reclaim and dead-lettering.</Description>
+    <PackageTags>Messaging;Redis;Streams;Transport;IntegrationEvents</PackageTags>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Truss.Messaging\Truss.Messaging.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="StackExchange.Redis" Version="3.*" />
+  </ItemGroup>
+
+</Project>

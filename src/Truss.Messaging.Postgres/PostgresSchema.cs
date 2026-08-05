@@ -1,0 +1,58 @@
+using Npgsql;
+
+namespace Truss.Messaging.Postgres
+{
+    internal static class PostgresSchema
+    {
+        public const string MessagesTable = "truss_messages";
+        public const string DeadLetterTable = "truss_messages_dead";
+
+        private const string CreateSql = $"""
+            CREATE TABLE IF NOT EXISTS {MessagesTable} (
+                sequence bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+                message_id uuid NOT NULL,
+                name text NOT NULL,
+                version integer NOT NULL,
+                occurred_on timestamptz NOT NULL,
+                payload text NOT NULL,
+                attempts integer NOT NULL DEFAULT 0,
+                visible_on timestamptz NOT NULL DEFAULT now()
+            );
+
+            CREATE INDEX IF NOT EXISTS ix_{MessagesTable}_visible_on ON {MessagesTable} (visible_on);
+
+            CREATE TABLE IF NOT EXISTS {DeadLetterTable} (
+                sequence bigint PRIMARY KEY,
+                message_id uuid NOT NULL,
+                name text NOT NULL,
+                version integer NOT NULL,
+                occurred_on timestamptz NOT NULL,
+                payload text NOT NULL,
+                attempts integer NOT NULL,
+                error text NOT NULL,
+                failed_on timestamptz NOT NULL
+            );
+            """;
+
+        public static void ValidateChannel(string channel)
+        {
+            if (string.IsNullOrEmpty(channel) || !channel.All(c => char.IsAsciiLetterOrDigit(c) || c == '_') || char.IsAsciiDigit(channel[0]))
+            {
+                throw new InvalidOperationException(
+                    $"Invalid Postgres notification channel '{channel}'. Use letters, digits and underscores, starting with a letter or underscore."
+                );
+            }
+        }
+
+        public static async Task EnsureCreated(TrussPostgresTransportOptions options, CancellationToken cancellationToken)
+        {
+            if (!options.AutoCreateSchema)
+                return;
+
+            await using var connection = new NpgsqlConnection(options.ConnectionString);
+            await connection.OpenAsync(cancellationToken);
+            await using var command = new NpgsqlCommand(CreateSql, connection);
+            await command.ExecuteNonQueryAsync(cancellationToken);
+        }
+    }
+}

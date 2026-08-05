@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <PackageId>Truss.Messaging.Postgres</PackageId>
+    <Description>Postgres transport for Truss messaging: durable table-backed queue with SKIP LOCKED competing consumers and LISTEN/NOTIFY as a low-latency wake-up signal.</Description>
+    <PackageTags>Messaging;Postgres;Transport;IntegrationEvents</PackageTags>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Truss.Messaging\Truss.Messaging.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Npgsql" Version="10.*" />
+  </ItemGroup>
+
+</Project>
