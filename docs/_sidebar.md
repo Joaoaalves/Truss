@@ -22,6 +22,9 @@
 * Messaging
     - [Integration Events](messaging.md)
 
+* Jobs
+    - [Background Jobs](jobs.md)
+
 * Tooling
     - [Source Generators](generators.md)
 

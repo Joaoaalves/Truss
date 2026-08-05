@@ -134,3 +134,51 @@ Durable Redis transport: Streams with consumer groups, pending message reclaim a
 
 - `Truss.Messaging`
 - `StackExchange.Redis`
+
+---
+
+## Truss.Jobs.Abstractions
+
+**Purpose:**
+Contracts for background jobs: the job interface, the execution context, the scheduler, the monitor and the naming attribute.
+
+### Dependencies
+
+None.
+
+---
+
+## Truss.Jobs
+
+**Purpose:**
+Job runtime: transactional enqueueing through the outbox, the executor with retry and timeout, scheduled and recurring jobs, and the in-memory store.
+
+### Dependencies
+
+- `Truss.Jobs.Abstractions`
+- `Truss.Messaging`
+- `Cronos`
+
+---
+
+## Truss.Jobs.EntityFrameworkCore
+
+**Purpose:**
+Job records persisted through EF Core, scheduled atomically with the command that enqueued them.
+
+### Dependencies
+
+- `Truss.Jobs`
+- `Microsoft.EntityFrameworkCore.Relational`
+
+---
+
+## Truss.Jobs.AspNetCore
+
+**Purpose:**
+Progress endpoints: snapshot polling and server-sent events streaming.
+
+### Dependencies
+
+- `Truss.Jobs.Abstractions`
+- ASP.NET Core shared framework (framework reference, not a package)

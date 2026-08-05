@@ -14,14 +14,15 @@ Truss is built module by module, each one opt-in. The framework never installs a
 - Source generators: compile-time handler discovery and dispatch priming, missing handlers reported at build time, duplicate handlers fail the build, Native AOT ready.
 - Messaging: integration events with versioned JSON serialization, transactional outbox with retry and dead-letter, consumer dispatch with a unit of work per message, in-memory transport.
 - Durable transports: Postgres (SKIP LOCKED queue with LISTEN/NOTIFY wake-up) and Redis (Streams with consumer groups), both with retry, dead-letter and competing consumers, configured in code or from environment variables.
+- Background jobs: transactional enqueueing through the outbox, retry and timeout per attempt, live progress with polling and server-sent events endpoints, scheduled and cron-recurring jobs.
 
 ---
 
 ## Next
 
-### Jobs and queues
+### Observability
 
-Background jobs built on the messaging infrastructure: enqueue from command handlers through the outbox, workers with retry and timeout, progress tracking over polling or push, and recurring schedules.
+Structured logging across the pipeline (commands, queries, domain events, jobs), correlation flowing end to end, OpenTelemetry traces and metrics, and opt-in dashboards.
 
 ---
 

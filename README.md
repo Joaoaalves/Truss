@@ -21,6 +21,10 @@ Full documentation: **https://joaoaalves.github.io/Truss**
 | `Truss.Messaging.EntityFrameworkCore` | Transactional outbox stored through EF Core. | Infrastructure |
 | `Truss.Messaging.Postgres` | Durable Postgres transport: SKIP LOCKED queue with LISTEN/NOTIFY wake-up. | Infrastructure |
 | `Truss.Messaging.Redis` | Durable Redis transport over Streams with consumer groups. | Infrastructure |
+| `Truss.Jobs.Abstractions` | Contracts for background jobs, scheduling and monitoring. | Application |
+| `Truss.Jobs` | Job runtime: transactional enqueueing, retry, timeout, scheduled and recurring jobs. | Infrastructure |
+| `Truss.Jobs.EntityFrameworkCore` | Job records persisted in the application database. | Infrastructure |
+| `Truss.Jobs.AspNetCore` | Progress endpoints: polling and server-sent events. | API / Host |
 
 ## Principles
 
