@@ -1,5 +1,3 @@
-using System.Collections.Concurrent;
-
 namespace Truss.Application
 {
     /// <summary>
@@ -9,8 +7,6 @@ namespace Truss.Application
     /// </summary>
     public class Dispatcher(IServiceProvider provider) : IDispatcher
     {
-        private static readonly ConcurrentDictionary<Type, RequestHandlerWrapper> Wrappers = new();
-
         private readonly IServiceProvider _provider = provider;
 
         /// <inheritdoc />
@@ -18,7 +14,7 @@ namespace Truss.Application
         {
             ArgumentNullException.ThrowIfNull(request);
 
-            var wrapper = (RequestHandlerWrapper<TResponse>)Wrappers.GetOrAdd(
+            var wrapper = (RequestHandlerWrapper<TResponse>)WrapperCache.Requests.GetOrAdd(
                 request.GetType(),
                 static requestType => (RequestHandlerWrapper)Activator.CreateInstance(
                     typeof(RequestHandlerWrapperImpl<,>).MakeGenericType(requestType, typeof(TResponse)))!

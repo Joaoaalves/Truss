@@ -38,22 +38,29 @@ namespace Microsoft.Extensions.DependencyInjection
             services.AddScoped<IDomainEventDispatcher, DomainEventDispatcher>();
             services.AddScoped(typeof(IPipelineBehavior<,>), typeof(ValidationBehavior<,>));
 
-            var assemblies = options.Assemblies.Distinct().ToArray();
+            foreach (var assembly in options.Assemblies.Distinct())
+            {
+                if (TrussGeneratedRegistry.TryGetRegistration(assembly, out var registration))
+                {
+                    registration(services);
+                    continue;
+                }
 
-            RegisterImplementations(services, assemblies, typeof(IRequestHandler<,>));
-            RegisterImplementations(services, assemblies, typeof(IDomainEventHandler<>));
-            RegisterImplementations(services, assemblies, typeof(IValidator<>));
+                RegisterImplementations(services, assembly, typeof(IRequestHandler<,>));
+                RegisterImplementations(services, assembly, typeof(IDomainEventHandler<>));
+                RegisterImplementations(services, assembly, typeof(IValidator<>));
+            }
 
             return services;
         }
 
         /// <summary>
-        /// Registers all concrete implementations of a generic interface found in the given assemblies.
+        /// Registers all concrete implementations of a generic interface found in the given assembly.
+        /// Used as the fallback when no compile-time registration exists for the assembly.
         /// </summary>
-        private static void RegisterImplementations(IServiceCollection services, Assembly[] assemblies, Type genericInterface)
+        private static void RegisterImplementations(IServiceCollection services, Assembly assembly, Type genericInterface)
         {
-            var types = assemblies
-                .SelectMany(assembly => assembly.GetTypes())
+            var types = assembly.GetTypes()
                 .Where(type => type.IsClass && !type.IsAbstract);
 
             foreach (var type in types)

@@ -1,4 +1,3 @@
-using System.Collections.Concurrent;
 using Truss.Domain;
 
 namespace Truss.Application
@@ -10,8 +9,6 @@ namespace Truss.Application
     /// </summary>
     public class DomainEventDispatcher(IServiceProvider provider) : IDomainEventDispatcher
     {
-        private static readonly ConcurrentDictionary<Type, DomainEventHandlerWrapper> Wrappers = new();
-
         private readonly IServiceProvider _provider = provider;
 
         /// <inheritdoc />
@@ -21,7 +18,7 @@ namespace Truss.Application
 
             foreach (var domainEvent in domainEvents)
             {
-                var wrapper = Wrappers.GetOrAdd(
+                var wrapper = WrapperCache.DomainEvents.GetOrAdd(
                     domainEvent.GetType(),
                     static eventType => (DomainEventHandlerWrapper)Activator.CreateInstance(
                         typeof(DomainEventHandlerWrapperImpl<>).MakeGenericType(eventType))!
