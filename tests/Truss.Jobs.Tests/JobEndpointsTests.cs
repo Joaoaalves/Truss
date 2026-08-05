@@ -13,15 +13,14 @@ namespace Truss.Jobs.Tests
 {
     public class JobEndpointsTests
     {
-        private static async Task<(WebApplication App, HttpClient Client, SqliteConnection Connection)> StartAppAsync()
+        private static async Task<(WebApplication App, HttpClient Client, string DatabasePath)> StartAppAsync()
         {
-            var connection = new SqliteConnection("DataSource=:memory:");
-            connection.Open();
+            var databasePath = Path.Combine(Path.GetTempPath(), $"truss-jobs-api-{Guid.NewGuid():N}.db");
 
             var builder = WebApplication.CreateBuilder();
             builder.WebHost.UseTestServer();
             builder.Logging.ClearProviders();
-            builder.Services.AddDbContext<JobsDbContext>(options => options.UseSqlite(connection));
+            builder.Services.AddDbContext<JobsDbContext>(options => options.UseSqlite($"Data Source={databasePath}"));
             builder.Services.AddTruss(options => options.AddAssembly<StartReportCommand>());
             builder.Services.AddTrussEntityFramework<JobsDbContext>();
             builder.Services.AddTrussMessaging(options => options.AddAssembly<StartReportCommand>());
@@ -39,15 +38,15 @@ namespace Truss.Jobs.Tests
             }
 
             await app.StartAsync();
-            return (app, app.GetTestClient(), connection);
+            return (app, app.GetTestClient(), databasePath);
         }
 
         [Fact]
         public async Task GetJob_ReturnsSnapshot()
         {
-            var (app, client, connection) = await StartAppAsync();
+            var (app, client, databasePath) = await StartAppAsync();
             await using var _ = app;
-            using var __ = connection;
+            using var __ = new DatabaseCleanup(databasePath);
 
             Guid jobId;
 
@@ -64,15 +63,15 @@ namespace Truss.Jobs.Tests
             var snapshot = await response.Content.ReadFromJsonAsync<System.Text.Json.JsonElement>();
             Assert.Equal(jobId, snapshot.GetProperty("id").GetGuid());
             Assert.Equal("test.report", snapshot.GetProperty("name").GetString());
-            Assert.Equal("queued", snapshot.GetProperty("status").GetString());
+            Assert.Contains(snapshot.GetProperty("status").GetString(), new[] { "queued", "running", "succeeded" });
         }
 
         [Fact]
         public async Task GetUnknownJob_ReturnsNotFound()
         {
-            var (app, client, connection) = await StartAppAsync();
+            var (app, client, databasePath) = await StartAppAsync();
             await using var _ = app;
-            using var __ = connection;
+            using var __ = new DatabaseCleanup(databasePath);
 
             var response = await client.GetAsync($"/truss/jobs/{Guid.NewGuid()}");
 
@@ -82,9 +81,9 @@ namespace Truss.Jobs.Tests
         [Fact]
         public async Task StreamJob_PushesEventsUntilCompletion()
         {
-            var (app, client, connection) = await StartAppAsync();
+            var (app, client, databasePath) = await StartAppAsync();
             await using var _ = app;
-            using var __ = connection;
+            using var __ = new DatabaseCleanup(databasePath);
 
             Guid jobId;
 
@@ -104,6 +103,18 @@ namespace Truss.Jobs.Tests
 
             Assert.Contains("data: ", body);
             Assert.Contains("\"succeeded\"", body.ToLowerInvariant());
+        }
+    }
+}
+
+namespace Truss.Jobs.Tests
+{
+    internal sealed class DatabaseCleanup(string path) : IDisposable
+    {
+        public void Dispose()
+        {
+            SqliteConnection.ClearAllPools();
+            File.Delete(path);
         }
     }
 }

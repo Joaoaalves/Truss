@@ -8,19 +8,18 @@ namespace Truss.Jobs.Tests
 {
     public sealed class JobsTestHost : IAsyncDisposable
     {
-        private readonly SqliteConnection _connection;
+        private readonly string _databasePath;
 
         public ServiceProvider Provider { get; }
 
         public JobsTestHost(Action<TrussJobsOptions>? jobs = null, bool startHostedServices = true)
         {
-            _connection = new SqliteConnection("DataSource=:memory:");
-            _connection.Open();
+            _databasePath = Path.Combine(Path.GetTempPath(), $"truss-jobs-{Guid.NewGuid():N}.db");
 
             var services = new ServiceCollection();
             services.AddLogging();
             services.AddSingleton<TickCounter>();
-            services.AddDbContext<JobsDbContext>(options => options.UseSqlite(_connection));
+            services.AddDbContext<JobsDbContext>(options => options.UseSqlite($"Data Source={_databasePath}"));
             services.AddTruss(options => options.AddAssembly<StartReportCommand>());
             services.AddTrussEntityFramework<JobsDbContext>();
             services.AddTrussMessaging(options => options.AddAssembly<StartReportCommand>());
@@ -85,7 +84,8 @@ namespace Truss.Jobs.Tests
                 await hostedService.StopAsync(CancellationToken.None);
 
             await Provider.DisposeAsync();
-            _connection.Dispose();
+            SqliteConnection.ClearAllPools();
+            File.Delete(_databasePath);
         }
     }
 }

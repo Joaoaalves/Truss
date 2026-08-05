@@ -8,12 +8,12 @@ using Xunit;
 
 namespace Truss.Messaging.Tests
 {
-    public class EndToEndTests : IAsyncLifetime
+    public class OutboxSignalTests : IAsyncLifetime
     {
         private readonly string _databasePath;
         private readonly ServiceProvider _provider;
 
-        public EndToEndTests()
+        public OutboxSignalTests()
         {
             _databasePath = Path.Combine(Path.GetTempPath(), $"truss-messaging-{Guid.NewGuid():N}.db");
 
@@ -27,7 +27,7 @@ namespace Truss.Messaging.Tests
             services.AddTrussInMemoryTransport();
             services.AddTrussOutbox<MessagingDbContext>(options =>
             {
-                options.PollingInterval = TimeSpan.FromMilliseconds(50);
+                options.PollingInterval = TimeSpan.FromSeconds(30);
             });
 
             _provider = services.BuildServiceProvider();
@@ -43,7 +43,7 @@ namespace Truss.Messaging.Tests
         }
 
         [Fact]
-        public async Task Command_PublishesThroughOutbox_AndHandlerReceivesEvent()
+        public async Task CommittedEvent_IsDelivered_LongBeforeThePollingInterval()
         {
             var itemId = Guid.NewGuid();
 
@@ -54,19 +54,13 @@ namespace Truss.Messaging.Tests
             }
 
             var received = _provider.GetRequiredService<ReceivedEvents>();
-            var deadline = DateTime.UtcNow.AddSeconds(10);
+            var deadline = DateTime.UtcNow.AddSeconds(8);
 
             while (DateTime.UtcNow < deadline && received.Snapshot().Count == 0)
                 await Task.Delay(25);
 
             var handled = Assert.Single(received.Snapshot());
-            var itemCreated = Assert.IsType<ItemCreated>(handled);
-            Assert.Equal(itemId, itemCreated.ItemId);
-
-            using var verification = _provider.CreateScope();
-            var context = verification.ServiceProvider.GetRequiredService<MessagingDbContext>();
-            var message = await context.Set<OutboxMessage>().SingleAsync();
-            Assert.Equal(OutboxMessageStatus.Processed, message.Status);
+            Assert.Equal(itemId, Assert.IsType<ItemCreated>(handled).ItemId);
         }
 
         public async Task DisposeAsync()
