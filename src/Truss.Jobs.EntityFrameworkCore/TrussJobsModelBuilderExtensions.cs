@@ -50,6 +50,19 @@ namespace Microsoft.EntityFrameworkCore
                 builder.HasIndex(record => new { record.Status, record.ScheduledFor });
             });
 
+            modelBuilder.Entity<Truss.Jobs.EntityFrameworkCore.SchedulerLease>(builder =>
+            {
+                builder.ToTable("TrussSchedulerLeases");
+                builder.HasKey(lease => lease.Name);
+
+                builder.Property(lease => lease.Name).HasMaxLength(128);
+                builder.Property(lease => lease.Owner).HasMaxLength(256).IsRequired();
+
+                builder.Property(lease => lease.ExpiresOn)
+                    .HasConversion(value => value.UtcTicks, value => new DateTimeOffset(value, TimeSpan.Zero))
+                    .IsConcurrencyToken();
+            });
+
             return modelBuilder;
         }
     }

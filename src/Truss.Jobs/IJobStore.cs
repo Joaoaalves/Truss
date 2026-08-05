@@ -35,5 +35,14 @@ namespace Truss.Jobs
         /// </summary>
         /// <param name="cancellationToken">The cancellation token.</param>
         Task Save(CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Deletes succeeded and cancelled jobs that finished before the given threshold.
+        /// Failed jobs are never touched.
+        /// </summary>
+        /// <param name="threshold">The completion time before which jobs are deleted.</param>
+        /// <param name="cancellationToken">The cancellation token.</param>
+        /// <returns>The number of deleted jobs.</returns>
+        Task<int> DeleteFinishedBefore(DateTimeOffset threshold, CancellationToken cancellationToken = default);
     }
 }

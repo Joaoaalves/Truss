@@ -31,6 +31,8 @@ namespace Truss.Jobs.Tests
                 options.MaxAttempts = 2;
                 options.ScheduledPollingInterval = TimeSpan.FromMilliseconds(50);
                 options.RecurringTickInterval = TimeSpan.FromMilliseconds(100);
+                options.RetryBaseDelay = TimeSpan.FromMilliseconds(50);
+                options.CancellationPollingInterval = TimeSpan.FromMilliseconds(50);
                 jobs?.Invoke(options);
             });
             services.AddTrussJobsEntityFramework<JobsDbContext>();

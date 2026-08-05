@@ -27,6 +27,42 @@ namespace Truss.Jobs
         public TimeSpan? JobTimeout { get; set; }
 
         /// <summary>
+        /// Gets or sets the base delay of the exponential backoff between attempts.
+        /// Defaults to 5 seconds. Set to zero to retry immediately.
+        /// </summary>
+        public TimeSpan RetryBaseDelay { get; set; } = TimeSpan.FromSeconds(5);
+
+        /// <summary>
+        /// Gets or sets the upper bound of the retry backoff. Defaults to 5 minutes.
+        /// </summary>
+        public TimeSpan RetryMaxDelay { get; set; } = TimeSpan.FromMinutes(5);
+
+        /// <summary>
+        /// Gets or sets how often a running job checks for a cancellation request.
+        /// Defaults to 2 seconds.
+        /// </summary>
+        public TimeSpan CancellationPollingInterval { get; set; } = TimeSpan.FromSeconds(2);
+
+        /// <summary>
+        /// Gets or sets how long succeeded and cancelled jobs are kept before deletion.
+        /// Defaults to 7 days. Set to null to keep them forever.
+        /// Failed jobs are never deleted; they wait for inspection.
+        /// </summary>
+        public TimeSpan? RetentionPeriod { get; set; } = TimeSpan.FromDays(7);
+
+        /// <summary>
+        /// Gets or sets how often the scheduler sweeps finished jobs past their retention.
+        /// Defaults to 1 hour.
+        /// </summary>
+        public TimeSpan CleanupInterval { get; set; } = TimeSpan.FromHours(1);
+
+        /// <summary>
+        /// Gets or sets the lease duration of the scheduler lock. Defaults to 30 seconds.
+        /// When the leader stops, another instance takes over once the lease expires.
+        /// </summary>
+        public TimeSpan SchedulerLockLeaseDuration { get; set; } = TimeSpan.FromSeconds(30);
+
+        /// <summary>
         /// Gets or sets the interval the scheduler polls for due scheduled jobs. Defaults to 5 seconds.
         /// </summary>
         public TimeSpan ScheduledPollingInterval { get; set; } = TimeSpan.FromSeconds(5);
@@ -38,7 +74,8 @@ namespace Truss.Jobs
 
         /// <summary>
         /// Gets or sets whether this instance runs the scheduled and recurring schedulers. Defaults to true.
-        /// Keep it enabled on a single instance; disable on the others until distributed locking ships.
+        /// With the EF store, a scheduler lock elects a single leader per sweep, so the
+        /// setting can stay enabled on every instance.
         /// </summary>
         public bool EnableSchedulers { get; set; } = true;
 

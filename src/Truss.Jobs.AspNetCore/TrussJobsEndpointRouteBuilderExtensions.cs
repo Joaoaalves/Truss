@@ -17,9 +17,10 @@ namespace Microsoft.AspNetCore.Builder
         };
 
         /// <summary>
-        /// Maps the job progress endpoints under the given prefix:
-        /// GET {prefix}/{id} returns the current snapshot, and
-        /// GET {prefix}/{id}/stream pushes snapshots over server-sent events until the job completes.
+        /// Maps the job endpoints under the given prefix:
+        /// GET {prefix}/{id} returns the current snapshot,
+        /// GET {prefix}/{id}/stream pushes snapshots over server-sent events until the job completes, and
+        /// POST {prefix}/{id}/cancel requests the cancellation of a job.
         /// </summary>
         /// <param name="endpoints">The endpoint route builder.</param>
         /// <param name="prefix">The route prefix. Defaults to "/truss/jobs".</param>
@@ -36,6 +37,13 @@ namespace Microsoft.AspNetCore.Builder
             group.MapGet("/{id:guid}", async (Guid id, IJobMonitor monitor, CancellationToken cancellationToken) =>
                 await monitor.Get(id, cancellationToken) is { } snapshot
                     ? Results.Json(snapshot, Json)
+                    : Results.NotFound())
+                .Produces<JobSnapshot>(StatusCodes.Status200OK)
+                .Produces(StatusCodes.Status404NotFound);
+
+            group.MapPost("/{id:guid}/cancel", async (Guid id, IJobScheduler scheduler, IJobMonitor monitor, CancellationToken cancellationToken) =>
+                await scheduler.Cancel(id, cancellationToken)
+                    ? Results.Json(await monitor.Get(id, cancellationToken), Json)
                     : Results.NotFound())
                 .Produces<JobSnapshot>(StatusCodes.Status200OK)
                 .Produces(StatusCodes.Status404NotFound);
@@ -64,7 +72,7 @@ namespace Microsoft.AspNetCore.Builder
                     await http.Response.WriteAsync($"data: {JsonSerializer.Serialize(snapshot, Json)}\n\n", cancellationToken);
                     await http.Response.Body.FlushAsync(cancellationToken);
 
-                    if (snapshot.Status is JobStatus.Succeeded or JobStatus.Failed)
+                    if (snapshot.Status is JobStatus.Succeeded or JobStatus.Failed or JobStatus.Cancelled)
                         return;
 
                     await Task.Delay(interval, cancellationToken);

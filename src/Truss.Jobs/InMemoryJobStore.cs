@@ -43,5 +43,24 @@ namespace Truss.Jobs
         {
             return Task.CompletedTask;
         }
+
+        /// <inheritdoc />
+        public Task<int> DeleteFinishedBefore(DateTimeOffset threshold, CancellationToken cancellationToken = default)
+        {
+            var finished = _records.Values
+                .Where(record => record.Status is JobStatus.Succeeded or JobStatus.Cancelled
+                    && record.CompletedOn < threshold)
+                .ToList();
+
+            var deleted = 0;
+
+            foreach (var record in finished)
+            {
+                if (_records.TryRemove(record.Id, out _))
+                    deleted++;
+            }
+
+            return Task.FromResult(deleted);
+        }
     }
 }

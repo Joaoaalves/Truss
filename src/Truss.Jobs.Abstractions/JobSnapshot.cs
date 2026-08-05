@@ -18,7 +18,10 @@ namespace Truss.Jobs
         Succeeded = 3,
 
         /// <summary>The job exhausted its attempts and failed.</summary>
-        Failed = 4
+        Failed = 4,
+
+        /// <summary>The job was cancelled before or during execution.</summary>
+        Cancelled = 5
     }
 
     /// <summary>

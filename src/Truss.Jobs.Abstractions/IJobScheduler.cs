@@ -29,5 +29,15 @@ namespace Truss.Jobs
         /// <returns>The identifier of the job, usable to track progress.</returns>
         Task<Guid> Schedule<TJob, TArgs>(TArgs args, DateTimeOffset runAt, CancellationToken cancellationToken = default)
             where TJob : IJob<TArgs>;
+
+        /// <summary>
+        /// Requests the cancellation of a job. A queued or scheduled job is cancelled
+        /// immediately; a running job observes the request through its cancellation token
+        /// and stops at the next cancellation point. Terminal jobs are left untouched.
+        /// </summary>
+        /// <param name="jobId">The job identifier.</param>
+        /// <param name="cancellationToken">The cancellation token of this call.</param>
+        /// <returns>True when the job exists; false when it is unknown.</returns>
+        Task<bool> Cancel(Guid jobId, CancellationToken cancellationToken = default);
     }
 }

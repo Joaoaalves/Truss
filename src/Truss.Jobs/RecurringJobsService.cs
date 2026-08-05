@@ -20,6 +20,7 @@ namespace Truss.Jobs
         }
 
         private readonly TrussJobsOptions _options = options.Value;
+        private readonly string _owner = $"{Environment.MachineName}-{Guid.NewGuid():N}";
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
@@ -38,14 +39,21 @@ namespace Truss.Jobs
                 try
                 {
                     var now = timeProvider.GetUtcNow();
+                    var due = states.Where(state => state.NextOccurrence is { } next && next <= now).ToList();
 
-                    foreach (var state in states)
+                    if (due.Count > 0)
                     {
-                        if (state.NextOccurrence is not { } next || next > now)
-                            continue;
+                        var acquired = await TryAcquireLock(stoppingToken);
 
-                        await EnqueueOccurrence(state.Definition, stoppingToken);
-                        state.NextOccurrence = state.Expression.GetNextOccurrence(now, TimeZoneInfo.Utc);
+                        // Every instance advances its own occurrence timeline; only the
+                        // lease holder enqueues, so occurrences are not duplicated.
+                        foreach (var state in due)
+                        {
+                            if (acquired)
+                                await EnqueueOccurrence(state.Definition, stoppingToken);
+
+                            state.NextOccurrence = state.Expression.GetNextOccurrence(now, TimeZoneInfo.Utc);
+                        }
                     }
                 }
                 catch (OperationCanceledException)
@@ -75,6 +83,15 @@ namespace Truss.Jobs
                 : CronFormat.Standard;
 
             return CronExpression.Parse(cron, format);
+        }
+
+        private async Task<bool> TryAcquireLock(CancellationToken cancellationToken)
+        {
+            await using var scope = scopeFactory.CreateAsyncScope();
+            var schedulerLock = scope.ServiceProvider.GetRequiredService<ISchedulerLock>();
+
+            return await schedulerLock.TryAcquire(
+                SchedulerLockNames.Recurring, _owner, _options.SchedulerLockLeaseDuration, cancellationToken);
         }
 
         private async Task EnqueueOccurrence(RecurringJobDefinition definition, CancellationToken cancellationToken)

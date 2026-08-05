@@ -73,6 +73,9 @@ namespace Truss.Jobs
         /// <summary>Gets when the job reached a terminal status.</summary>
         public DateTimeOffset? CompletedOn { get; private set; }
 
+        /// <summary>Gets whether cancellation was requested for this job.</summary>
+        public bool CancellationRequested { get; private set; }
+
         /// <summary>
         /// Moves a scheduled job into the queue.
         /// </summary>
@@ -115,11 +118,39 @@ namespace Truss.Jobs
 
         /// <summary>
         /// Records a failed attempt and requeues the job for another try.
+        /// With a next attempt moment, the job goes back to the scheduled state and the
+        /// scheduler re-enqueues it when the backoff elapses; without one it is queued directly.
         /// </summary>
-        public void PrepareRetry(string error)
+        public void PrepareRetry(string error, DateTimeOffset? nextAttemptOn = null)
         {
-            Status = JobStatus.Queued;
             Error = error;
+
+            if (nextAttemptOn is { } runAt)
+            {
+                Status = JobStatus.Scheduled;
+                ScheduledFor = runAt;
+            }
+            else
+            {
+                Status = JobStatus.Queued;
+            }
+        }
+
+        /// <summary>
+        /// Flags the job for cancellation. The executor observes the flag.
+        /// </summary>
+        public void RequestCancellation()
+        {
+            CancellationRequested = true;
+        }
+
+        /// <summary>
+        /// Cancels the job.
+        /// </summary>
+        public void MarkCancelled(DateTimeOffset now)
+        {
+            Status = JobStatus.Cancelled;
+            CompletedOn = now;
         }
 
         /// <summary>

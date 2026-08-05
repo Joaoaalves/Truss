@@ -1,0 +1,134 @@
+using Microsoft.Extensions.DependencyInjection;
+using Truss.Jobs.EntityFrameworkCore;
+using Truss.Jobs.Tests.Fakes;
+using Xunit;
+
+namespace Truss.Jobs.Tests
+{
+    public class JobLifecycleTests
+    {
+        private static async Task<Guid> Enqueue<TJob, TArgs>(JobsTestHost host, TArgs args)
+            where TJob : IJob<TArgs>
+        {
+            using var scope = host.Provider.CreateScope();
+            var scheduler = scope.ServiceProvider.GetRequiredService<IJobScheduler>();
+            var jobId = await scheduler.Enqueue<TJob, TArgs>(args);
+            await scope.ServiceProvider.GetRequiredService<Truss.Application.IUnitOfWork>().CommitAsync();
+            return jobId;
+        }
+
+        private static async Task<bool> Cancel(JobsTestHost host, Guid jobId)
+        {
+            using var scope = host.Provider.CreateScope();
+            return await scope.ServiceProvider.GetRequiredService<IJobScheduler>().Cancel(jobId);
+        }
+
+        [Fact]
+        public async Task FailingJob_BacksOff_BeforeTheNextAttempt()
+        {
+            await using var host = new JobsTestHost(options => options.RetryBaseDelay = TimeSpan.FromMilliseconds(500));
+
+            var jobId = await Enqueue<FailingJob, FailArgs>(host, new FailArgs("boom"));
+
+            var scheduled = await host.WaitForStatus(jobId, JobStatus.Scheduled);
+            Assert.Equal(1, scheduled.Attempts);
+            Assert.NotNull(scheduled.ScheduledFor);
+
+            var failed = await host.WaitForStatus(jobId, JobStatus.Failed);
+            Assert.Equal(2, failed.Attempts);
+            Assert.Equal("boom", failed.Error);
+        }
+
+        [Fact]
+        public async Task ScheduledJob_CancelledBeforeItsMoment_NeverRuns()
+        {
+            await using var host = new JobsTestHost();
+
+            Guid jobId;
+
+            using (var scope = host.Provider.CreateScope())
+            {
+                var scheduler = scope.ServiceProvider.GetRequiredService<IJobScheduler>();
+                jobId = await scheduler.Schedule<ReportJob, ReportArgs>(
+                    new ReportArgs("later"), DateTimeOffset.UtcNow.AddSeconds(2));
+                await scope.ServiceProvider.GetRequiredService<Truss.Application.IUnitOfWork>().CommitAsync();
+            }
+
+            Assert.True(await Cancel(host, jobId));
+
+            var snapshot = await host.WaitForStatus(jobId, JobStatus.Cancelled);
+            Assert.Equal(0, snapshot.Attempts);
+            Assert.NotNull(snapshot.CompletedOn);
+
+            await Task.Delay(2500);
+            Assert.Equal(JobStatus.Cancelled, (await host.Snapshot(jobId))!.Status);
+        }
+
+        [Fact]
+        public async Task RunningJob_ObservesCancellation_AndStops()
+        {
+            await using var host = new JobsTestHost();
+
+            var jobId = await Enqueue<WaitingJob, WaitArgs>(host, new WaitArgs("long"));
+
+            await host.WaitForStatus(jobId, JobStatus.Running);
+            Assert.True(await Cancel(host, jobId));
+
+            var snapshot = await host.WaitForStatus(jobId, JobStatus.Cancelled);
+            Assert.Equal(1, snapshot.Attempts);
+        }
+
+        [Fact]
+        public async Task Cancel_UnknownJob_ReturnsFalse()
+        {
+            await using var host = new JobsTestHost();
+
+            Assert.False(await Cancel(host, Guid.NewGuid()));
+        }
+
+        [Fact]
+        public async Task FinishedJobs_AreSweptAfterRetention_WhileFailedOnesStay()
+        {
+            await using var host = new JobsTestHost(options =>
+            {
+                options.RetentionPeriod = TimeSpan.FromMilliseconds(1);
+                options.CleanupInterval = TimeSpan.Zero;
+            });
+
+            var succeededId = await Enqueue<ReportJob, ReportArgs>(host, new ReportArgs("catalog"));
+            var failedId = await Enqueue<FailingJob, FailArgs>(host, new FailArgs("boom"));
+
+            await host.WaitForStatus(succeededId, JobStatus.Succeeded);
+            await host.WaitForStatus(failedId, JobStatus.Failed);
+
+            var deadline = DateTime.UtcNow.AddSeconds(5);
+
+            while (await host.Snapshot(succeededId) is not null && DateTime.UtcNow < deadline)
+                await Task.Delay(50);
+
+            Assert.Null(await host.Snapshot(succeededId));
+            Assert.Equal(JobStatus.Failed, (await host.Snapshot(failedId))!.Status);
+        }
+
+        [Fact]
+        public async Task SchedulerLock_GrantsOneOwner_AndHandsOverAfterExpiry()
+        {
+            await using var host = new JobsTestHost(startHostedServices: false);
+
+            using var scope = host.Provider.CreateScope();
+            var schedulerLock = scope.ServiceProvider.GetRequiredService<ISchedulerLock>();
+            Assert.IsType<EfSchedulerLock<Fakes.JobsDbContext>>(schedulerLock);
+
+            var lease = TimeSpan.FromMilliseconds(200);
+
+            Assert.True(await schedulerLock.TryAcquire("test.lock", "instance-a", lease));
+            Assert.False(await schedulerLock.TryAcquire("test.lock", "instance-b", lease));
+            Assert.True(await schedulerLock.TryAcquire("test.lock", "instance-a", lease));
+
+            await Task.Delay(300);
+
+            Assert.True(await schedulerLock.TryAcquire("test.lock", "instance-b", lease));
+            Assert.False(await schedulerLock.TryAcquire("test.lock", "instance-a", lease));
+        }
+    }
+}

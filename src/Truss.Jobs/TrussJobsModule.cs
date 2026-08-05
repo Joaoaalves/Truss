@@ -56,6 +56,12 @@ namespace Microsoft.Extensions.DependencyInjection
 
                 o.MaxAttempts = options.MaxAttempts;
                 o.JobTimeout = options.JobTimeout;
+                o.RetryBaseDelay = options.RetryBaseDelay;
+                o.RetryMaxDelay = options.RetryMaxDelay;
+                o.CancellationPollingInterval = options.CancellationPollingInterval;
+                o.RetentionPeriod = options.RetentionPeriod;
+                o.CleanupInterval = options.CleanupInterval;
+                o.SchedulerLockLeaseDuration = options.SchedulerLockLeaseDuration;
                 o.ScheduledPollingInterval = options.ScheduledPollingInterval;
                 o.RecurringTickInterval = options.RecurringTickInterval;
                 o.EnableSchedulers = options.EnableSchedulers;
@@ -67,6 +73,7 @@ namespace Microsoft.Extensions.DependencyInjection
 
             services.TryAddSingleton<InMemoryJobStore>();
             services.TryAddScoped<IJobStore>(provider => provider.GetRequiredService<InMemoryJobStore>());
+            services.TryAddScoped<ISchedulerLock, LocalSchedulerLock>();
 
             foreach (var jobType in registry.JobTypes)
                 services.AddTransient(jobType);

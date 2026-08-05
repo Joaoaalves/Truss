@@ -13,6 +13,8 @@ namespace Truss.Jobs
         TimeProvider timeProvider) : BackgroundService
     {
         private readonly TrussJobsOptions _options = options.Value;
+        private readonly string _owner = $"{Environment.MachineName}-{Guid.NewGuid():N}";
+        private DateTimeOffset _nextCleanup = DateTimeOffset.MinValue;
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
@@ -53,6 +55,14 @@ namespace Truss.Jobs
         private async Task<int> MoveDueJobsToQueue(CancellationToken cancellationToken)
         {
             await using var scope = scopeFactory.CreateAsyncScope();
+            var schedulerLock = scope.ServiceProvider.GetRequiredService<ISchedulerLock>();
+
+            var acquired = await schedulerLock.TryAcquire(
+                SchedulerLockNames.Scheduled, _owner, _options.SchedulerLockLeaseDuration, cancellationToken);
+
+            if (!acquired)
+                return 0;
+
             var store = scope.ServiceProvider.GetRequiredService<IJobStore>();
             var publisher = scope.ServiceProvider.GetRequiredService<IIntegrationEventPublisher>();
 
@@ -67,7 +77,31 @@ namespace Truss.Jobs
             if (due.Count > 0)
                 await JobScopeCommitter.Commit(scope.ServiceProvider, cancellationToken);
 
+            await CleanupIfDue(store, cancellationToken);
+
             return due.Count;
+        }
+
+        /// <summary>
+        /// Sweeps finished jobs past their retention, at most once per cleanup interval.
+        /// Runs behind the scheduler lock, so a single instance cleans.
+        /// </summary>
+        private async Task CleanupIfDue(IJobStore store, CancellationToken cancellationToken)
+        {
+            if (_options.RetentionPeriod is not { } retention)
+                return;
+
+            var now = timeProvider.GetUtcNow();
+
+            if (now < _nextCleanup)
+                return;
+
+            _nextCleanup = now + _options.CleanupInterval;
+
+            var deleted = await store.DeleteFinishedBefore(now - retention, cancellationToken);
+
+            if (deleted > 0)
+                logger.LogInformation("Job cleanup removed {Count} finished jobs older than {Retention}.", deleted, retention);
         }
     }
 }

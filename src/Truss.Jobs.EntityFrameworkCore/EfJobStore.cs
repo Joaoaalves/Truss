@@ -44,5 +44,14 @@ namespace Truss.Jobs.EntityFrameworkCore
         {
             return _context.SaveChangesAsync(cancellationToken);
         }
+
+        /// <inheritdoc />
+        public Task<int> DeleteFinishedBefore(DateTimeOffset threshold, CancellationToken cancellationToken = default)
+        {
+            return _context.Set<JobRecord>()
+                .Where(record => (record.Status == JobStatus.Succeeded || record.Status == JobStatus.Cancelled)
+                    && record.CompletedOn < threshold)
+                .ExecuteDeleteAsync(cancellationToken);
+        }
     }
 }

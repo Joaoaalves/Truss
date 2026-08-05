@@ -28,6 +28,23 @@ namespace Truss.Jobs.Tests.Fakes
         }
     }
 
+    public sealed record WaitArgs(string Label);
+
+    [JobName("test.waiting")]
+    public class WaitingJob : IJob<WaitArgs>
+    {
+        public async Task Execute(WaitArgs args, JobContext context, CancellationToken cancellationToken)
+        {
+            await context.ReportProgress(10, "Waiting", cancellationToken);
+
+            while (true)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                await Task.Delay(25, cancellationToken);
+            }
+        }
+    }
+
     public sealed record TickArgs(string Source);
 
     public class TickCounter

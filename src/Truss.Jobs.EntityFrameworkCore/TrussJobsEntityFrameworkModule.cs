@@ -24,6 +24,7 @@ namespace Microsoft.Extensions.DependencyInjection
             where TDbContext : DbContext
         {
             services.Replace(ServiceDescriptor.Scoped<IJobStore, EfJobStore<TDbContext>>());
+            services.Replace(ServiceDescriptor.Scoped<ISchedulerLock, EfSchedulerLock<TDbContext>>());
 
             return services;
         }

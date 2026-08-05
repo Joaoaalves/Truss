@@ -33,5 +33,24 @@ namespace Truss.Jobs
 
             return record.Id;
         }
+
+        public async Task<bool> Cancel(Guid jobId, CancellationToken cancellationToken = default)
+        {
+            var record = await store.Get(jobId, cancellationToken);
+
+            if (record is null)
+                return false;
+
+            if (record.Status is JobStatus.Succeeded or JobStatus.Failed or JobStatus.Cancelled)
+                return true;
+
+            record.RequestCancellation();
+
+            if (record.Status is JobStatus.Queued or JobStatus.Scheduled)
+                record.MarkCancelled(timeProvider.GetUtcNow());
+
+            await store.Save(cancellationToken);
+            return true;
+        }
     }
 }
