@@ -57,6 +57,8 @@ public class PlaceOrderHandler(AppDbContext context, IIntegrationEventPublisher 
 
 With the outbox configured, `Publish` does not touch the broker. The event is stored in the outbox table by the same atomic save that persists the order: if the command fails, no event exists; if it commits, delivery is guaranteed. A background processor publishes stored messages to the transport with exponential backoff on failure, and dead-letters a message after the attempt limit, preserving the error.
 
+Delivery starts immediately: every commit that stores outbox messages wakes the processor in-process, so events reach the transport right after the transaction, not on the next poll. Polling (15 seconds by default) remains only as the safety net for retries and for messages written by other application instances.
+
 Delivery is **at-least-once**: consumers must be idempotent.
 
 ---
