@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <PackageId>Truss.Application.Abstractions</PackageId>
+    <Description>Contracts for the Truss application layer: commands, queries, handlers, pipeline behaviors, domain event dispatching and unit of work.</Description>
+    <PackageTags>CQRS;DDD;CleanArchitecture;Mediator</PackageTags>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Truss.Domain\Truss.Domain.csproj" />
+  </ItemGroup>
+
+</Project>
