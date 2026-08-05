@@ -43,12 +43,12 @@ namespace Truss.Cli
             Write(root, Path.Combine(domain, "UserId.cs"), AuthTemplates.UserId, manifest);
             Write(root, Path.Combine(domain, "User.cs"), AuthTemplates.User, manifest);
             Write(root, Path.Combine(domain, "UserRegistered.cs"), AuthTemplates.UserRegistered, manifest);
-            Write(root, Path.Combine(domain, "RefreshToken.cs"), AuthTemplates.RefreshTokenEntity, manifest);
-            Write(root, Path.Combine(domain, "InvalidCredentials.cs"), AuthTemplates.InvalidCredentials, manifest);
             Write(root, Path.Combine(domain, "EmailMustBeUnique.cs"), AuthTemplates.EmailMustBeUnique, manifest);
 
+            Write(root, Path.Combine(application, "InvalidCredentials.cs"), AuthTemplates.InvalidCredentials, manifest);
             Write(root, Path.Combine(application, "IUserRepository.cs"), AuthTemplates.UserRepository, manifest);
-            Write(root, Path.Combine(application, "IRefreshTokenRepository.cs"), AuthTemplates.RefreshTokenRepository, manifest);
+            Write(root, Path.Combine(application, "IUserCredentialsStore.cs"), AuthTemplates.UserCredentialsStore, manifest);
+            Write(root, Path.Combine(application, "IRefreshTokenStore.cs"), AuthTemplates.RefreshTokenStore, manifest);
             Write(root, Path.Combine(application, "AuthTokensDto.cs"), AuthTemplates.AuthTokensDto, manifest);
             Write(root, Path.Combine(application, "RegisterUser.cs"), AuthTemplates.RegisterUser, manifest);
             Write(root, Path.Combine(application, "RegisterUserHandler.cs"), AuthTemplates.RegisterUserHandler, manifest);
@@ -61,9 +61,13 @@ namespace Truss.Cli
             Write(root, Path.Combine(application, "RefreshValidator.cs"), AuthTemplates.RefreshValidator, manifest);
 
             Write(root, Path.Combine(infrastructure, "UserConfiguration.cs"), AuthTemplates.UserConfiguration, manifest);
+            Write(root, Path.Combine(infrastructure, "UserCredential.cs"), AuthTemplates.UserCredential, manifest);
+            Write(root, Path.Combine(infrastructure, "UserCredentialConfiguration.cs"), AuthTemplates.UserCredentialConfiguration, manifest);
+            Write(root, Path.Combine(infrastructure, "RefreshTokenRecord.cs"), AuthTemplates.RefreshTokenRecord, manifest);
             Write(root, Path.Combine(infrastructure, "RefreshTokenConfiguration.cs"), AuthTemplates.RefreshTokenConfiguration, manifest);
             Write(root, Path.Combine(infrastructure, "EfUserRepository.cs"), AuthTemplates.EfUserRepository, manifest);
-            Write(root, Path.Combine(infrastructure, "EfRefreshTokenRepository.cs"), AuthTemplates.EfRefreshTokenRepository, manifest);
+            Write(root, Path.Combine(infrastructure, "EfUserCredentialsStore.cs"), AuthTemplates.EfUserCredentialsStore, manifest);
+            Write(root, Path.Combine(infrastructure, "EfRefreshTokenStore.cs"), AuthTemplates.EfRefreshTokenStore, manifest);
             Write(root, Path.Combine(manifest.InfrastructureProject, "AccountsModule.cs"), AuthTemplates.AccountsModule, manifest);
         }
 

@@ -31,22 +31,19 @@ namespace Truss.Cli.Templates
                     {
                     }
 
-                    private User(UserId id, string email, string name, string passwordHash) : base(id)
+                    private User(UserId id, string email, string name) : base(id)
                     {
                         Email = email;
                         Name = name;
-                        PasswordHash = passwordHash;
                     }
 
                     public string Email { get; private set; } = string.Empty;
 
                     public string Name { get; private set; } = string.Empty;
 
-                    public string PasswordHash { get; private set; } = string.Empty;
-
-                    public static User Register(string email, string name, string passwordHash)
+                    public static User Register(string email, string name)
                     {
-                        var user = new User(new UserId(Guid.NewGuid()), email.ToLowerInvariant(), name, passwordHash);
+                        var user = new User(new UserId(Guid.NewGuid()), email.ToLowerInvariant(), name);
                         user.AddDomainEvent(new UserRegistered(user.Id));
                         return user;
                     }
@@ -54,48 +51,10 @@ namespace Truss.Cli.Templates
             }
             """;
 
-        public const string RefreshTokenEntity = """
-            using Truss.Domain;
-
-            namespace __NAME__.Domain.Accounts
-            {
-                public class RefreshToken : Entity<Guid>
-                {
-                    private RefreshToken()
-                    {
-                    }
-
-                    private RefreshToken(Guid id, UserId userId, string tokenHash, DateTimeOffset expiresOn) : base(id)
-                    {
-                        UserId = userId;
-                        TokenHash = tokenHash;
-                        ExpiresOn = expiresOn;
-                    }
-
-                    public UserId UserId { get; private set; } = null!;
-
-                    public string TokenHash { get; private set; } = string.Empty;
-
-                    public DateTimeOffset ExpiresOn { get; private set; }
-
-                    public DateTimeOffset? RevokedOn { get; private set; }
-
-                    public static RefreshToken Issue(UserId userId, string tokenHash, DateTimeOffset expiresOn)
-                    {
-                        return new RefreshToken(Guid.NewGuid(), userId, tokenHash, expiresOn);
-                    }
-
-                    public bool IsActive(DateTimeOffset now) => RevokedOn is null && now < ExpiresOn;
-
-                    public void Revoke(DateTimeOffset now) => RevokedOn = now;
-                }
-            }
-            """;
-
         public const string InvalidCredentials = """
             using Truss.Domain;
 
-            namespace __NAME__.Domain.Accounts
+            namespace __NAME__.Application.Accounts
             {
                 public class InvalidCredentials : IBusinessRule
                 {
@@ -136,16 +95,34 @@ namespace Truss.Cli.Templates
             }
             """;
 
-        public const string RefreshTokenRepository = """
+        public const string UserCredentialsStore = """
             using __NAME__.Domain.Accounts;
 
             namespace __NAME__.Application.Accounts
             {
-                public interface IRefreshTokenRepository
+                public interface IUserCredentialsStore
                 {
-                    void Add(RefreshToken refreshToken);
+                    Task SetPassword(UserId userId, string passwordHash, CancellationToken cancellationToken = default);
 
-                    Task<RefreshToken?> GetByHash(string tokenHash, CancellationToken cancellationToken = default);
+                    Task<string?> GetPasswordHash(UserId userId, CancellationToken cancellationToken = default);
+                }
+            }
+            """;
+
+        public const string RefreshTokenStore = """
+            using __NAME__.Domain.Accounts;
+
+            namespace __NAME__.Application.Accounts
+            {
+                public sealed record ActiveRefreshToken(Guid Id, UserId UserId);
+
+                public interface IRefreshTokenStore
+                {
+                    void Add(UserId userId, string tokenHash, DateTimeOffset expiresOn);
+
+                    Task<ActiveRefreshToken?> FindActive(string tokenHash, DateTimeOffset now, CancellationToken cancellationToken = default);
+
+                    Task Revoke(Guid refreshTokenId, DateTimeOffset now, CancellationToken cancellationToken = default);
                 }
             }
             """;
@@ -174,8 +151,10 @@ namespace Truss.Cli.Templates
 
             namespace __NAME__.Application.Accounts
             {
-                public class RegisterUserHandler(IUserRepository users, IPasswordHasher passwordHasher)
-                    : ICommandHandler<RegisterUser, Guid>
+                public class RegisterUserHandler(
+                    IUserRepository users,
+                    IUserCredentialsStore credentials,
+                    IPasswordHasher passwordHasher) : ICommandHandler<RegisterUser, Guid>
                 {
                     public async Task<Guid> Handle(RegisterUser command, CancellationToken cancellationToken)
                     {
@@ -186,8 +165,10 @@ namespace Truss.Cli.Templates
                         if (rule.IsBroken())
                             throw new BusinessRuleValidationException(rule);
 
-                        var user = User.Register(command.Email, command.Name, passwordHasher.Hash(command.Password));
+                        var user = User.Register(command.Email, command.Name);
                         users.Add(user);
+
+                        await credentials.SetPassword(user.Id, passwordHasher.Hash(command.Password), cancellationToken);
 
                         return user.Id.Value;
                     }
@@ -232,19 +213,23 @@ namespace Truss.Cli.Templates
             {
                 public class LoginHandler(
                     IUserRepository users,
-                    IRefreshTokenRepository refreshTokens,
+                    IUserCredentialsStore credentials,
+                    IRefreshTokenStore refreshTokens,
                     IPasswordHasher passwordHasher,
                     IJwtTokenService tokens) : ICommandHandler<Login, AuthTokensDto>
                 {
                     public async Task<AuthTokensDto> Handle(Login command, CancellationToken cancellationToken)
                     {
                         var user = await users.GetByEmail(command.Email.ToLowerInvariant(), cancellationToken);
+                        var passwordHash = user is null
+                            ? null
+                            : await credentials.GetPasswordHash(user.Id, cancellationToken);
 
-                        if (user is null || !passwordHasher.Verify(command.Password, user.PasswordHash))
+                        if (user is null || passwordHash is null || !passwordHasher.Verify(command.Password, passwordHash))
                             throw new BusinessRuleValidationException(new InvalidCredentials());
 
                         var refresh = tokens.CreateRefreshToken();
-                        refreshTokens.Add(RefreshToken.Issue(user.Id, refresh.TokenHash, refresh.ExpiresOn));
+                        refreshTokens.Add(user.Id, refresh.TokenHash, refresh.ExpiresOn);
 
                         var access = tokens.CreateAccessToken(
                         [
@@ -295,25 +280,25 @@ namespace Truss.Cli.Templates
             {
                 public class RefreshHandler(
                     IUserRepository users,
-                    IRefreshTokenRepository refreshTokens,
+                    IRefreshTokenStore refreshTokens,
                     IJwtTokenService tokens,
                     TimeProvider timeProvider) : ICommandHandler<Refresh, AuthTokensDto>
                 {
                     public async Task<AuthTokensDto> Handle(Refresh command, CancellationToken cancellationToken)
                     {
                         var now = timeProvider.GetUtcNow();
-                        var stored = await refreshTokens.GetByHash(tokens.HashRefreshToken(command.RefreshToken), cancellationToken);
+                        var active = await refreshTokens.FindActive(tokens.HashRefreshToken(command.RefreshToken), now, cancellationToken);
 
-                        if (stored is null || !stored.IsActive(now))
+                        if (active is null)
                             throw new BusinessRuleValidationException(new InvalidCredentials());
 
-                        var user = await users.GetById(stored.UserId, cancellationToken)
+                        var user = await users.GetById(active.UserId, cancellationToken)
                             ?? throw new BusinessRuleValidationException(new InvalidCredentials());
 
-                        stored.Revoke(now);
+                        await refreshTokens.Revoke(active.Id, now, cancellationToken);
 
                         var refresh = tokens.CreateRefreshToken();
-                        refreshTokens.Add(RefreshToken.Issue(user.Id, refresh.TokenHash, refresh.ExpiresOn));
+                        refreshTokens.Add(user.Id, refresh.TokenHash, refresh.ExpiresOn);
 
                         var access = tokens.CreateAccessToken(
                         [
@@ -362,7 +347,6 @@ namespace Truss.Cli.Templates
 
                         builder.Property(user => user.Email).HasMaxLength(320).IsRequired();
                         builder.Property(user => user.Name).HasMaxLength(200).IsRequired();
-                        builder.Property(user => user.PasswordHash).HasMaxLength(512).IsRequired();
 
                         builder.HasIndex(user => user.Email).IsUnique();
                     }
@@ -370,22 +354,98 @@ namespace Truss.Cli.Templates
             }
             """;
 
-        public const string RefreshTokenConfiguration = """
-            using __NAME__.Domain.Accounts;
+        public const string UserCredential = """
+            namespace __NAME__.Infrastructure.Accounts
+            {
+                public class UserCredential
+                {
+                    private UserCredential()
+                    {
+                    }
+
+                    public UserCredential(Guid userId, string passwordHash)
+                    {
+                        UserId = userId;
+                        PasswordHash = passwordHash;
+                    }
+
+                    public Guid UserId { get; private set; }
+
+                    public string PasswordHash { get; private set; } = string.Empty;
+
+                    public void ChangePassword(string passwordHash)
+                    {
+                        PasswordHash = passwordHash;
+                    }
+                }
+            }
+            """;
+
+        public const string UserCredentialConfiguration = """
             using Microsoft.EntityFrameworkCore;
             using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
             namespace __NAME__.Infrastructure.Accounts
             {
-                public class RefreshTokenConfiguration : IEntityTypeConfiguration<RefreshToken>
+                public class UserCredentialConfiguration : IEntityTypeConfiguration<UserCredential>
                 {
-                    public void Configure(EntityTypeBuilder<RefreshToken> builder)
+                    public void Configure(EntityTypeBuilder<UserCredential> builder)
+                    {
+                        builder.ToTable("UserCredentials");
+                        builder.HasKey(credential => credential.UserId);
+
+                        builder.Property(credential => credential.PasswordHash).HasMaxLength(512).IsRequired();
+                    }
+                }
+            }
+            """;
+
+        public const string RefreshTokenRecord = """
+            namespace __NAME__.Infrastructure.Accounts
+            {
+                public class RefreshTokenRecord
+                {
+                    private RefreshTokenRecord()
+                    {
+                    }
+
+                    public RefreshTokenRecord(Guid id, Guid userId, string tokenHash, DateTimeOffset expiresOn)
+                    {
+                        Id = id;
+                        UserId = userId;
+                        TokenHash = tokenHash;
+                        ExpiresOn = expiresOn;
+                    }
+
+                    public Guid Id { get; private set; }
+
+                    public Guid UserId { get; private set; }
+
+                    public string TokenHash { get; private set; } = string.Empty;
+
+                    public DateTimeOffset ExpiresOn { get; private set; }
+
+                    public DateTimeOffset? RevokedOn { get; private set; }
+
+                    public bool IsActive(DateTimeOffset now) => RevokedOn is null && now < ExpiresOn;
+
+                    public void Revoke(DateTimeOffset now) => RevokedOn = now;
+                }
+            }
+            """;
+
+        public const string RefreshTokenConfiguration = """
+            using Microsoft.EntityFrameworkCore;
+            using Microsoft.EntityFrameworkCore.Metadata.Builders;
+
+            namespace __NAME__.Infrastructure.Accounts
+            {
+                public class RefreshTokenConfiguration : IEntityTypeConfiguration<RefreshTokenRecord>
+                {
+                    public void Configure(EntityTypeBuilder<RefreshTokenRecord> builder)
                     {
                         builder.ToTable("RefreshTokens");
                         builder.HasKey(token => token.Id);
-
-                        builder.Property(token => token.UserId)
-                            .HasConversion(id => id.Value, value => new UserId(value));
 
                         builder.Property(token => token.TokenHash).HasMaxLength(128).IsRequired();
 
@@ -430,23 +490,62 @@ namespace Truss.Cli.Templates
             }
             """;
 
-        public const string EfRefreshTokenRepository = """
+        public const string EfUserCredentialsStore = """
+            using __NAME__.Application.Accounts;
+            using __NAME__.Domain.Accounts;
+
+            namespace __NAME__.Infrastructure.Accounts
+            {
+                public class EfUserCredentialsStore(AppDbContext context) : IUserCredentialsStore
+                {
+                    public async Task SetPassword(UserId userId, string passwordHash, CancellationToken cancellationToken = default)
+                    {
+                        var existing = await context.Set<UserCredential>().FindAsync([userId.Value], cancellationToken);
+
+                        if (existing is null)
+                            context.Set<UserCredential>().Add(new UserCredential(userId.Value, passwordHash));
+                        else
+                            existing.ChangePassword(passwordHash);
+                    }
+
+                    public async Task<string?> GetPasswordHash(UserId userId, CancellationToken cancellationToken = default)
+                    {
+                        var credential = await context.Set<UserCredential>().FindAsync([userId.Value], cancellationToken);
+                        return credential?.PasswordHash;
+                    }
+                }
+            }
+            """;
+
+        public const string EfRefreshTokenStore = """
             using __NAME__.Application.Accounts;
             using __NAME__.Domain.Accounts;
             using Microsoft.EntityFrameworkCore;
 
             namespace __NAME__.Infrastructure.Accounts
             {
-                public class EfRefreshTokenRepository(AppDbContext context) : IRefreshTokenRepository
+                public class EfRefreshTokenStore(AppDbContext context) : IRefreshTokenStore
                 {
-                    public void Add(RefreshToken refreshToken)
+                    public void Add(UserId userId, string tokenHash, DateTimeOffset expiresOn)
                     {
-                        context.Set<RefreshToken>().Add(refreshToken);
+                        context.Set<RefreshTokenRecord>().Add(
+                            new RefreshTokenRecord(Guid.NewGuid(), userId.Value, tokenHash, expiresOn));
                     }
 
-                    public Task<RefreshToken?> GetByHash(string tokenHash, CancellationToken cancellationToken = default)
+                    public async Task<ActiveRefreshToken?> FindActive(string tokenHash, DateTimeOffset now, CancellationToken cancellationToken = default)
                     {
-                        return context.Set<RefreshToken>().FirstOrDefaultAsync(token => token.TokenHash == tokenHash, cancellationToken);
+                        var record = await context.Set<RefreshTokenRecord>()
+                            .FirstOrDefaultAsync(token => token.TokenHash == tokenHash, cancellationToken);
+
+                        return record is not null && record.IsActive(now)
+                            ? new ActiveRefreshToken(record.Id, new UserId(record.UserId))
+                            : null;
+                    }
+
+                    public async Task Revoke(Guid refreshTokenId, DateTimeOffset now, CancellationToken cancellationToken = default)
+                    {
+                        var record = await context.Set<RefreshTokenRecord>().FindAsync([refreshTokenId], cancellationToken);
+                        record?.Revoke(now);
                     }
                 }
             }
@@ -464,7 +563,8 @@ namespace Truss.Cli.Templates
                     public static IServiceCollection AddAccountsInfrastructure(this IServiceCollection services)
                     {
                         services.AddScoped<IUserRepository, EfUserRepository>();
-                        services.AddScoped<IRefreshTokenRepository, EfRefreshTokenRepository>();
+                        services.AddScoped<IUserCredentialsStore, EfUserCredentialsStore>();
+                        services.AddScoped<IRefreshTokenStore, EfRefreshTokenStore>();
                         return services;
                     }
                 }

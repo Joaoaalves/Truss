@@ -91,11 +91,16 @@ namespace Truss.Cli.Tests
 
             Assert.True(_workspace.FileExists("Shop", "src", "Shop.Domain", "Accounts", "User.cs"));
             Assert.True(_workspace.FileExists("Shop", "src", "Shop.Application", "Accounts", "LoginHandler.cs"));
+            Assert.True(_workspace.FileExists("Shop", "src", "Shop.Application", "Accounts", "IUserCredentialsStore.cs"));
             Assert.True(_workspace.FileExists("Shop", "src", "Shop.Infrastructure", "Accounts", "EfUserRepository.cs"));
+            Assert.True(_workspace.FileExists("Shop", "src", "Shop.Infrastructure", "Accounts", "EfUserCredentialsStore.cs"));
+            Assert.True(_workspace.FileExists("Shop", "src", "Shop.Infrastructure", "Accounts", "EfRefreshTokenStore.cs"));
 
             var user = _workspace.ReadFile("Shop", "src", "Shop.Domain", "Accounts", "User.cs");
             Assert.Contains("namespace Shop.Domain.Accounts", user);
             Assert.Contains("public class User : AggregateRoot<UserId>", user);
+            Assert.DoesNotContain("PasswordHash", user);
+            Assert.DoesNotContain("hash", user, StringComparison.OrdinalIgnoreCase);
 
             var program = _workspace.ReadFile("Shop", "src", "Shop.Api", "Program.cs");
             Assert.Contains("AddTrussJwtAuth", program);
