@@ -110,3 +110,27 @@ Outbox persistence through EF Core: the model configuration and a store that joi
 
 - `Truss.Messaging`
 - `Microsoft.EntityFrameworkCore.Relational`
+
+---
+
+## Truss.Messaging.Postgres
+
+**Purpose:**
+Durable Postgres transport: table-backed queue with SKIP LOCKED competing consumers, LISTEN/NOTIFY wake-up, retry with backoff and a dead-letter table.
+
+### Dependencies
+
+- `Truss.Messaging`
+- `Npgsql`
+
+---
+
+## Truss.Messaging.Redis
+
+**Purpose:**
+Durable Redis transport: Streams with consumer groups, pending message reclaim and a dead-letter stream.
+
+### Dependencies
+
+- `Truss.Messaging`
+- `StackExchange.Redis`

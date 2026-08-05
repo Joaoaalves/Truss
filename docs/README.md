@@ -37,6 +37,8 @@ Truss is intentionally explicit, modular and dependency-minimal.
 | `Truss.Messaging.Abstractions` | Contracts for integration events, handlers and the publisher. | Application |
 | `Truss.Messaging` | Versioned JSON serialization, outbox runtime, transport seam, in-memory transport. | Infrastructure |
 | `Truss.Messaging.EntityFrameworkCore` | Transactional outbox stored through EF Core. | Infrastructure |
+| `Truss.Messaging.Postgres` | Durable Postgres transport: SKIP LOCKED queue with LISTEN/NOTIFY wake-up. | Infrastructure |
+| `Truss.Messaging.Redis` | Durable Redis transport over Streams with consumer groups. | Infrastructure |
 
 Each layer references only the packages it needs. See [Architecture](architecture.md) for the full picture.
 

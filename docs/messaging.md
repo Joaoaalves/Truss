@@ -86,11 +86,39 @@ Each message is handled in its own dependency injection scope. When a unit of wo
 | Transport | Package | Status |
 |---|---|---|
 | In-memory | built into `Truss.Messaging` | Available |
-| Postgres (LISTEN/NOTIFY) | `Truss.Messaging.Postgres` | Planned |
-| Redis | `Truss.Messaging.Redis` | Planned |
+| Postgres | `Truss.Messaging.Postgres` | Available |
+| Redis | `Truss.Messaging.Redis` | Available |
 | RabbitMQ | `Truss.Messaging.RabbitMq` | Planned |
 
 The in-memory transport is intended for development, tests and modular monoliths: delivery happens in-process, after the commit, with no broker to run.
+
+### Postgres
+
+The Postgres transport turns a table into a durable queue. Publishing inserts the envelope and raises a NOTIFY; consumers use LISTEN as a low-latency wake-up signal, but delivery never depends on the notification: rows are claimed with `FOR UPDATE SKIP LOCKED`, so multiple application instances compete safely and a message published while every consumer was offline is delivered when one comes back. Failed messages retry with exponential backoff and are moved to a dead-letter table with the error preserved. The transport creates its own tables by default.
+
+```csharp
+services.AddTrussPostgresTransport(options =>
+{
+    options.ConnectionString = configuration.GetConnectionString("Messaging")!;
+});
+```
+
+If the application already uses Postgres, this is messaging with zero extra infrastructure.
+
+### Redis
+
+The Redis transport uses Streams with consumer groups. Publishing appends to a stream; each application instance consumes through the group, so delivery survives restarts and messages are balanced between instances. A message left pending by a failed handler is reclaimed after an idle period and retried; once the delivery limit is reached it moves to a dead-letter stream. The main stream is trimmed approximately to a configurable length.
+
+```csharp
+services.AddTrussRedisTransport(options =>
+{
+    options.ConnectionString = "localhost:6379";
+});
+```
+
+### Publisher-only applications
+
+Both transports host a consumer by default. Set `EnableConsumer = false` on services that only publish.
 
 ---
 
