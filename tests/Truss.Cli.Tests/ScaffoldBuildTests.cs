@@ -39,19 +39,19 @@ namespace Truss.Cli.Tests
         private void PackFramework()
         {
             var repoRoot = FindRepoRoot();
-            var result = RunProcess(repoRoot, "dotnet", $"pack Truss.slnx -c Release -o {_feed} --nologo");
+            var result = RunProcess(repoRoot, "dotnet", $"pack Truss.slnx -c Release -o {_feed} --nologo", isolateNuGetCache: false);
 
             Assert.True(result.ExitCode == 0, $"dotnet pack failed:{Environment.NewLine}{result.Output}");
         }
 
         private void AssertBuildSucceeds(string root)
         {
-            var result = RunProcess(root, "dotnet", "build Shop.slnx -c Release --nologo");
+            var result = RunProcess(root, "dotnet", "build Shop.slnx -c Release --nologo", isolateNuGetCache: true);
 
             Assert.True(result.ExitCode == 0, $"Scaffolded project failed to build:{Environment.NewLine}{result.Output}");
         }
 
-        private (int ExitCode, string Output) RunProcess(string workingDirectory, string fileName, string arguments)
+        private (int ExitCode, string Output) RunProcess(string workingDirectory, string fileName, string arguments, bool isolateNuGetCache)
         {
             var startInfo = new ProcessStartInfo(fileName, arguments)
             {
@@ -60,7 +60,9 @@ namespace Truss.Cli.Tests
                 RedirectStandardError = true
             };
 
-            startInfo.Environment["NUGET_PACKAGES"] = _packagesCache;
+            if (isolateNuGetCache)
+                startInfo.Environment["NUGET_PACKAGES"] = _packagesCache;
+
             startInfo.Environment["MSBUILDDISABLENODEREUSE"] = "1";
 
             using var process = Process.Start(startInfo)!;
