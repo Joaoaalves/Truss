@@ -1,0 +1,7 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Truss.Domain\Truss.Domain.csproj" />
+  </ItemGroup>
+
+</Project>
