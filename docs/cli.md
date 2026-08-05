@@ -61,7 +61,7 @@ Installs a module into an existing project: adds the package references to the c
 
 | Module | Options | Notes |
 |---|---|---|
-| `messaging` | `--transport inmemory`, `postgres`, `redis` | With a database, the outbox is installed automatically |
+| `messaging` | `--transport inmemory`, `postgres`, `rabbitmq`, `redis` | With a database, the outbox is installed automatically |
 | `jobs` | | Requires messaging |
 | `observability` | | Logging, tracing and the correlation middleware |
 | `mapping` | | Compile-time DTO mappers, added to the application layer |

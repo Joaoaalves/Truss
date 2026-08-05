@@ -89,8 +89,8 @@ Each message is handled in its own dependency injection scope. When a unit of wo
 |---|---|---|
 | In-memory | built into `Truss.Messaging` | Available |
 | Postgres | `Truss.Messaging.Postgres` | Available |
+| RabbitMQ | `Truss.Messaging.RabbitMq` | Available |
 | Redis | `Truss.Messaging.Redis` | Available |
-| RabbitMQ | `Truss.Messaging.RabbitMq` | Planned |
 
 The in-memory transport is intended for development, tests and modular monoliths: delivery happens in-process, after the commit, with no broker to run.
 
@@ -118,9 +118,22 @@ services.AddTrussRedisTransport(options =>
 });
 ```
 
+### RabbitMQ
+
+The RabbitMQ transport publishes to a durable quorum queue with publisher confirms: a completed publish is on disk at the broker. Retry accounting lives at the broker through the quorum queue delivery limit, so it holds across restarts and competing consumers; a message that exhausts its limit is dead-lettered by the broker itself into a `.dead` queue. A failed handler briefly pauses the consumer before returning the message, throttling hot redelivery loops.
+
+```csharp
+services.AddTrussRabbitMqTransport(options =>
+{
+    options.ConnectionString = "amqp://guest:guest@localhost:5672";
+});
+```
+
+Multiple application instances consuming the same queue compete for messages, which is the natural scale-out path.
+
 ### Publisher-only applications
 
-Both transports host a consumer by default. Set `EnableConsumer = false` on services that only publish.
+Every broker transport hosts a consumer by default. Set `EnableConsumer = false` on services that only publish.
 
 ---
 
@@ -172,9 +185,14 @@ services.Configure<TrussOutboxOptions>(configuration.GetSection("Truss:Outbox"))
 Truss__Outbox__BatchSize=100
 Truss__Outbox__PollingInterval=00:00:05
 Truss__Outbox__MaxAttempts=5
+Truss__Outbox__RetentionPeriod=7.00:00:00
 ```
 
 Transport packages follow the same pattern: each exposes its own options type, configurable in code or from configuration and environment variables.
+
+### Retention
+
+Processed messages are deleted after `RetentionPeriod`, 3 days by default, swept at most once per `CleanupInterval` (1 hour). Set `RetentionPeriod` to null to keep every processed message. Dead-lettered messages are never deleted; they stay for inspection and reprocessing.
 
 ---
 

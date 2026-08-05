@@ -46,6 +46,7 @@ Truss is intentionally explicit, modular and dependency-minimal.
 | `Truss.Messaging` | Versioned JSON serialization, outbox runtime, transport seam, in-memory transport. | Infrastructure |
 | `Truss.Messaging.EntityFrameworkCore` | Transactional outbox stored through EF Core. | Infrastructure |
 | `Truss.Messaging.Postgres` | Durable Postgres transport: SKIP LOCKED queue with LISTEN/NOTIFY wake-up. | Infrastructure |
+| `Truss.Messaging.RabbitMq` | Durable RabbitMQ transport: quorum queues with publisher confirms and broker-side dead-lettering. | Infrastructure |
 | `Truss.Messaging.Redis` | Durable Redis transport over Streams with consumer groups. | Infrastructure |
 | `Truss.Jobs.Abstractions` | Contracts for background jobs, scheduling and monitoring. | Application |
 | `Truss.Jobs` | Job runtime: transactional enqueueing, retry, timeout, scheduled and recurring jobs. | Infrastructure |
@@ -385,6 +386,18 @@ Durable Postgres transport: table-backed queue with SKIP LOCKED competing consum
 
 - `Truss.Messaging`
 - `Npgsql`
+
+---
+
+## Truss.Messaging.RabbitMq
+
+**Purpose:**
+Durable RabbitMQ transport: quorum queues with publisher confirms, broker-side delivery accounting and dead-lettering.
+
+### Dependencies
+
+- `Truss.Messaging`
+- `RabbitMQ.Client`
 
 ---
 
@@ -1289,8 +1302,8 @@ Each message is handled in its own dependency injection scope. When a unit of wo
 |---|---|---|
 | In-memory | built into `Truss.Messaging` | Available |
 | Postgres | `Truss.Messaging.Postgres` | Available |
+| RabbitMQ | `Truss.Messaging.RabbitMq` | Available |
 | Redis | `Truss.Messaging.Redis` | Available |
-| RabbitMQ | `Truss.Messaging.RabbitMq` | Planned |
 
 The in-memory transport is intended for development, tests and modular monoliths: delivery happens in-process, after the commit, with no broker to run.
 
@@ -1318,9 +1331,22 @@ services.AddTrussRedisTransport(options =>
 });
 ```
 
+### RabbitMQ
+
+The RabbitMQ transport publishes to a durable quorum queue with publisher confirms: a completed publish is on disk at the broker. Retry accounting lives at the broker through the quorum queue delivery limit, so it holds across restarts and competing consumers; a message that exhausts its limit is dead-lettered by the broker itself into a `.dead` queue. A failed handler briefly pauses the consumer before returning the message, throttling hot redelivery loops.
+
+```csharp
+services.AddTrussRabbitMqTransport(options =>
+{
+    options.ConnectionString = "amqp://guest:guest@localhost:5672";
+});
+```
+
+Multiple application instances consuming the same queue compete for messages, which is the natural scale-out path.
+
 ### Publisher-only applications
 
-Both transports host a consumer by default. Set `EnableConsumer = false` on services that only publish.
+Every broker transport hosts a consumer by default. Set `EnableConsumer = false` on services that only publish.
 
 ---
 
@@ -1372,9 +1398,14 @@ services.Configure<TrussOutboxOptions>(configuration.GetSection("Truss:Outbox"))
 Truss__Outbox__BatchSize=100
 Truss__Outbox__PollingInterval=00:00:05
 Truss__Outbox__MaxAttempts=5
+Truss__Outbox__RetentionPeriod=7.00:00:00
 ```
 
 Transport packages follow the same pattern: each exposes its own options type, configurable in code or from configuration and environment variables.
+
+### Retention
+
+Processed messages are deleted after `RetentionPeriod`, 3 days by default, swept at most once per `CleanupInterval` (1 hour). Set `RetentionPeriod` to null to keep every processed message. Dead-lettered messages are never deleted; they stay for inspection and reprocessing.
 
 ---
 
@@ -1841,7 +1872,7 @@ Installs a module into an existing project: adds the package references to the c
 
 | Module | Options | Notes |
 |---|---|---|
-| `messaging` | `--transport inmemory`, `postgres`, `redis` | With a database, the outbox is installed automatically |
+| `messaging` | `--transport inmemory`, `postgres`, `rabbitmq`, `redis` | With a database, the outbox is installed automatically |
 | `jobs` | | Requires messaging |
 | `observability` | | Logging, tracing and the correlation middleware |
 | `mapping` | | Compile-time DTO mappers, added to the application layer |
@@ -1998,7 +2029,7 @@ Truss is built module by module, each one opt-in. The framework never installs a
 - ASP.NET Core module: `MapCommand` and `MapQuery` minimal API extensions, validation failures as RFC 7807 `ProblemDetails` with every field error, business rule violations as 422 responses.
 - Source generators: compile-time handler discovery and dispatch priming, missing handlers reported at build time, duplicate handlers fail the build, Native AOT ready.
 - Messaging: integration events with versioned JSON serialization, transactional outbox with retry and dead-letter, consumer dispatch with a unit of work per message, in-memory transport.
-- Durable transports: Postgres (SKIP LOCKED queue with LISTEN/NOTIFY wake-up) and Redis (Streams with consumer groups), both with retry, dead-letter and competing consumers, configured in code or from environment variables.
+- Durable transports: Postgres (SKIP LOCKED queue with LISTEN/NOTIFY wake-up), RabbitMQ (quorum queues with publisher confirms and broker-side dead-lettering) and Redis (Streams with consumer groups), all with retry, dead-letter and competing consumers, configured in code or from environment variables.
 - Background jobs: transactional enqueueing through the outbox, retry and timeout per attempt, live progress with polling and server-sent events endpoints, scheduled and cron-recurring jobs.
 - Observability: structured logging of every request with outcome-aware levels, correlation ids flowing from HTTP to handlers, spans for requests, messages and jobs, request metrics, all through BCL diagnostics with no exporter dependency.
 - The `truss` CLI: interactive scaffolding with database and docker choices, a manifest that lets modules be installed months after the project started, generators for aggregates, commands and queries, and a doctor that verifies the project against the manifest.
@@ -2008,6 +2039,7 @@ Truss is built module by module, each one opt-in. The framework never installs a
 ---
 
 - First release: every package and the CLI published to nuget.org as 0.1.0 through NuGet trusted publishing.
+- RabbitMQ transport and outbox retention: processed messages are cleaned up after a configurable period.
 
 ---
 

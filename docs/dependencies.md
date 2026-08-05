@@ -125,6 +125,18 @@ Durable Postgres transport: table-backed queue with SKIP LOCKED competing consum
 
 ---
 
+## Truss.Messaging.RabbitMq
+
+**Purpose:**
+Durable RabbitMQ transport: quorum queues with publisher confirms, broker-side delivery accounting and dead-lettering.
+
+### Dependencies
+
+- `Truss.Messaging`
+- `RabbitMQ.Client`
+
+---
+
 ## Truss.Messaging.Redis
 
 **Purpose:**

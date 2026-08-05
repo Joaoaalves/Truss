@@ -20,6 +20,7 @@ Full documentation: **https://joaoaalves.github.io/Truss**
 | `Truss.Messaging` | Versioned JSON serialization, outbox runtime, transport seam, in-memory transport. | Infrastructure |
 | `Truss.Messaging.EntityFrameworkCore` | Transactional outbox stored through EF Core. | Infrastructure |
 | `Truss.Messaging.Postgres` | Durable Postgres transport: SKIP LOCKED queue with LISTEN/NOTIFY wake-up. | Infrastructure |
+| `Truss.Messaging.RabbitMq` | Durable RabbitMQ transport: quorum queues with publisher confirms and broker-side dead-lettering. | Infrastructure |
 | `Truss.Messaging.Redis` | Durable Redis transport over Streams with consumer groups. | Infrastructure |
 | `Truss.Jobs.Abstractions` | Contracts for background jobs, scheduling and monitoring. | Application |
 | `Truss.Jobs` | Job runtime: transactional enqueueing, retry, timeout, scheduled and recurring jobs. | Infrastructure |
