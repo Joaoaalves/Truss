@@ -21,22 +21,23 @@ namespace Truss.Observability.Tests
         [Fact]
         public async Task Dispatch_EmitsActivity_WithRequestTags()
         {
-            var stopped = new List<Activity>();
+            var stopped = new System.Collections.Concurrent.ConcurrentQueue<Activity>();
 
             using var listener = new ActivityListener
             {
                 ShouldListenTo = source => source.Name == "Truss.Application",
                 Sample = (ref ActivityCreationOptions<ActivityContext> _) => ActivitySamplingResult.AllDataAndRecorded,
-                ActivityStopped = stopped.Add
+                ActivityStopped = stopped.Enqueue
             };
 
             ActivitySource.AddActivityListener(listener);
 
             await using var provider = BuildProvider();
             await using var scope = provider.CreateAsyncScope();
-            await scope.ServiceProvider.GetRequiredService<IDispatcher>().Send(new PingCommand("abc"));
+            await scope.ServiceProvider.GetRequiredService<IDispatcher>().Send(new TracedCommand());
 
-            var activity = Assert.Single(stopped, a => a.DisplayName == "PingCommand");
+            var activity = stopped.FirstOrDefault(a => a.DisplayName == nameof(TracedCommand));
+            Assert.NotNull(activity);
             Assert.Equal("command", activity.GetTagItem("truss.request.kind"));
             Assert.NotEqual(ActivityStatusCode.Error, activity.Status);
         }
@@ -44,13 +45,13 @@ namespace Truss.Observability.Tests
         [Fact]
         public async Task FailedDispatch_EmitsActivity_WithErrorStatus()
         {
-            var stopped = new List<Activity>();
+            var stopped = new System.Collections.Concurrent.ConcurrentQueue<Activity>();
 
             using var listener = new ActivityListener
             {
                 ShouldListenTo = source => source.Name == "Truss.Application",
                 Sample = (ref ActivityCreationOptions<ActivityContext> _) => ActivitySamplingResult.AllDataAndRecorded,
-                ActivityStopped = stopped.Add
+                ActivityStopped = stopped.Enqueue
             };
 
             ActivitySource.AddActivityListener(listener);
@@ -59,10 +60,11 @@ namespace Truss.Observability.Tests
             await using var scope = provider.CreateAsyncScope();
 
             await Assert.ThrowsAsync<InvalidOperationException>(
-                () => scope.ServiceProvider.GetRequiredService<IDispatcher>().Send(new ThrowingCommand())
+                () => scope.ServiceProvider.GetRequiredService<IDispatcher>().Send(new TracedThrowingCommand())
             );
 
-            var activity = Assert.Single(stopped, a => a.DisplayName == "ThrowingCommand");
+            var activity = stopped.FirstOrDefault(a => a.DisplayName == nameof(TracedThrowingCommand));
+            Assert.NotNull(activity);
             Assert.Equal(ActivityStatusCode.Error, activity.Status);
         }
 

@@ -25,6 +25,26 @@ namespace Truss.Observability.Tests.Fakes
 
     public sealed record ThrowingCommand : ICommand;
 
+    public sealed record TracedCommand : ICommand;
+
+    public class TracedCommandHandler : ICommandHandler<TracedCommand>
+    {
+        public Task<Unit> Handle(TracedCommand request, CancellationToken cancellationToken)
+        {
+            return Task.FromResult(Unit.Value);
+        }
+    }
+
+    public sealed record TracedThrowingCommand : ICommand;
+
+    public class TracedThrowingCommandHandler : ICommandHandler<TracedThrowingCommand>
+    {
+        public Task<Unit> Handle(TracedThrowingCommand request, CancellationToken cancellationToken)
+        {
+            throw new InvalidOperationException("Handler failed.");
+        }
+    }
+
     public class ThrowingCommandHandler : ICommandHandler<ThrowingCommand>
     {
         public Task<Unit> Handle(ThrowingCommand request, CancellationToken cancellationToken)
