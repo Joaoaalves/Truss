@@ -215,7 +215,8 @@ namespace Truss.Cli.Templates
               "Logging": {
                 "LogLevel": {
                   "Default": "Information",
-                  "Microsoft.AspNetCore": "Warning"
+                  "Microsoft.AspNetCore": "Warning",
+                  "Microsoft.EntityFrameworkCore": "Warning"
                 }
               },
               "AllowedHosts": "*"
