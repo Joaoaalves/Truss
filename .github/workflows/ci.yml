@@ -39,6 +39,11 @@ jobs:
         with:
           dotnet-version: 10.0.x
 
+      - name: Check llms-full.txt is current
+        run: |
+          ./tools/build-llms-full.sh
+          git diff --exit-code docs/llms-full.txt
+
       - name: Restore
         run: dotnet restore
 

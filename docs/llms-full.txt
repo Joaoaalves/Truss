@@ -1,0 +1,2026 @@
+# Truss, full documentation
+
+> Generated from the pages listed in docs/_sidebar.md. The index with per-page summaries is at https://joaoaalves.github.io/Truss/llms.txt.
+
+---
+
+Source: https://joaoaalves.github.io/Truss/README.md
+
+# Introduction
+
+**Truss** is a modular .NET framework for building applications with **Domain-Driven Design**, **CQRS** and **Clean Architecture**.
+
+In structural engineering, a truss is a frame of connected members that only carries load as a whole. Truss applies the same idea to software: small, explicit building blocks that compose into a solid structure, so application code can focus on the domain.
+
+The framework carries the infrastructure weight for you:
+
+- Commands validate themselves. Every failure is collected and reported at once.
+- The unit of work commits itself. Handlers never touch transactions.
+- Domain events are dispatched at the right moment: inside the transactional boundary, before persistence.
+- Failures are transparent. Exceptions propagate with their original stack trace.
+
+---
+
+## Design Intent
+
+Truss is intentionally explicit, modular and dependency-minimal.
+
+- **Explicit over implicit.** No hidden conventions and no implicit discovery. Assemblies are registered explicitly and behaviors execute in a documented order.
+- **Minimal dependencies per layer.** The domain layer depends on nothing. The application layer never sees the ORM. Each package is referenced only by the layer that needs it.
+- **No runtime magic.** Dispatch uses a typed invoker cached per request type. There is no `dynamic` and no per-call reflection.
+- **Developer experience first.** The framework removes boilerplate without removing control.
+
+---
+
+## Packages
+
+| Package | Purpose | Layer |
+|---|---|---|
+| `Truss.Domain` | Entities, aggregate roots, value objects, typed ids, business rules, domain events. Zero dependencies. | Domain |
+| `Truss.Application.Abstractions` | Contracts for commands, queries, handlers, pipeline behaviors, dispatching and unit of work. | Application |
+| `Truss.Application` | Dispatcher, validation pipeline, handler registration. | Application / Composition root |
+| `Truss.Persistence.EntityFrameworkCore` | EF Core unit of work with automatic commit and domain event dispatching. | Infrastructure |
+| `Truss.AspNetCore` | Endpoint mapping for commands and queries with automatic ProblemDetails responses. | API / Host |
+| `Truss.Generators` | Compile-time handler discovery and dispatch, missing handlers as build diagnostics. | Build (dev dependency) |
+| `Truss.Messaging.Abstractions` | Contracts for integration events, handlers and the publisher. | Application |
+| `Truss.Messaging` | Versioned JSON serialization, outbox runtime, transport seam, in-memory transport. | Infrastructure |
+| `Truss.Messaging.EntityFrameworkCore` | Transactional outbox stored through EF Core. | Infrastructure |
+| `Truss.Messaging.Postgres` | Durable Postgres transport: SKIP LOCKED queue with LISTEN/NOTIFY wake-up. | Infrastructure |
+| `Truss.Messaging.Redis` | Durable Redis transport over Streams with consumer groups. | Infrastructure |
+| `Truss.Jobs.Abstractions` | Contracts for background jobs, scheduling and monitoring. | Application |
+| `Truss.Jobs` | Job runtime: transactional enqueueing, retry, timeout, scheduled and recurring jobs. | Infrastructure |
+| `Truss.Jobs.EntityFrameworkCore` | Job records persisted in the application database. | Infrastructure |
+| `Truss.Jobs.AspNetCore` | Progress endpoints: polling and server-sent events. | API / Host |
+| `Truss.Observability` | Structured request logging, spans, metrics and ambient correlation. | Cross-cutting |
+| `Truss.Observability.AspNetCore` | Correlation middleware bridging HTTP headers. | API / Host |
+| `Truss.Cli` | The `truss` command line: scaffolding, module installation, code generation. | Tooling (dotnet tool) |
+| `Truss.Mapping` | Compile-time DTO mappers with typed id unwrapping and unmapped members as build errors. | Build (dev dependency) |
+| `Truss.Auth.Abstractions` | Contracts for password hashing and token issuing. | Application |
+| `Truss.Auth.Jwt` | PBKDF2 hashing, JWT issuing and JwtBearer wiring; the user model is scaffolded into your domain. | API / Host |
+
+Each layer references only the packages it needs. See [Architecture](architecture.md) for the full picture.
+
+---
+
+## For AI Assistants
+
+This documentation is AI-friendly: [llms.txt](https://joaoaalves.github.io/Truss/llms.txt) is a curated index describing when to consult each page, [llms-full.txt](https://joaoaalves.github.io/Truss/llms-full.txt) is the whole documentation in a single file, and every page is fetchable as plain Markdown at its .md URL.
+
+---
+
+## Status
+
+Truss 0.1.x is published on [nuget.org](https://www.nuget.org/packages?q=Truss.): the domain building blocks, the pipeline, persistence, messaging with outbox and durable transports, background jobs with live progress, observability, authentication, the source generators and the CLI. APIs may still change until v1. See the [Roadmap](roadmap.md) for what comes next.
+
+---
+
+Source: https://joaoaalves.github.io/Truss/quickstart.md
+
+# Quickstart
+
+The fastest start is the [truss CLI](cli.md): one command scaffolds a complete Clean Architecture solution with a working sample.
+
+```
+dotnet tool install -g Truss.Cli
+truss new MyShop --database postgres --docker
+```
+
+The rest of this page describes the manual configuration, which is also what the scaffolded code contains. All packages are on [nuget.org](https://www.nuget.org/packages?q=Truss.).
+
+---
+
+## Package Selection by Layer
+
+A typical Clean Architecture setup:
+
+| Layer | References |
+|---|---|
+| Domain | `Truss.Domain` |
+| Application | `Truss.Application.Abstractions` |
+| Infrastructure | `Truss.Persistence.EntityFrameworkCore` |
+| API / Composition root | `Truss.Application`, `Truss.AspNetCore` and infrastructure modules |
+
+---
+
+## Composition Root
+
+Registration extensions live in the `Microsoft.Extensions.DependencyInjection` namespace, so no extra usings are required:
+
+```csharp
+var builder = WebApplication.CreateBuilder(args);
+
+builder.Services.AddDbContext<AppDbContext>(options =>
+    options.UseNpgsql(connectionString));
+
+builder.Services.AddTruss(options =>
+{
+    options.AddAssembly<CreateUser>();
+});
+
+builder.Services.AddTrussEntityFramework<AppDbContext>();
+```
+
+`AddTruss` requires at least one assembly. It scans the registered assemblies for command, query and domain event handlers, and for FluentValidation validators. There is no fallback to all loaded assemblies. Discovery is always explicit.
+
+---
+
+## Your First Command
+
+A command, its validator and its handler:
+
+```csharp
+public sealed record CreateUser(string Name, string Email) : ICommand<Guid>;
+
+public class CreateUserValidator : AbstractValidator<CreateUser>
+{
+    public CreateUserValidator()
+    {
+        RuleFor(c => c.Name).NotEmpty();
+        RuleFor(c => c.Email).NotEmpty().EmailAddress();
+    }
+}
+
+public class CreateUserHandler(AppDbContext context) : ICommandHandler<CreateUser, Guid>
+{
+    public Task<Guid> Handle(CreateUser command, CancellationToken cancellationToken)
+    {
+        var user = User.Create(command.Name, command.Email);
+        context.Users.Add(user);
+        return Task.FromResult(user.Id.Value);
+    }
+}
+```
+
+Note what the handler does not do: it does not validate the command, does not call `SaveChangesAsync` and does not dispatch events. The pipeline does all of that.
+
+---
+
+## Exposing the Command as an Endpoint
+
+With `Truss.AspNetCore`, one line turns the command into a route. The request body binds to the command and validation errors come back as ProblemDetails:
+
+```csharp
+app.MapCommand<CreateUser, Guid>("/users");
+```
+
+Prefer manual control? Inject `IDispatcher` anywhere and send the command yourself:
+
+```csharp
+app.MapPost("/users", (CreateUser command, IDispatcher dispatcher, CancellationToken ct)
+    => dispatcher.Send(command, ct));
+```
+
+The execution flow for this request:
+
+1. Validation runs. If it fails, a `RequestValidationException` carrying every failure is thrown and the handler never executes.
+2. The handler runs.
+3. Domain events raised by aggregates are dispatched.
+4. All changes are persisted in a single atomic save.
+5. The result is returned.
+
+---
+
+## Next Steps
+
+- [Building Blocks](domain.md) covers modeling your domain.
+- [Commands & Queries](commands-and-queries.md) covers the messaging model.
+- [ASP.NET Core](aspnetcore.md) covers endpoint mapping and error responses.
+- [Unit of Work](unit-of-work.md) covers the transactional boundary in depth.
+
+---
+
+Source: https://joaoaalves.github.io/Truss/architecture.md
+
+# Architecture
+
+Truss assumes a Clean Architecture layout, but does not enforce one. Each package is designed for a specific layer, and the dependency direction always points inward.
+
+---
+
+## Layers and Packages
+
+| Layer | Responsibility | Truss packages |
+|---|---|---|
+| Domain | Entities, value objects, domain events, business rules | `Truss.Domain` |
+| Application | Commands, queries, handlers, validators | `Truss.Application.Abstractions` |
+| Infrastructure | Persistence, unit of work implementation | `Truss.Persistence.EntityFrameworkCore` |
+| API / Host | Registration, composition, endpoint mapping | `Truss.Application`, `Truss.AspNetCore` and modules |
+
+The domain layer depends on nothing but `Truss.Domain`, which itself has zero dependencies. The application layer sees only abstractions: never EF Core, never a database driver.
+
+---
+
+## Namespaces
+
+Truss uses flat namespaces so each layer needs a single using:
+
+- `using Truss.Domain;` gives every domain building block.
+- `using Truss.Application;` gives every application contract. The Abstractions package publishes into this namespace, following the .NET convention for `.Abstractions` packages.
+
+Registration extensions (`AddTruss`, `AddTrussEntityFramework`) live in `Microsoft.Extensions.DependencyInjection`, so composition roots need no Truss usings at all.
+
+---
+
+## Execution Model
+
+Every request, command or query, flows through the same pipeline. Behaviors wrap the handler in registration order, with the first registered behavior as the outermost:
+
+```
+IDispatcher.Send(request)
+    ValidationBehavior        every request that has validators
+        UnitOfWorkBehavior    commands only
+            IRequestHandler
+```
+
+- The dispatcher resolves the handler and behaviors from the current dependency injection scope. In a web application, that is the request scope.
+- The `CancellationToken` flows from the caller through every behavior into the handler.
+- Dispatch uses a typed invoker cached per request type: reflection happens once per type, never per call.
+- With the [Truss.Generators](generators.md) package installed, discovery and invokers are produced at compile time and no reflection runs at all.
+
+---
+
+## Commands vs Queries
+
+| Concern | Commands | Queries |
+|---|---|---|
+| State changes | Yes | Never |
+| Unit of work | Automatic commit | Not created |
+| Domain events | Dispatched on commit | None |
+| Validation | Yes | Yes, when validators exist |
+| Handlers per message | Exactly one | Exactly one |
+
+---
+
+## Domain Events
+
+Domain events are raised inside aggregates and dispatched by the unit of work inside the transactional boundary, before persistence. Handlers may modify other aggregates, and every change is committed atomically in a single save.
+
+Side effects that must only happen after a successful commit, such as publishing to a message broker or sending e-mail, belong to [integration events](messaging.md): stored transactionally through the outbox and delivered by a background processor after the commit.
+
+---
+
+Source: https://joaoaalves.github.io/Truss/dependencies.md
+
+# Dependencies
+
+This section lists the **direct dependencies added to a project** when referencing each Truss package.
+
+---
+
+## Truss.Domain
+
+**Purpose:**
+Domain building blocks: entities, aggregate roots, value objects, typed identifiers, business rules and domain events.
+
+### Dependencies
+
+None. `Truss.Domain` relies exclusively on the .NET runtime, making it safe to reference from any domain layer or shared kernel.
+
+---
+
+## Truss.Application.Abstractions
+
+**Purpose:**
+Contracts for commands, queries, handlers, pipeline behaviors, dispatching, validation errors and unit of work.
+
+### Dependencies
+
+- `Truss.Domain`
+
+---
+
+## Truss.Application
+
+**Purpose:**
+The execution pipeline: dispatcher, domain event dispatcher, validation behavior, unit of work behavior and handler registration.
+
+### Dependencies
+
+- `Truss.Application.Abstractions`
+- `FluentValidation`
+- `Microsoft.Extensions.DependencyInjection.Abstractions`
+
+---
+
+## Truss.Persistence.EntityFrameworkCore
+
+**Purpose:**
+EF Core implementation of the unit of work, with domain event collection from tracked entities.
+
+### Dependencies
+
+- `Truss.Application`
+- `Microsoft.EntityFrameworkCore`
+
+---
+
+## Truss.AspNetCore
+
+**Purpose:**
+Endpoint mapping for commands and queries, with automatic ProblemDetails responses for validation and business rule failures.
+
+### Dependencies
+
+- `Truss.Application.Abstractions`
+- ASP.NET Core shared framework (framework reference, not a package)
+
+---
+
+## Truss.Generators
+
+**Purpose:**
+Compile-time handler discovery, dispatch priming and build diagnostics. Development dependency: nothing is added to the published application.
+
+### Dependencies
+
+None at runtime. Referenced with `PrivateAssets="all"` in the composition root project.
+
+---
+
+## Truss.Messaging.Abstractions
+
+**Purpose:**
+Contracts for integration events: the event marker and base record, the handler, the publisher and the naming attribute with versioning.
+
+### Dependencies
+
+None.
+
+---
+
+## Truss.Messaging
+
+**Purpose:**
+Integration event runtime: versioned JSON serialization, outbox model and processor, transport abstraction, consumer dispatch and the in-memory transport.
+
+### Dependencies
+
+- `Truss.Messaging.Abstractions`
+- `Truss.Application.Abstractions`
+- `Microsoft.Extensions.DependencyInjection.Abstractions`
+- `Microsoft.Extensions.Hosting.Abstractions`
+- `Microsoft.Extensions.Logging.Abstractions`
+- `Microsoft.Extensions.Options`
+
+---
+
+## Truss.Messaging.EntityFrameworkCore
+
+**Purpose:**
+Outbox persistence through EF Core: the model configuration and a store that joins the command's unit of work.
+
+### Dependencies
+
+- `Truss.Messaging`
+- `Microsoft.EntityFrameworkCore.Relational`
+
+---
+
+## Truss.Messaging.Postgres
+
+**Purpose:**
+Durable Postgres transport: table-backed queue with SKIP LOCKED competing consumers, LISTEN/NOTIFY wake-up, retry with backoff and a dead-letter table.
+
+### Dependencies
+
+- `Truss.Messaging`
+- `Npgsql`
+
+---
+
+## Truss.Messaging.Redis
+
+**Purpose:**
+Durable Redis transport: Streams with consumer groups, pending message reclaim and a dead-letter stream.
+
+### Dependencies
+
+- `Truss.Messaging`
+- `StackExchange.Redis`
+
+---
+
+## Truss.Jobs.Abstractions
+
+**Purpose:**
+Contracts for background jobs: the job interface, the execution context, the scheduler, the monitor and the naming attribute.
+
+### Dependencies
+
+None.
+
+---
+
+## Truss.Jobs
+
+**Purpose:**
+Job runtime: transactional enqueueing through the outbox, the executor with retry and timeout, scheduled and recurring jobs, and the in-memory store.
+
+### Dependencies
+
+- `Truss.Jobs.Abstractions`
+- `Truss.Messaging`
+- `Cronos`
+
+---
+
+## Truss.Jobs.EntityFrameworkCore
+
+**Purpose:**
+Job records persisted through EF Core, scheduled atomically with the command that enqueued them.
+
+### Dependencies
+
+- `Truss.Jobs`
+- `Microsoft.EntityFrameworkCore.Relational`
+
+---
+
+## Truss.Jobs.AspNetCore
+
+**Purpose:**
+Progress endpoints: snapshot polling and server-sent events streaming.
+
+### Dependencies
+
+- `Truss.Jobs.Abstractions`
+- ASP.NET Core shared framework (framework reference, not a package)
+
+---
+
+## Truss.Observability
+
+**Purpose:**
+Structured request logging, spans and metrics through BCL diagnostics, and the ambient execution context.
+
+### Dependencies
+
+- `Truss.Application.Abstractions`
+- `Microsoft.Extensions.DependencyInjection.Abstractions`
+- `Microsoft.Extensions.Logging.Abstractions`
+
+---
+
+## Truss.Observability.AspNetCore
+
+**Purpose:**
+Correlation middleware: reads or creates the correlation id per request and echoes it back.
+
+### Dependencies
+
+- `Truss.Observability`
+- ASP.NET Core shared framework (framework reference, not a package)
+
+---
+
+## Truss.Cli
+
+**Purpose:**
+The `truss` command line tool: project scaffolding, manifest-driven module installation, code generation and project verification.
+
+### Dependencies
+
+- `Spectre.Console`
+- `Spectre.Console.Cli`
+
+Installed as a dotnet global tool; never referenced by application code.
+
+---
+
+## Truss.Mapping
+
+**Purpose:**
+Compile-time DTO mapping: mapper implementations generated from partial method declarations. Development dependency: nothing is added to the published application.
+
+### Dependencies
+
+None at runtime. Referenced with `PrivateAssets="all"`, usually in the application layer.
+
+---
+
+## Truss.Auth.Abstractions
+
+**Purpose:**
+Contracts for authentication mechanics: password hashing and token issuing, referenced by the application layer.
+
+### Dependencies
+
+None.
+
+---
+
+## Truss.Auth.Jwt
+
+**Purpose:**
+JWT authentication mechanics: PBKDF2 password hashing, access and refresh token issuing, JwtBearer wiring.
+
+### Dependencies
+
+- `Truss.Auth.Abstractions`
+- `Microsoft.AspNetCore.Authentication.JwtBearer`
+- ASP.NET Core shared framework (framework reference, not a package)
+
+---
+
+Source: https://joaoaalves.github.io/Truss/domain.md
+
+# Building Blocks
+
+Everything in `Truss.Domain` lives in a single namespace. One using gives you the whole domain kernel:
+
+```csharp
+using Truss.Domain;
+```
+
+---
+
+## Entities
+
+Entities are objects with identity. Two entities are equal when they have the same type and the same identifier, never by their attributes.
+
+```csharp
+public class Product : Entity<ProductId>
+{
+    private Product() { }                    // ORM materialization only
+
+    public Product(ProductId id, string name) : base(id)
+    {
+        Name = name;
+    }
+
+    public string Name { get; private set; }
+}
+```
+
+Equality rules:
+
+- Same type and same id: equal.
+- Different types: never equal, even with the same id.
+- Transient entities (no id assigned yet): never equal to anything but themselves.
+
+---
+
+## Aggregate Roots
+
+An aggregate root is the entry point to a cluster of domain objects and its consistency boundary. Only aggregate roots are loaded and persisted directly.
+
+```csharp
+public class Order : AggregateRoot<OrderId>
+{
+    public void Place()
+    {
+        CheckRule(new OrderMustHaveItemsRule(_items));
+
+        Status = OrderStatus.Placed;
+        AddDomainEvent(new OrderPlaced(Id));
+    }
+}
+```
+
+`AggregateRoot<TId>` extends `Entity<TId>` and implements the `IAggregateRoot` marker.
+
+---
+
+## Value Objects
+
+Value objects are immutable and compared by their equality components. The components are declared explicitly, with no reflection involved:
+
+```csharp
+public class Money(decimal amount, string currency) : ValueObject
+{
+    public decimal Amount { get; } = amount;
+    public string Currency { get; } = currency;
+
+    protected override IEnumerable<object?> GetEqualityComponents()
+    {
+        yield return Amount;
+        yield return Currency;
+    }
+}
+```
+
+Two value objects are equal when their components are equal, in the same order.
+
+---
+
+## Typed Identifiers
+
+`TypedId<TValue>` gives every aggregate its own identifier type, so a `UserId` can never be passed where an `OrderId` is expected:
+
+```csharp
+public sealed record OrderId(Guid Value) : TypedId<Guid>(Value);
+public sealed record SkuCode(string Value) : TypedId<string>(Value);
+```
+
+Typed ids are records: value equality and deconstruction come for free, and `ToString()` returns the underlying value.
+
+---
+
+## Business Rules
+
+Business rules encapsulate domain invariants as first-class objects:
+
+```csharp
+public class OrderMustHaveItemsRule(IReadOnlyCollection<OrderItem> items) : IBusinessRule
+{
+    public bool IsBroken() => items.Count == 0;
+
+    public string Message => "An order must contain at least one item.";
+}
+```
+
+Enforce them with `CheckRule` inside entities and value objects:
+
+```csharp
+CheckRule(new OrderMustHaveItemsRule(_items));
+```
+
+When a rule is broken, a `BusinessRuleValidationException` is thrown carrying the rule instance and its message.
+
+> Business rules protect domain invariants. Input validation belongs to the [validation pipeline](pipeline.md). By the time a command reaches the domain, its shape is already valid.
+
+---
+
+## Domain Events
+
+Domain events represent something meaningful that has happened in the domain. Raise them inside aggregates:
+
+```csharp
+public sealed record OrderPlaced(OrderId OrderId) : DomainEvent;
+```
+
+```csharp
+AddDomainEvent(new OrderPlaced(Id));
+```
+
+The `DomainEvent` base record captures `OccurredOn` at creation time. Events accumulate on the entity and are collected and dispatched by the [unit of work](unit-of-work.md). The domain layer never dispatches anything itself.
+
+---
+
+Source: https://joaoaalves.github.io/Truss/commands-and-queries.md
+
+# Commands & Queries
+
+Truss distinguishes explicitly between:
+
+- **Commands**: state-changing operations, executed inside a unit of work.
+- **Queries**: read-only operations, with no transactional participation.
+- **Domain event handlers**: reactions to something that happened in the domain.
+
+All contracts live in the `Truss.Application` namespace.
+
+---
+
+## Commands
+
+A command is a record implementing `ICommand<TResult>`, or `ICommand` when there is nothing to return:
+
+```csharp
+public sealed record CreateUser(string Name, string Email) : ICommand<Guid>;
+
+public sealed record DeactivateUser(Guid UserId) : ICommand;
+```
+
+Each command has exactly one handler:
+
+```csharp
+public class CreateUserHandler(AppDbContext context) : ICommandHandler<CreateUser, Guid>
+{
+    public Task<Guid> Handle(CreateUser command, CancellationToken cancellationToken)
+    {
+        var user = User.Create(command.Name, command.Email);
+        context.Users.Add(user);
+        return Task.FromResult(user.Id.Value);
+    }
+}
+```
+
+Command handlers:
+
+- Never call `SaveChangesAsync`. The unit of work commits automatically.
+- Never dispatch domain events. The unit of work does.
+- Should return ids or DTOs, never entities.
+
+Commands with no result return `Unit`:
+
+```csharp
+public class DeactivateUserHandler(AppDbContext context) : ICommandHandler<DeactivateUser>
+{
+    public async Task<Unit> Handle(DeactivateUser command, CancellationToken cancellationToken)
+    {
+        var user = await context.Users.FindAsync([command.UserId], cancellationToken);
+        user!.Deactivate();
+        return Unit.Value;
+    }
+}
+```
+
+---
+
+## Queries
+
+A query implements `IQuery<TResult>` and never changes state:
+
+```csharp
+public sealed record GetUserById(Guid UserId) : IQuery<UserDto?>;
+
+public class GetUserByIdHandler(AppDbContext context) : IQueryHandler<GetUserById, UserDto?>
+{
+    public Task<UserDto?> Handle(GetUserById query, CancellationToken cancellationToken)
+    {
+        return context.Users
+            .Where(u => u.Id == new UserId(query.UserId))
+            .Select(u => new UserDto(u.Id.Value, u.Name))
+            .FirstOrDefaultAsync(cancellationToken);
+    }
+}
+```
+
+Queries do not create a unit of work and never trigger a commit. Reading is free of transactional overhead.
+
+---
+
+## Dispatching
+
+`IDispatcher` is the single entry point for commands and queries:
+
+```csharp
+public class UsersController(IDispatcher dispatcher)
+{
+    public Task<Guid> Create(CreateUser command, CancellationToken ct)
+        => dispatcher.Send(command, ct);
+}
+```
+
+Dispatch characteristics:
+
+- Handlers and behaviors are resolved from the current scope, so they share the same `DbContext` your request already uses.
+- The `CancellationToken` is propagated end to end.
+- A missing handler fails immediately with a clear exception.
+- Reflection happens once per request type. Subsequent dispatches are strongly-typed calls on a cached invoker.
+
+---
+
+## Domain Event Handlers
+
+React to domain events by implementing `IDomainEventHandler<TEvent>`:
+
+```csharp
+public class OrderPlacedHandler(AppDbContext context) : IDomainEventHandler<OrderPlaced>
+{
+    public async Task Handle(OrderPlaced domainEvent, CancellationToken cancellationToken)
+    {
+        var summary = await context.DailySummaries.SingleAsync(cancellationToken);
+        summary.RegisterOrder(domainEvent.OrderId);
+    }
+}
+```
+
+Handlers run inside the unit of work, before persistence. Any state they modify is committed atomically with the command. Zero or more handlers may exist per event. See [Unit of Work](unit-of-work.md) for the full dispatch semantics.
+
+---
+
+## Registration
+
+All handlers are discovered from the assemblies registered in `AddTruss`:
+
+```csharp
+services.AddTruss(options =>
+{
+    options.AddAssembly<CreateUser>();
+});
+```
+
+Using a marker type ensures the correct assembly is scanned. Registration is explicit. Assemblies are never discovered implicitly.
+
+---
+
+Source: https://joaoaalves.github.io/Truss/pipeline.md
+
+# Pipeline Behaviors
+
+Every request dispatched through Truss flows through a pipeline of behaviors that wrap the handler, middleware-style.
+
+---
+
+## The Contract
+
+```csharp
+public interface IPipelineBehavior<in TRequest, TResponse> where TRequest : IRequest<TResponse>
+{
+    Task<TResponse> Handle(
+        TRequest request,
+        RequestHandlerDelegate<TResponse> next,
+        CancellationToken cancellationToken);
+}
+```
+
+A behavior can run logic before and after `next()`, short-circuit the pipeline by not calling it, or transform failures. There is exactly one pipeline system. Commands and queries share it.
+
+---
+
+## Ordering
+
+Behaviors execute in registration order: the first registered behavior is the outermost.
+
+```
+ValidationBehavior            registered by AddTruss
+    UnitOfWorkBehavior        registered by AddTrussEntityFramework
+        handler
+```
+
+This order is intentional: validation failures must prevent the unit of work from ever being touched.
+
+---
+
+## Validation
+
+`ValidationBehavior` runs every FluentValidation validator registered for the request type. Validators are discovered automatically from the assemblies given to `AddTruss`.
+
+```csharp
+public class CreateUserValidator : AbstractValidator<CreateUser>
+{
+    public CreateUserValidator()
+    {
+        RuleFor(c => c.Name).NotEmpty();
+        RuleFor(c => c.Email).NotEmpty().EmailAddress();
+    }
+}
+```
+
+When validation fails:
+
+- The handler is not executed.
+- The unit of work is not created.
+- A `RequestValidationException` is thrown containing every failure, not just the first one.
+
+```csharp
+public class RequestValidationException : Exception
+{
+    public IReadOnlyList<ValidationError> Errors { get; }
+}
+```
+
+Each `ValidationError` carries the property name and the message, ready to be mapped to an API error response.
+
+> The upcoming ASP.NET Core module will map `RequestValidationException` to an RFC 7807 `ProblemDetails` response automatically. See the [Roadmap](roadmap.md).
+
+---
+
+## Unit of Work Behavior
+
+`UnitOfWorkBehavior` applies to commands only. Its type constraint (`where TRequest : ICommand<TResponse>`) makes the container skip it for queries entirely.
+
+On success, it commits the unit of work. On failure, nothing is committed and the exception propagates unchanged. Details in [Unit of Work](unit-of-work.md).
+
+---
+
+## Custom Behaviors
+
+Register your own behaviors for cross-cutting concerns such as logging, caching or metrics:
+
+```csharp
+public class LoggingBehavior<TRequest, TResponse>(ILogger<LoggingBehavior<TRequest, TResponse>> logger)
+    : IPipelineBehavior<TRequest, TResponse>
+    where TRequest : IRequest<TResponse>
+{
+    public async Task<TResponse> Handle(
+        TRequest request,
+        RequestHandlerDelegate<TResponse> next,
+        CancellationToken cancellationToken)
+    {
+        logger.LogInformation("Handling {Request}", typeof(TRequest).Name);
+        var response = await next();
+        logger.LogInformation("Handled {Request}", typeof(TRequest).Name);
+        return response;
+    }
+}
+```
+
+```csharp
+services.AddScoped(typeof(IPipelineBehavior<,>), typeof(LoggingBehavior<,>));
+```
+
+Open generic registrations with type constraints are supported. The container skips a behavior whenever the request type does not satisfy its constraints, which is exactly how `UnitOfWorkBehavior` targets commands only.
+
+---
+
+Source: https://joaoaalves.github.io/Truss/mapping.md
+
+# DTO Mapping
+
+`Truss.Mapping` implements your mappers at compile time. You declare the signature; the generator writes the body. There is no runtime library, no reflection and no configuration API: what cannot be mapped fails the build.
+
+```xml
+<PackageReference Include="Truss.Mapping" Version="x.y.z" PrivateAssets="all" />
+```
+
+Or, in a Truss project: `truss add mapping`.
+
+---
+
+## Declaring Mappers
+
+A mapper is a static partial class with partial methods from source to target:
+
+```csharp
+[Mapper]
+public static partial class CatalogMappings
+{
+    public static partial ProductDto ToDto(Product product);
+
+    public static partial OrderLineDto ToDto(OrderLine line);
+}
+```
+
+The generator implements each method:
+
+- Members map by name, case-insensitive.
+- The target's richest satisfiable constructor is used, which makes positional records the natural DTO shape; remaining settable properties are covered by an object initializer.
+- A typed id unwraps automatically: a `ProductId` source member maps to a `Guid` target member through its `Value`. This is the mapper understanding the Truss domain idiom.
+- Nested types map through the other methods of the same class: `Product.Lines` of `List<OrderLine>` maps to `List<OrderLineDto>` by calling `ToDto` per element.
+- Collections translate between arrays, `List<T>` and the common read-only interfaces.
+
+```csharp
+public sealed record ProductDto(Guid Id, string Name, decimal Price, IReadOnlyList<OrderLineDto> Lines);
+
+var dto = CatalogMappings.ToDto(product);
+```
+
+---
+
+## Computed Members
+
+When the target needs something the source does not expose as a property, write a regular static method named after the member:
+
+```csharp
+public sealed record ProductSummaryDto(Guid Id, string Name)
+{
+    public int LineCount { get; init; }
+}
+
+[Mapper]
+public static partial class CatalogMappings
+{
+    public static partial ProductSummaryDto ToSummary(Product product);
+
+    public static int LineCount(Product product) => product.Lines.Count;
+}
+```
+
+The generator finds `LineCount` by name and uses it. The same principle replaces any generated mapping: implement the method yourself instead of declaring it partial, and every nested mapping that needs that type pair uses your version.
+
+---
+
+## Build Diagnostics
+
+| Id | Severity | Meaning |
+|---|---|---|
+| TRUSSMAP001 | Error | A target member has no matching source member or supported conversion |
+| TRUSSMAP002 | Error | The mapper class or a mapping method is declared incorrectly |
+
+Failing the build is the point: a DTO gains a field, and every mapper that does not account for it stops compiling, instead of shipping a default value to production.
+
+---
+
+## Scope
+
+Truss.Mapping deliberately covers the framework's idiom: aggregates and value objects projected into DTO records. It does not do flattening of nested paths, enum renaming or bidirectional configuration. If you need a fully featured mapper, [Mapperly](https://github.com/riok/mapperly) is excellent, Apache-2.0 licensed and also compile-time; both can coexist in the same solution.
+
+---
+
+Source: https://joaoaalves.github.io/Truss/aspnetcore.md
+
+# ASP.NET Core
+
+`Truss.AspNetCore` turns commands and queries into minimal API endpoints. The command is the request body, validation runs before the handler, and failures come back as standard ProblemDetails responses. No controller, no manual binding, no try/catch.
+
+Routes are always explicit. Truss never infers a route from a type name.
+
+---
+
+## Mapping Commands
+
+Commands map to POST endpoints. The request body binds to the command record:
+
+```csharp
+app.MapCommand<CreateUser, Guid>("/users");
+```
+
+| Overload | Success response |
+|---|---|
+| `MapCommand<TCommand>(pattern)` | 204 No Content |
+| `MapCommand<TCommand, TResult>(pattern)` | 200 OK with the result |
+| `MapCommand<TCommand, TResult>(pattern, location)` | 201 Created with the result and a Location header |
+
+The 201 overload receives a function that builds the Location header from the result:
+
+```csharp
+app.MapCommand<CreateUser, Guid>("/users", id => $"/users/{id}");
+```
+
+---
+
+## Mapping Queries
+
+Queries map to GET endpoints. Route values and the query string bind to the query record:
+
+```csharp
+public sealed record GetUserById(Guid Id) : IQuery<UserDto?>;
+
+app.MapQuery<GetUserById, UserDto?>("/users/{id}");
+```
+
+A request to `/users/7d9f...` binds `Id` from the route. Parameters not present in the route bind from the query string:
+
+```csharp
+public sealed record SearchUsers(string Term, int Page) : IQuery<List<UserDto>>;
+
+app.MapQuery<SearchUsers, List<UserDto>>("/users");
+// GET /users?term=joao&page=2
+```
+
+---
+
+## Error Responses
+
+Both mappings attach a filter that converts Truss exceptions into RFC 7807 responses.
+
+### Validation failures
+
+`RequestValidationException` becomes a 400 with one entry per property, carrying every message:
+
+```json
+{
+  "title": "One or more validation errors occurred.",
+  "status": 400,
+  "errors": {
+    "Name": ["'Name' must not be empty."],
+    "Email": ["'Email' is not a valid email address."]
+  }
+}
+```
+
+### Business rule violations
+
+`BusinessRuleValidationException` becomes a 422 carrying the rule that was broken:
+
+```json
+{
+  "title": "A business rule was violated.",
+  "status": 422,
+  "detail": "An order must contain at least one item.",
+  "rule": "OrderMustHaveItemsRule"
+}
+```
+
+Any other exception propagates unchanged and is handled by your regular exception middleware.
+
+---
+
+## Composing with the Endpoint Pipeline
+
+Every mapping returns a `RouteHandlerBuilder`, so the regular minimal API surface keeps working:
+
+```csharp
+app.MapCommand<DeactivateUser>("/users/deactivate")
+    .RequireAuthorization("admin")
+    .WithTags("Users");
+```
+
+The mappings also register OpenAPI metadata (success status, 400 and 422) so generated API documentation is accurate out of the box.
+
+---
+
+## Registration
+
+There is nothing to register. Reference `Truss.AspNetCore` from the host project and map endpoints. The package depends only on `Truss.Application.Abstractions`; the runtime comes from your existing `AddTruss` call.
+
+---
+
+Source: https://joaoaalves.github.io/Truss/unit-of-work.md
+
+# Unit of Work
+
+Truss treats the unit of work as an execution concern, not an ORM abstraction. Its responsibility is to coordinate domain event dispatching and persistence in a deterministic way, and to keep both out of application code.
+
+---
+
+## The Contract
+
+```csharp
+public interface IUnitOfWork
+{
+    Task<int> CommitAsync(CancellationToken cancellationToken = default);
+}
+```
+
+The abstraction is intentionally minimal: no transaction APIs, no ORM concepts, no lifecycle management. Application code never calls it. The pipeline does.
+
+---
+
+## Automatic Commit
+
+`UnitOfWorkBehavior` wraps every command:
+
+- When the handler succeeds, `CommitAsync` runs: domain events are dispatched, then all changes are persisted in a single save.
+- When the handler throws, nothing is committed. The scoped context is discarded with the request and the exception propagates unchanged.
+
+Queries never create or touch a unit of work.
+
+---
+
+## Domain Event Dispatching
+
+The EF Core implementation collects domain events from every tracked entity and dispatches them before saving, in rounds:
+
+1. Collect pending events from tracked entities and clear them.
+2. Dispatch each event to its handlers.
+3. Handlers may modify aggregates and raise new events. Collect and dispatch again.
+4. When a round produces no new events, persist everything with a single `SaveChangesAsync`.
+
+This gives domain event handlers a strong guarantee: whatever they change is committed atomically with the command. There is no window where the command persisted but its side effects inside the domain did not.
+
+```csharp
+public class OrderPlacedHandler(AppDbContext context) : IDomainEventHandler<OrderPlaced>
+{
+    public async Task Handle(OrderPlaced domainEvent, CancellationToken cancellationToken)
+    {
+        var stock = await context.Stock.SingleAsync(s => s.OrderId == domainEvent.OrderId, cancellationToken);
+        stock.Reserve();   // persisted in the same save as the order
+    }
+}
+```
+
+---
+
+## Failure Scenarios
+
+| Scenario | Outcome |
+|---|---|
+| Validation fails | Handler never runs, unit of work never created |
+| Handler throws | No commit, no events dispatched, exception propagates |
+| Domain event handler throws | No commit, the whole command fails atomically |
+| `SaveChangesAsync` throws | Events were dispatched in-memory, but nothing was persisted; exception propagates |
+
+Because domain event handlers run inside the transactional boundary, a failing handler fails the command, by design. Side effects that must not roll back with the command (e-mails, broker messages) belong to [integration events](messaging.md), published through the outbox so they are stored atomically with the command and delivered after the commit.
+
+---
+
+## EF Core Registration
+
+```csharp
+services.AddDbContext<AppDbContext>(options => options.UseNpgsql(connectionString));
+services.AddTrussEntityFramework<AppDbContext>();
+```
+
+`AddTrussEntityFramework<TDbContext>` registers:
+
+- `IUnitOfWork` backed by `EfUnitOfWork<TDbContext>`
+- The `UnitOfWorkBehavior` pipeline registration
+
+The unit of work is bound to a specific context type. In a modular monolith, each bounded context can own its `DbContext` without collisions.
+
+---
+
+## Architectural Guarantees
+
+| Concern | Guarantee |
+|---|---|
+| Transaction scope | One per command |
+| Queries | No unit of work |
+| Automatic commit | Yes |
+| Domain event consistency | Atomic with the command |
+| Cascading events | Dispatched until exhausted, single save |
+| Exception transparency | Guaranteed |
+
+---
+
+Source: https://joaoaalves.github.io/Truss/messaging.md
+
+# Messaging
+
+`Truss.Messaging` carries events across the boundary of the application or module that produced them. It separates two concepts that are often conflated:
+
+| Concept | Scope | Timing | Failure behavior |
+|---|---|---|---|
+| Domain events | Inside the service, same transaction | Before persistence | A failing handler fails the command |
+| Integration events | Across services or modules | After the commit | Retried; never rolls back the command |
+
+Domain events belong to the [unit of work](unit-of-work.md). This page is about integration events.
+
+---
+
+## Defining Integration Events
+
+An integration event is a record with a stable wire name and version:
+
+```csharp
+[IntegrationEventName("orders.order-placed")]
+public sealed record OrderPlaced(Guid OrderId, decimal Total) : IntegrationEvent;
+```
+
+The name travels with the serialized event, so renaming the CLR type never breaks consumers. Without the attribute, the full CLR type name is used with version 1; the attribute is recommended for anything that crosses a service boundary.
+
+### Versioning
+
+When the payload shape changes, declare a new type with the same name and a higher version:
+
+```csharp
+[IntegrationEventName("orders.order-placed", Version = 2)]
+public sealed record OrderPlacedV2(Guid OrderId, decimal Total, string Currency) : IntegrationEvent;
+```
+
+Events are serialized as JSON inside an envelope carrying the name and version. On the consumer side, the pair resolves to the registered CLR type, so version 1 and version 2 messages coexist, each handled by its own handler. An unknown name or version fails with a clear exception instead of guessing.
+
+---
+
+## Publishing with the Outbox
+
+Inject `IIntegrationEventPublisher` and publish from a command handler:
+
+```csharp
+public class PlaceOrderHandler(AppDbContext context, IIntegrationEventPublisher publisher)
+    : ICommandHandler<PlaceOrder, Guid>
+{
+    public async Task<Guid> Handle(PlaceOrder command, CancellationToken cancellationToken)
+    {
+        var order = Order.Place(command.Items);
+        context.Orders.Add(order);
+
+        await publisher.Publish(new OrderPlaced(order.Id.Value, order.Total), cancellationToken);
+
+        return order.Id.Value;
+    }
+}
+```
+
+With the outbox configured, `Publish` does not touch the broker. The event is stored in the outbox table by the same atomic save that persists the order: if the command fails, no event exists; if it commits, delivery is guaranteed. A background processor publishes stored messages to the transport with exponential backoff on failure, and dead-letters a message after the attempt limit, preserving the error.
+
+Delivery starts immediately: every commit that stores outbox messages wakes the processor in-process, so events reach the transport right after the transaction, not on the next poll. Polling (15 seconds by default) remains only as the safety net for retries and for messages written by other application instances.
+
+Delivery is **at-least-once**: consumers must be idempotent.
+
+---
+
+## Consuming
+
+Implement `IIntegrationEventHandler<TEvent>`:
+
+```csharp
+public class OrderPlacedHandler(BillingDbContext context) : IIntegrationEventHandler<OrderPlaced>
+{
+    public async Task Handle(OrderPlaced integrationEvent, CancellationToken cancellationToken)
+    {
+        context.Invoices.Add(Invoice.For(integrationEvent.OrderId, integrationEvent.Total));
+    }
+}
+```
+
+Each message is handled in its own dependency injection scope. When a unit of work is registered, it commits after the handlers succeed, so everything a handler changes is atomic per message. A failing handler propagates to the transport, which decides retry semantics.
+
+---
+
+## Transports
+
+`IMessageTransport` is the seam between Truss and the broker. Each transport is its own opt-in package; the runtime never assumes a technology.
+
+| Transport | Package | Status |
+|---|---|---|
+| In-memory | built into `Truss.Messaging` | Available |
+| Postgres | `Truss.Messaging.Postgres` | Available |
+| Redis | `Truss.Messaging.Redis` | Available |
+| RabbitMQ | `Truss.Messaging.RabbitMq` | Planned |
+
+The in-memory transport is intended for development, tests and modular monoliths: delivery happens in-process, after the commit, with no broker to run.
+
+### Postgres
+
+The Postgres transport turns a table into a durable queue. Publishing inserts the envelope and raises a NOTIFY; consumers use LISTEN as a low-latency wake-up signal, but delivery never depends on the notification: rows are claimed with `FOR UPDATE SKIP LOCKED`, so multiple application instances compete safely and a message published while every consumer was offline is delivered when one comes back. Failed messages retry with exponential backoff and are moved to a dead-letter table with the error preserved. The transport creates its own tables by default.
+
+```csharp
+services.AddTrussPostgresTransport(options =>
+{
+    options.ConnectionString = configuration.GetConnectionString("Messaging")!;
+});
+```
+
+If the application already uses Postgres, this is messaging with zero extra infrastructure.
+
+### Redis
+
+The Redis transport uses Streams with consumer groups. Publishing appends to a stream; each application instance consumes through the group, so delivery survives restarts and messages are balanced between instances. A message left pending by a failed handler is reclaimed after an idle period and retried; once the delivery limit is reached it moves to a dead-letter stream. The main stream is trimmed approximately to a configurable length.
+
+```csharp
+services.AddTrussRedisTransport(options =>
+{
+    options.ConnectionString = "localhost:6379";
+});
+```
+
+### Publisher-only applications
+
+Both transports host a consumer by default. Set `EnableConsumer = false` on services that only publish.
+
+---
+
+## Registration
+
+```csharp
+services.AddTrussMessaging(options =>
+{
+    options.AddAssembly<OrderPlaced>();
+});
+
+services.AddTrussInMemoryTransport();
+
+services.AddTrussOutbox<AppDbContext>();
+```
+
+And add the outbox table to the context model:
+
+```csharp
+protected override void OnModelCreating(ModelBuilder modelBuilder)
+{
+    modelBuilder.ApplyTrussOutbox();
+}
+```
+
+`AddTrussMessaging` scans the registered assemblies for event types and handlers. `AddTrussOutbox` binds the store to the context, starts the processor and switches the publisher to transactional mode. Without it, a direct publisher sends straight to the transport, best effort.
+
+---
+
+## Configuration
+
+Outbox behavior is configured through `TrussOutboxOptions`, either in code:
+
+```csharp
+services.AddTrussOutbox<AppDbContext>(options =>
+{
+    options.BatchSize = 100;
+    options.MaxAttempts = 5;
+});
+```
+
+or bound from configuration, which includes environment variables:
+
+```csharp
+services.Configure<TrussOutboxOptions>(configuration.GetSection("Truss:Outbox"));
+```
+
+```
+Truss__Outbox__BatchSize=100
+Truss__Outbox__PollingInterval=00:00:05
+Truss__Outbox__MaxAttempts=5
+```
+
+Transport packages follow the same pattern: each exposes its own options type, configurable in code or from configuration and environment variables.
+
+---
+
+## Mapping Domain Events to Integration Events
+
+There is no automatic translation, by design. When a domain occurrence must leave the service, declare it explicitly with a domain event handler that publishes the integration event:
+
+```csharp
+public class OrderPlacedTranslator(IIntegrationEventPublisher publisher) : IDomainEventHandler<OrderPlacedDomainEvent>
+{
+    public Task Handle(OrderPlacedDomainEvent domainEvent, CancellationToken cancellationToken)
+    {
+        return publisher.Publish(new OrderPlaced(domainEvent.OrderId.Value, domainEvent.Total), cancellationToken);
+    }
+}
+```
+
+Because domain event handlers run inside the transaction and the outbox stores in the same transaction, the translation is atomic with the command.
+
+---
+
+Source: https://joaoaalves.github.io/Truss/jobs.md
+
+# Background Jobs
+
+`Truss.Jobs` runs work outside the request: long imports, report generation, anything that should not block a response. It is built on top of [messaging](messaging.md), so job delivery inherits the outbox transactionality and the durability of whatever transport you chose. There is no separate broker to configure.
+
+---
+
+## Defining a Job
+
+A job is a class with typed, JSON-serializable arguments:
+
+```csharp
+public sealed record GenerateReportArgs(Guid CustomerId, int Year);
+
+[JobName("reports.generate")]
+public class GenerateReportJob(AppDbContext context) : IJob<GenerateReportArgs>
+{
+    public async Task Execute(GenerateReportArgs args, JobContext jobContext, CancellationToken cancellationToken)
+    {
+        var orders = await context.Orders.Where(o => o.CustomerId == args.CustomerId).ToListAsync(cancellationToken);
+
+        for (var i = 0; i < orders.Count; i++)
+        {
+            await ProcessOrder(orders[i], cancellationToken);
+            await jobContext.ReportProgress(i * 100 / orders.Count, $"Processed {i + 1} of {orders.Count}");
+        }
+    }
+}
+```
+
+Jobs are resolved from a dependency injection scope per execution, so constructor injection works as anywhere else. The `JobName` attribute gives the job a stable name stored with each record; without it, the full CLR type name is used.
+
+Delivery is at-least-once: a job may run more than once for the same arguments, so make it idempotent.
+
+---
+
+## Scheduling
+
+Inject `IJobScheduler`:
+
+```csharp
+public class RequestReportHandler(IJobScheduler scheduler) : ICommandHandler<RequestReport, Guid>
+{
+    public Task<Guid> Handle(RequestReport command, CancellationToken cancellationToken)
+    {
+        return scheduler.Enqueue<GenerateReportJob, GenerateReportArgs>(
+            new GenerateReportArgs(command.CustomerId, command.Year), cancellationToken);
+    }
+}
+```
+
+Called inside a command handler, scheduling is **transactional**: the job record and its trigger message are stored by the same atomic save as the rest of the command. If the command fails, the job never existed. The returned id is what clients use to track progress.
+
+`Schedule` runs a job at a specific moment:
+
+```csharp
+await scheduler.Schedule<GenerateReportJob, GenerateReportArgs>(args, DateTimeOffset.UtcNow.AddHours(2));
+```
+
+Recurring jobs are declared at registration with a cron expression (five fields, or six to include seconds; evaluated in UTC):
+
+```csharp
+services.AddTrussJobs(options =>
+{
+    options.AddAssembly<GenerateReportJob>();
+    options.AddRecurring<CleanupJob, CleanupArgs>("0 3 * * *", new CleanupArgs(olderThanDays: 30));
+});
+```
+
+---
+
+## Execution, Retry and Timeout
+
+A queued job flows through the messaging pipeline: outbox, transport, consumer. The executor loads the record, marks it running and invokes the job. On failure the job is requeued until the attempt limit, then failed permanently with the error preserved. A timeout can bound each attempt.
+
+| Setting | Default | Meaning |
+|---|---|---|
+| `MaxAttempts` | 3 | Attempts before the job fails permanently |
+| `JobTimeout` | none | Time limit per attempt |
+| `ScheduledPollingInterval` | 5 s | How often due scheduled jobs are queued |
+| `EnableSchedulers` | true | Runs the scheduled and recurring services on this instance |
+
+All settings bind from configuration, for example `Truss__Jobs__MaxAttempts=5`.
+
+> Run the schedulers on a single instance for now: with `EnableSchedulers` on several instances, scheduled and recurring jobs are enqueued more than once. Distributed locking is on the roadmap.
+
+---
+
+## Tracking Progress
+
+Inside the job, report progress through the context; each report is persisted immediately:
+
+```csharp
+await jobContext.ReportProgress(40, "Importing prices");
+```
+
+With `Truss.Jobs.AspNetCore`, expose the progress endpoints:
+
+```csharp
+app.MapTrussJobs();
+```
+
+| Endpoint | Behavior |
+|---|---|
+| `GET /truss/jobs/{id}` | Returns the current snapshot: status, attempts, progress, error, timestamps |
+| `GET /truss/jobs/{id}/stream` | Server-sent events: pushes a snapshot on every change interval until the job completes |
+
+The snapshot serializes with camelCase names and string statuses:
+
+```json
+{
+  "id": "7d9f4c1e-...",
+  "name": "reports.generate",
+  "status": "running",
+  "attempts": 1,
+  "progressPercent": 40,
+  "progressMessage": "Importing prices"
+}
+```
+
+Streaming uses server-sent events because every HTTP client and browser (`EventSource`) understands it, with no extra dependency. Polling the snapshot endpoint gives the same data for clients that prefer it. `MapTrussJobs` returns the route group, so `RequireAuthorization` and friends chain as usual.
+
+---
+
+## Registration
+
+```csharp
+services.AddTrussMessaging(options => options.AddAssembly<OrderPlaced>());
+services.AddTrussInMemoryTransport();
+services.AddTrussOutbox<AppDbContext>();
+
+services.AddTrussJobs(options => options.AddAssembly<GenerateReportJob>());
+services.AddTrussJobsEntityFramework<AppDbContext>();
+```
+
+And add the job table to the context model:
+
+```csharp
+protected override void OnModelCreating(ModelBuilder modelBuilder)
+{
+    modelBuilder.ApplyTrussOutbox();
+    modelBuilder.ApplyTrussJobs();
+}
+```
+
+`AddTrussJobs` requires messaging to be registered first. Without `AddTrussJobsEntityFramework`, an in-memory store is used: fine for development, lost on restart.
+
+Because jobs ride the messaging pipeline, choosing where jobs run is a transport decision: in-process with the in-memory transport, or distributed across instances with the [Postgres or Redis transports](messaging.md), where any instance can pick up the work.
+
+---
+
+Source: https://joaoaalves.github.io/Truss/observability.md
+
+# Observability
+
+`Truss.Observability` makes the framework tell you what it is doing: every request logged with a structured scope, spans and metrics for requests, messages and jobs, and a correlation id tying it all together. Everything is opt-in and adds no exporter dependency: Truss emits through `Microsoft.Extensions.Logging` and the BCL diagnostics primitives, and you choose what listens.
+
+---
+
+## Registration
+
+```csharp
+services.AddTrussObservability();
+```
+
+Both behaviors are enabled by default and can be turned off individually:
+
+```csharp
+services.AddTrussObservability(options =>
+{
+    options.EnableLogging = true;
+    options.EnableTracing = false;
+});
+```
+
+Registration order does not matter: the observability behaviors place themselves at the outermost position of the pipeline, so they also observe validation rejections and unit of work failures.
+
+---
+
+## Structured Logging
+
+Every dispatched request is logged with a scope carrying the request name and the correlation id:
+
+```
+info: Handled CreateUser in 12.3ms
+warn: Rejected CreateUser with 2 validation failures after 1.1ms
+fail: Failed CreateUser after 20.5ms
+      System.InvalidOperationException: ...
+```
+
+Outcomes map to sensible levels: success is Information, validation rejection is Warning (client mistakes are not system errors), everything else is Error with the exception attached. Because domain event handlers run inside the dispatch, their log entries share the same scope and correlation id.
+
+The framework logs through `Microsoft.Extensions.Logging` only. Use any provider: console JSON, Serilog, OpenTelemetry log exporters.
+
+---
+
+## Correlation
+
+`IExecutionContext` gives any handler the ambient correlation id:
+
+```csharp
+public class CreateUserHandler(IExecutionContext execution) : ICommandHandler<CreateUser, Guid>
+{
+    // execution.CorrelationId ties this execution to logs, spans and the HTTP response
+}
+```
+
+At the edge, `Truss.Observability.AspNetCore` bridges HTTP:
+
+```csharp
+app.UseTrussCorrelation();
+```
+
+The middleware reads `X-Correlation-Id` from the request (or creates one), makes it ambient for everything the request touches and echoes it back in the response header, so clients can quote the id when reporting a problem. Outside HTTP, hosts can seed the ambient id through `ExecutionContextHolder.Current`; when nothing sets it, the logging behavior creates one per dispatch so log entries still correlate.
+
+---
+
+## Traces and Metrics
+
+Truss emits spans through three activity sources and metrics through one meter, all BCL primitives with negligible cost when nothing listens:
+
+| Source | Spans |
+|---|---|
+| `Truss.Application` | One per request, tagged with name and kind, error status on failure |
+| `Truss.Messaging` | One per outbox publish and one per consumed message |
+| `Truss.Jobs` | One per job execution, tagged with job name, id and attempt |
+
+| Metric | Type | Tags |
+|---|---|---|
+| `truss.requests` | Counter | request, kind, outcome (success, rejected, failure) |
+| `truss.request.duration` | Histogram (ms) | request, kind, outcome |
+
+Wire them to the OpenTelemetry SDK in the composition root:
+
+```csharp
+builder.Services.AddOpenTelemetry()
+    .WithTracing(tracing => tracing
+        .AddAspNetCoreInstrumentation()
+        .AddSource("Truss.Application", "Truss.Messaging", "Truss.Jobs")
+        .AddOtlpExporter())
+    .WithMetrics(metrics => metrics
+        .AddMeter("Truss")
+        .AddOtlpExporter());
+```
+
+---
+
+## Dashboards
+
+Truss does not bundle a log viewer; it emits standard signals and any free stack consumes them:
+
+- **Development**: a Seq container gives instant structured log search. Point the OpenTelemetry OTLP exporter (or a Seq sink) at `http://localhost:5341`.
+
+```yaml
+services:
+  seq:
+    image: datalust/seq:latest
+    environment:
+      ACCEPT_EULA: "Y"
+    ports:
+      - "5341:80"
+```
+
+- **Production, fully free**: Grafana with Loki (logs), Tempo (traces) and Prometheus (metrics), all fed by the OTLP exporter through an OpenTelemetry Collector.
+
+The Truss CLI will generate these compose files as part of project scaffolding. See the [Roadmap](roadmap.md).
+
+---
+
+Source: https://joaoaalves.github.io/Truss/auth.md
+
+# Authentication
+
+Truss authentication splits responsibility deliberately: the packages own the mechanics that should never be hand-rolled, and **your project owns the model**. Installing auth scaffolds the `User` aggregate, the account commands and the repositories into your own layers as plain, editable code. Need a phone number on registration, a tenant id on the user, a different lockout policy? Edit your files; no framework type stands in the way.
+
+---
+
+## Installing
+
+```
+truss add auth --provider jwt
+```
+
+Requires a database. The command:
+
+- References `Truss.Auth.Abstractions` in the application layer and `Truss.Auth.Jwt` in the host.
+- Scaffolds the `Accounts` context: `User`, `RefreshToken`, business rules and the `UserRegistered` event in the domain; `RegisterUser`, `Login` and `Refresh` commands with handlers and validators in the application; EF configurations and repositories in the infrastructure.
+- Wires `Program.cs`: `AddTrussJwtAuth`, `UseAuthentication`, `UseAuthorization` and the three endpoints.
+- Writes a development signing key to `appsettings.json`.
+
+The endpoints work immediately:
+
+```
+POST /auth/register  {"email": "joao@example.com", "name": "Joao", "password": "..."}
+POST /auth/login     {"email": "joao@example.com", "password": "..."}      -> access + refresh tokens
+POST /auth/refresh   {"refreshToken": "..."}                               -> rotated tokens
+```
+
+---
+
+## What the Package Owns
+
+`Truss.Auth.Jwt` carries the security mechanics:
+
+- **Password hashing**: PBKDF2 with SHA-256, 210000 iterations, per-password random salt, self-describing hash format and constant-time verification. Base class library only.
+- **Access tokens**: HMAC-SHA256 signed JWTs carrying the claims you choose, with configurable issuer, audience and lifetime.
+- **Refresh tokens**: opaque random tokens. Only the SHA-256 hash is stored, so a database leak exposes nothing usable. The scaffolded `Refresh` handler rotates tokens: each refresh revokes the old one and issues a new pair, atomically with the unit of work.
+- **JwtBearer wiring**: token validation configured from the options, with inbound claim mapping disabled so claims arrive exactly as issued (`sub`, `email`).
+
+Configuration binds from the `Truss:Auth:Jwt` section or environment variables:
+
+```
+Truss__Auth__Jwt__SigningKey=<at least 32 characters>
+Truss__Auth__Jwt__Issuer=MyShop
+Truss__Auth__Jwt__Audience=MyShop
+Truss__Auth__Jwt__AccessTokenLifetime=00:15:00
+```
+
+The scaffolded development key must be replaced per environment; keep the production key out of source control.
+
+---
+
+## What Your Project Owns
+
+Everything about the model. The scaffolded `User` is a normal Truss aggregate:
+
+```csharp
+public class User : AggregateRoot<UserId>
+{
+    public string Email { get; private set; }
+    public string Name { get; private set; }
+    public string PasswordHash { get; private set; }
+
+    public static User Register(string email, string name, string passwordHash) { ... }
+}
+```
+
+Add fields, rules and events like in any other aggregate; the EF configuration sits next to your others. The handlers are ordinary command handlers using the package services through two small interfaces:
+
+```csharp
+public class LoginHandler(
+    IUserRepository users,
+    IRefreshTokenRepository refreshTokens,
+    IPasswordHasher passwordHasher,
+    IJwtTokenService tokens) : ICommandHandler<Login, AuthTokensDto>
+```
+
+Invalid credentials surface as a business rule violation, which the ASP.NET module turns into a clean 422 response; change that behavior in your own handler if you prefer another status.
+
+---
+
+## Protecting Endpoints
+
+Every Truss mapping composes with the standard authorization surface:
+
+```csharp
+app.MapCommand<PlaceOrder, Guid>("/orders").RequireAuthorization();
+```
+
+Handlers read the current identity through `ClaimsPrincipal` in endpoints, or flow it into commands explicitly; the `sub` claim carries the user id issued at login.
+
+---
+
+## Roadmap
+
+ASP.NET Core Identity integration (`--provider identity`) and external OpenID providers are planned. The scaffolded model is provider-independent: switching providers later means changing the mechanics, not your domain.
+
+---
+
+Source: https://joaoaalves.github.io/Truss/cli.md
+
+# The truss CLI
+
+The `truss` command line scaffolds projects, installs modules over time and generates building blocks. It is a dotnet global tool:
+
+```
+dotnet tool install -g Truss.Cli
+```
+
+Everything the CLI knows about a project lives in `truss.json` at the repository root: the framework version, the chosen database, and every module installed with its settings. That manifest is what makes `truss add` work months after the project started.
+
+---
+
+## truss new
+
+```
+truss new MyShop --database postgres --docker
+```
+
+Scaffolds a complete Clean Architecture solution. Run without flags in a terminal for interactive prompts.
+
+| Option | Values | Effect |
+|---|---|---|
+| `--database` | `postgres`, `sqlserver`, `sqlite`, `none` | EF Core provider, connection string and compose service. `none` skips the Infrastructure project entirely |
+| `--docker` | flag | Generates `docker-compose.yml` for the chosen infrastructure |
+| `--empty` | flag | Skips the sample bounded context |
+| `--output` | path | Where to create the project. Defaults to the current directory |
+
+The generated solution:
+
+```
+MyShop/
+  truss.json
+  MyShop.slnx
+  docker-compose.yml
+  src/
+    MyShop.Domain/           references Truss.Domain only
+    MyShop.Application/      references Truss.Application.Abstractions and FluentValidation
+    MyShop.Infrastructure/   EF Core, the provider and AppDbContext
+    MyShop.Api/              composition root with Truss.AspNetCore and Truss.Generators
+```
+
+Unless `--empty` is passed, a sample `Catalog` bounded context shows the full pattern in working code: a `Product` aggregate with a typed id, a business rule and a domain event; `CreateProduct` and `GetProductById` with handlers, validator and repository; the EF configuration converting the typed id; and the endpoints mapped with `MapCommand` and `MapQuery`. Delete the folders when you are done reading them.
+
+```
+cd MyShop
+docker compose up -d
+dotnet run --project src/MyShop.Api
+```
+
+---
+
+## truss add
+
+```
+truss add messaging --transport redis
+truss add jobs
+truss add observability
+```
+
+Installs a module into an existing project: adds the package references to the correct layer, wires the registrations into `Program.cs` and the model configuration into `AppDbContext.cs`, updates `docker-compose.yml` when infrastructure is needed, and records everything in the manifest. When a file was restructured and the anchor cannot be found, the CLI prints exactly what to paste instead of guessing.
+
+| Module | Options | Notes |
+|---|---|---|
+| `messaging` | `--transport inmemory`, `postgres`, `redis` | With a database, the outbox is installed automatically |
+| `jobs` | | Requires messaging |
+| `observability` | | Logging, tracing and the correlation middleware |
+| `mapping` | | Compile-time DTO mappers, added to the application layer |
+| `auth` | `--provider jwt` | Scaffolds the editable Accounts context and wires JWT authentication; requires a database |
+
+---
+
+## truss generate
+
+```
+truss generate context Sales
+truss generate aggregate Order --context Sales
+truss generate command PlaceOrder --context Sales
+truss generate query GetOrderById --context Sales --result OrderDto
+```
+
+Generates building blocks inside the layer projects, following the folder-per-context layout: `Domain/Sales`, `Application/Sales`. Aggregates come with their typed id and creation event; commands come with handler and validator; queries with handler. Existing files are never overwritten.
+
+---
+
+## truss doctor
+
+```
+truss doctor
+```
+
+Compares the manifest with the actual state of the project: solution and projects present, module packages referenced, compose file in place. Prints one line per check and fails with a non-zero exit code when something is missing.
+
+---
+
+## Notes
+
+- Commands that operate on an existing project locate `truss.json` upward from the current directory; `--project <path>` overrides.
+- The scaffolded packages pin the CLI's own version, so project and framework stay in step.
+- `--local-packages <path>` adds a local NuGet source to the scaffold, useful for testing unreleased framework builds.
+
+---
+
+Source: https://joaoaalves.github.io/Truss/generators.md
+
+# Source Generators
+
+`Truss.Generators` moves handler discovery from startup to build time. It is a Roslyn source generator and analyzer packaged as a development dependency: it changes what gets compiled, never what gets deployed.
+
+---
+
+## What It Does
+
+Installed in the composition root project, the generator scans the compilation and every referenced assembly that uses Truss at build time, and generates a registration module for the handlers, validators and domain event handlers it finds.
+
+With the generator present:
+
+- `AddTruss` uses the generated registrations. No assembly scanning happens at startup.
+- Dispatch invokers are prepared at build time. The first dispatch of each request type no longer pays a reflection cost.
+- Wrong wiring surfaces as build diagnostics instead of runtime surprises.
+
+Without the generator, everything keeps working exactly as before: `AddTruss` falls back to runtime scanning per assembly. The generator is an accelerator, not a requirement.
+
+---
+
+## Installation
+
+Add the package to the project that calls `AddTruss` (the API or host project):
+
+```xml
+<PackageReference Include="Truss.Generators" Version="x.y.z" PrivateAssets="all" />
+```
+
+`PrivateAssets="all"` keeps it out of your published dependencies. There is no configuration and no code to write: the registration API does not change.
+
+```csharp
+services.AddTruss(options =>
+{
+    options.AddAssembly<CreateUser>();
+});
+```
+
+At build time the generator emits a module that registers each discovered assembly. At startup, `AddTruss` finds the generated registration for the assembly and uses it.
+
+---
+
+## Build Diagnostics
+
+| Id | Severity | Meaning |
+|---|---|---|
+| TRUSS001 | Warning | A command or query has no handler anywhere in the compilation |
+| TRUSS002 | Error | A command or query has more than one handler |
+| TRUSS003 | Info | An assembly has Truss implementations not accessible to generated code; runtime scanning is used for that assembly |
+
+TRUSS002 is an error by design: with two handlers registered, dispatch would silently use one of them. That is a bug worth failing the build for.
+
+---
+
+## Scope and Rules
+
+- The generator scans the current compilation plus referenced assemblies that reference `Truss.Application.Abstractions`. Framework and Truss package assemblies are never scanned.
+- Handlers and validators must be accessible from the composition root (public, or internal with `InternalsVisibleTo`). When they are not, the whole assembly falls back to runtime scanning and TRUSS003 is reported.
+- Generic handler types are ignored; register open generics manually as pipeline behaviors.
+
+---
+
+## Ahead-of-Time Compilation
+
+The generated path uses no `dynamic`, no `MakeGenericType` and no `Activator`. Combined with the dispatcher's typed invokers, applications using the generator can target Native AOT. The runtime scanning fallback is the only reflection-dependent path, and it never runs when a generated registration exists for the assembly.
+
+---
+
+Source: https://joaoaalves.github.io/Truss/design-guidelines.md
+
+# Design Guidelines
+
+- Keep domain logic inside the domain. Handlers orchestrate; aggregates decide.
+- Enforce invariants with business rules inside entities and value objects, not in handlers.
+- Use value objects aggressively. Primitive obsession hides domain concepts.
+- Give every aggregate a typed identifier.
+- Raise domain events only for meaningful business occurrences.
+- Treat aggregate roots as transactional boundaries. One command, one aggregate, whenever possible.
+- Return ids or DTOs from handlers, never entities.
+- Never inject `IUnitOfWork` into application code. The pipeline owns the transaction.
+- Validate input shape with validators. Protect invariants with business rules. These are different concerns and different failure types.
+
+---
+
+Source: https://joaoaalves.github.io/Truss/pitfalls.md
+
+# Common Pitfalls
+
+- **Calling `SaveChangesAsync` inside a command handler.** The unit of work already commits after the handler succeeds. A manual save creates a second commit and dispatches domain events at the wrong moment.
+- **Changing state inside a query handler.** Queries have no unit of work. Changes are either lost or leak through an unrelated commit.
+- **Treating domain events as integration events.** Domain event handlers run inside the transaction and fail the command when they throw. Side effects that must survive on their own, such as e-mails or broker messages, belong to [integration events](messaging.md) published through the outbox.
+- **Forgetting the assembly registration.** Handlers and validators are discovered only from assemblies given to `AddTruss`. A missing registration surfaces as a missing handler exception at dispatch time.
+- **Anemic entities.** If every rule lives in handlers, entities become data bags and invariants scatter across the codebase.
+- **Raising events for technical noise.** "Updated" is rarely a domain event. "OrderPlaced" is.
+
+Truss encourages explicit modeling but does not prevent misuse.
+
+---
+
+Source: https://joaoaalves.github.io/Truss/roadmap.md
+
+# Roadmap
+
+Truss is built module by module, each one opt-in. The framework never installs anything you did not ask for.
+
+---
+
+## Delivered
+
+- Domain building blocks: entities with identity equality, aggregate roots, value objects, typed ids, business rules, domain events.
+- Single pipeline with explicit ordering, validation that reports every failure, cancellation propagated end to end.
+- Dispatcher with typed invokers cached per request type. No `dynamic`, no per-call reflection.
+- EF Core unit of work: automatic commit, cascading domain event dispatch, single atomic save.
+- ASP.NET Core module: `MapCommand` and `MapQuery` minimal API extensions, validation failures as RFC 7807 `ProblemDetails` with every field error, business rule violations as 422 responses.
+- Source generators: compile-time handler discovery and dispatch priming, missing handlers reported at build time, duplicate handlers fail the build, Native AOT ready.
+- Messaging: integration events with versioned JSON serialization, transactional outbox with retry and dead-letter, consumer dispatch with a unit of work per message, in-memory transport.
+- Durable transports: Postgres (SKIP LOCKED queue with LISTEN/NOTIFY wake-up) and Redis (Streams with consumer groups), both with retry, dead-letter and competing consumers, configured in code or from environment variables.
+- Background jobs: transactional enqueueing through the outbox, retry and timeout per attempt, live progress with polling and server-sent events endpoints, scheduled and cron-recurring jobs.
+- Observability: structured logging of every request with outcome-aware levels, correlation ids flowing from HTTP to handlers, spans for requests, messages and jobs, request metrics, all through BCL diagnostics with no exporter dependency.
+- The `truss` CLI: interactive scaffolding with database and docker choices, a manifest that lets modules be installed months after the project started, generators for aggregates, commands and queries, and a doctor that verifies the project against the manifest.
+- Compile-time DTO mapping: mappers generated from partial method declarations, typed id unwrapping, nested and collection mapping, computed members through named methods, unmapped members as build errors.
+- Authentication: JWT mechanics in packages (PBKDF2 hashing, access and refresh tokens with rotation, JwtBearer wiring) with the user model, account commands and repositories scaffolded into your own layers by `truss add auth`, fully editable.
+
+---
+
+- First release: every package and the CLI published to nuget.org as 0.1.0 through NuGet trusted publishing.
+
+---
+
+## Next
+
+### Auth providers
+
+ASP.NET Core Identity integration and external OpenID providers over the same scaffolded, editable account model.
+
+---
+
+## Planned
+
+| Module | Purpose |
+|---|---|
+| Auth providers | ASP.NET Core Identity integration and external OpenID providers |
+| Dashboards | Generated compose files for log, trace and job dashboards |
+| Distributed locking | Scheduled and recurring jobs across multiple instances |
+
+---
+
+## Principles that will not change
+
+- Every module is opt-in.
+- Free and open-source options first.
+- The domain layer stays dependency-free.
+- No runtime magic.

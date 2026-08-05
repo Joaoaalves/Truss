@@ -1,0 +1,43 @@
+# Truss
+
+> Truss is a modular .NET framework for Domain-Driven Design, CQRS and Clean Architecture, focused on developer experience, explicit behavior and minimal dependencies per layer. Commands validate themselves, the unit of work commits automatically, domain events dispatch inside the transaction, integration events flow through a transactional outbox with durable transports, and background jobs report live progress.
+
+Every page below is plain Markdown and can be fetched directly. The whole documentation concatenated into a single file is at https://joaoaalves.github.io/Truss/llms-full.txt. Packages are published on nuget.org under the Truss prefix; the CLI installs with: dotnet tool install -g Truss.Cli
+
+## Getting started
+
+- [Introduction](https://joaoaalves.github.io/Truss/README.md): what Truss is, the design intent and the map of every package with its layer
+- [Quickstart](https://joaoaalves.github.io/Truss/quickstart.md): scaffold a project with the truss CLI or wire the packages manually, first command end to end
+- [Architecture](https://joaoaalves.github.io/Truss/architecture.md): layers and references, flat namespaces, the execution pipeline, commands versus queries, domain versus integration events
+- [Dependencies](https://joaoaalves.github.io/Truss/dependencies.md): the exact dependency list of every package, useful to keep layers clean
+
+## Building blocks
+
+- [Building Blocks](https://joaoaalves.github.io/Truss/domain.md): entities, aggregate roots, value objects, typed ids, business rules and domain events
+- [Commands & Queries](https://joaoaalves.github.io/Truss/commands-and-queries.md): defining commands, queries and handlers, dispatching, domain event handlers, registration
+- [Pipeline Behaviors](https://joaoaalves.github.io/Truss/pipeline.md): behavior ordering, validation reporting every failure, the unit of work behavior, writing custom behaviors
+- [DTO Mapping](https://joaoaalves.github.io/Truss/mapping.md): compile-time mappers from partial methods, typed id unwrapping, computed members, build diagnostics
+
+## Infrastructure
+
+- [ASP.NET Core](https://joaoaalves.github.io/Truss/aspnetcore.md): MapCommand and MapQuery endpoints, binding rules, ProblemDetails error responses, composing with authorization
+- [Unit of Work](https://joaoaalves.github.io/Truss/unit-of-work.md): automatic commit, domain event dispatch semantics, failure scenarios and guarantees
+- [Integration Events](https://joaoaalves.github.io/Truss/messaging.md): event versioning, the transactional outbox, immediate wake-up, transports (in-memory, Postgres, Redis), consuming
+- [Background Jobs](https://joaoaalves.github.io/Truss/jobs.md): transactional enqueueing, retry and timeout, scheduled and cron-recurring jobs, live progress over polling and server-sent events
+- [Observability](https://joaoaalves.github.io/Truss/observability.md): structured request logging, correlation ids, spans and metrics, wiring the OpenTelemetry SDK
+- [Authentication](https://joaoaalves.github.io/Truss/auth.md): JWT mechanics in packages, the editable scaffolded user model, protecting endpoints
+
+## Tooling
+
+- [The truss CLI](https://joaoaalves.github.io/Truss/cli.md): truss new, add, generate and doctor; the truss.json manifest
+- [Source Generators](https://joaoaalves.github.io/Truss/generators.md): compile-time handler discovery, build diagnostics, Native AOT
+
+## Reference
+
+- [Design Guidelines](https://joaoaalves.github.io/Truss/design-guidelines.md): the rules that keep a Truss codebase healthy
+- [Common Pitfalls](https://joaoaalves.github.io/Truss/pitfalls.md): mistakes the framework cannot prevent, and how to avoid them
+- [Roadmap](https://joaoaalves.github.io/Truss/roadmap.md): what is delivered and what comes next
+
+## Optional
+
+- [Source repository](https://github.com/Joaoaalves/Truss): issues, releases and the full test suite
