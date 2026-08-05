@@ -15,6 +15,9 @@ namespace Truss.Cli.Commands
             [CommandOption("--provider <PROVIDER>")]
             public string? Provider { get; init; }
 
+            [CommandOption("--dashboard <DASHBOARD>")]
+            public string? Dashboard { get; init; }
+
             [CommandOption("--project <PATH>")]
             public string? Project { get; init; }
         }
@@ -30,7 +33,13 @@ namespace Truss.Cli.Commands
             }
 
             var module = settings.Module.ToLowerInvariant();
-            var option = module == "auth" ? settings.Provider : settings.Transport;
+
+            var option = module switch
+            {
+                "auth" => settings.Provider,
+                "observability" => settings.Dashboard,
+                _ => settings.Transport
+            };
 
             return ModuleInstaller.Install(
                 module,

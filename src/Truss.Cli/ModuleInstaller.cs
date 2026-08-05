@@ -6,6 +6,8 @@ namespace Truss.Cli
 
         public static readonly string[] Transports = ["inmemory", "postgres", "rabbitmq", "redis"];
 
+        public static readonly string[] Dashboards = ["aspire", "grafana", "seq"];
+
         public static int Install(string module, string? transport, TrussManifest manifest, string root, Action<string> log)
         {
             if (!Modules.Contains(module))
@@ -16,6 +18,20 @@ namespace Truss.Cli
 
             if (manifest.Modules.Contains(module))
             {
+                if (module == "observability" && transport is not null)
+                {
+                    var dashboardResult = InstallDashboard(transport, manifest, root, log);
+
+                    if (dashboardResult != 0)
+                        return dashboardResult;
+
+                    ComposeGenerator.Write(manifest, root);
+                    manifest.Save(root);
+
+                    log($"The {transport} dashboard was wired. Run docker compose up to start it.");
+                    return 0;
+                }
+
                 log($"The {module} module is already installed.");
                 return 0;
             }
@@ -26,7 +42,7 @@ namespace Truss.Cli
                 "jobs" => InstallJobs(manifest, root, log),
                 "mapping" => InstallMapping(manifest, root),
                 "auth" => InstallAuth(transport, manifest, root, log),
-                _ => InstallObservability(manifest, root, log)
+                _ => InstallObservability(transport, manifest, root, log)
             };
 
             if (result != 0)
@@ -180,7 +196,7 @@ namespace Truss.Cli
             return 0;
         }
 
-        private static int InstallObservability(TrussManifest manifest, string root, Action<string> log)
+        private static int InstallObservability(string? dashboard, TrussManifest manifest, string root, Action<string> log)
         {
             var version = manifest.TrussVersion;
 
@@ -194,8 +210,46 @@ namespace Truss.Cli
             if (!SourceEditor.InsertAfter(programPath, "var app = builder.Build();", "app.UseTrussCorrelation();"))
                 log("Could not update Program.cs automatically. Add after building the app: app.UseTrussCorrelation();");
 
+            if (dashboard is not null)
+                return InstallDashboard(dashboard, manifest, root, log);
+
             return 0;
         }
+
+        private static int InstallDashboard(string dashboard, TrussManifest manifest, string root, Action<string> log)
+        {
+            if (!Dashboards.Contains(dashboard))
+            {
+                log($"Unknown dashboard '{dashboard}'. Available dashboards: {string.Join(", ", Dashboards)}.");
+                return 1;
+            }
+
+            CsprojEditor.AddPackageReference(
+                CsprojPath(root, manifest.ApiProject), "Truss.Observability.OpenTelemetry", manifest.TrussVersion);
+
+            InsertServices(root, manifest, "builder.Services.AddTrussOpenTelemetry();", log);
+            LaunchSettingsEditor.SetEnvironmentVariables(root, manifest, OtlpEnvironment(dashboard), log);
+
+            manifest.Settings["observability.dashboard"] = dashboard;
+
+            if (!manifest.Docker)
+                log("The project has no docker-compose.yml; start the dashboard yourself and point OTEL_EXPORTER_OTLP_ENDPOINT at it.");
+
+            return 0;
+        }
+
+        private static Dictionary<string, string> OtlpEnvironment(string dashboard) => dashboard switch
+        {
+            "seq" => new Dictionary<string, string>
+            {
+                ["OTEL_EXPORTER_OTLP_ENDPOINT"] = "http://localhost:5341/ingest/otlp",
+                ["OTEL_EXPORTER_OTLP_PROTOCOL"] = "http/protobuf"
+            },
+            _ => new Dictionary<string, string>
+            {
+                ["OTEL_EXPORTER_OTLP_ENDPOINT"] = "http://localhost:4317"
+            }
+        };
 
         private static void InsertServices(string root, TrussManifest manifest, string registration, Action<string> log)
         {

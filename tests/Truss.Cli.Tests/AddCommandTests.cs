@@ -92,6 +92,51 @@ namespace Truss.Cli.Tests
         }
 
         [Fact]
+        public void AddObservability_WithDashboard_WiresOpenTelemetryAndCompose()
+        {
+            Assert.Equal(0, _workspace.Scaffold("Shop", "sqlite", "--docker"));
+            var root = _workspace.Root("Shop");
+
+            Assert.Equal(0, _workspace.Run("add", "observability", "--dashboard", "aspire", "--project", root));
+
+            var apiCsproj = _workspace.ReadFile("Shop", "src", "Shop.Api", "Shop.Api.csproj");
+            Assert.Contains("Truss.Observability.OpenTelemetry", apiCsproj);
+
+            var program = _workspace.ReadFile("Shop", "src", "Shop.Api", "Program.cs");
+            Assert.Contains("AddTrussOpenTelemetry", program);
+
+            var compose = _workspace.ReadFile("Shop", "docker-compose.yml");
+            Assert.Contains("aspire-dashboard", compose);
+
+            var launchSettings = _workspace.ReadFile("Shop", "src", "Shop.Api", "Properties", "launchSettings.json");
+            Assert.Contains("OTEL_EXPORTER_OTLP_ENDPOINT", launchSettings);
+
+            var manifest = TrussManifest.Load(root);
+            Assert.Equal("aspire", manifest!.Settings["observability.dashboard"]);
+        }
+
+        [Fact]
+        public void AddDashboard_ToObservabilityInstalledEarlier_Works()
+        {
+            Assert.Equal(0, _workspace.Scaffold("Shop", "sqlite", "--docker"));
+            var root = _workspace.Root("Shop");
+
+            Assert.Equal(0, _workspace.Run("add", "observability", "--project", root));
+            Assert.Equal(0, _workspace.Run("add", "observability", "--dashboard", "seq", "--project", root));
+
+            var compose = _workspace.ReadFile("Shop", "docker-compose.yml");
+            Assert.Contains("datalust/seq", compose);
+            Assert.Contains("seq-data:", compose);
+
+            var launchSettings = _workspace.ReadFile("Shop", "src", "Shop.Api", "Properties", "launchSettings.json");
+            Assert.Contains("http/protobuf", launchSettings);
+
+            var program = _workspace.ReadFile("Shop", "src", "Shop.Api", "Program.cs");
+            var occurrences = program.Split("AddTrussOpenTelemetry").Length - 1;
+            Assert.Equal(1, occurrences);
+        }
+
+        [Fact]
         public void AddMapping_AddsDevelopmentDependency()
         {
             var root = ScaffoldShop();

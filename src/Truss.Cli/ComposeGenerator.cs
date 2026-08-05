@@ -66,6 +66,47 @@ namespace Truss.Cli
                     """);
             }
 
+            manifest.Settings.TryGetValue("observability.dashboard", out var dashboard);
+
+            switch (dashboard)
+            {
+                case "aspire":
+                    services.AppendLine("""
+                          dashboard:
+                            image: mcr.microsoft.com/dotnet/aspire-dashboard:9.5
+                            environment:
+                              DOTNET_DASHBOARD_UNSECURED_ALLOW_ANONYMOUS: "true"
+                            ports:
+                              - "18888:18888"
+                              - "4317:18889"
+                        """);
+                    break;
+
+                case "grafana":
+                    services.AppendLine("""
+                          dashboard:
+                            image: grafana/otel-lgtm:latest
+                            ports:
+                              - "3000:3000"
+                              - "4317:4317"
+                        """);
+                    break;
+
+                case "seq":
+                    services.AppendLine("""
+                          seq:
+                            image: datalust/seq:latest
+                            environment:
+                              ACCEPT_EULA: "Y"
+                            ports:
+                              - "5341:5341"
+                              - "8081:80"
+                            volumes:
+                              - seq-data:/data
+                        """);
+                    break;
+            }
+
             if (services.Length == 0)
                 return;
 
@@ -76,6 +117,9 @@ namespace Truss.Cli
 
             if (transport == "rabbitmq")
                 volumeNames.Add("rabbitmq-data");
+
+            if (dashboard == "seq")
+                volumeNames.Add("seq-data");
 
             var volumes = volumeNames.Count > 0
                 ? $"{Environment.NewLine}volumes:{Environment.NewLine}{string.Join(Environment.NewLine, volumeNames.Select(name => $"  {name}:"))}{Environment.NewLine}"

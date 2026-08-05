@@ -25,7 +25,8 @@ namespace Truss.Cli
 
                 config.AddCommand<AddCommand>("add")
                     .WithDescription("Install a Truss module into an existing project.")
-                    .WithExample("add", "messaging", "--transport", "redis");
+                    .WithExample("add", "messaging", "--transport", "redis")
+                    .WithExample("add", "observability", "--dashboard", "aspire");
 
                 config.AddBranch("generate", generate =>
                 {
