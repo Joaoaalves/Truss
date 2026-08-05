@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <PackageId>Truss.Jobs.AspNetCore</PackageId>
+    <Description>Progress endpoints for Truss jobs: polling and server-sent events streaming of job status.</Description>
+    <PackageTags>Jobs;Progress;SSE;AspNetCore</PackageTags>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Truss.Jobs.Abstractions\Truss.Jobs.Abstractions.csproj" />
+  </ItemGroup>
+
+</Project>

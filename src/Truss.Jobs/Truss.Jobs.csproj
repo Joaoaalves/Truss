@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <PackageId>Truss.Jobs</PackageId>
+    <Description>Background job runtime for Truss: transactional enqueueing through the outbox, workers with retry and timeout, live progress, scheduled and recurring jobs.</Description>
+    <PackageTags>Jobs;BackgroundJobs;Queue;Cron;Progress</PackageTags>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Truss.Jobs.Abstractions\Truss.Jobs.Abstractions.csproj" />
+    <ProjectReference Include="..\Truss.Messaging\Truss.Messaging.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Cronos" Version="0.*" />
+  </ItemGroup>
+
+</Project>

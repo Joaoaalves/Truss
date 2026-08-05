@@ -1,0 +1,9 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <PackageId>Truss.Jobs.Abstractions</PackageId>
+    <Description>Contracts for Truss background jobs: job definitions, scheduling, progress reporting and monitoring.</Description>
+    <PackageTags>Jobs;BackgroundJobs;Queue;Progress</PackageTags>
+  </PropertyGroup>
+
+</Project>

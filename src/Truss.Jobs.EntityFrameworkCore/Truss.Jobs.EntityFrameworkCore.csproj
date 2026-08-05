@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <PackageId>Truss.Jobs.EntityFrameworkCore</PackageId>
+    <Description>EF Core job store for Truss: job records persisted in the application database, scheduled atomically with the command that enqueued them.</Description>
+    <PackageTags>Jobs;BackgroundJobs;EntityFramework</PackageTags>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Truss.Jobs\Truss.Jobs.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" Version="10.*" />
+  </ItemGroup>
+
+</Project>
