@@ -2,9 +2,9 @@
 
 Truss distinguishes explicitly between:
 
-- **Commands** — state-changing operations, executed inside a unit of work
-- **Queries** — read-only operations, with no transactional participation
-- **Domain event handlers** — reactions to something that happened in the domain
+- **Commands**: state-changing operations, executed inside a unit of work.
+- **Queries**: read-only operations, with no transactional participation.
+- **Domain event handlers**: reactions to something that happened in the domain.
 
 All contracts live in the `Truss.Application` namespace.
 
@@ -12,7 +12,7 @@ All contracts live in the `Truss.Application` namespace.
 
 ## Commands
 
-A command is a record implementing `ICommand<TResult>` — or `ICommand` when there is nothing to return:
+A command is a record implementing `ICommand<TResult>`, or `ICommand` when there is nothing to return:
 
 ```csharp
 public sealed record CreateUser(string Name, string Email) : ICommand<Guid>;
@@ -20,7 +20,7 @@ public sealed record CreateUser(string Name, string Email) : ICommand<Guid>;
 public sealed record DeactivateUser(Guid UserId) : ICommand;
 ```
 
-Each command has **exactly one** handler:
+Each command has exactly one handler:
 
 ```csharp
 public class CreateUserHandler(AppDbContext context) : ICommandHandler<CreateUser, Guid>
@@ -36,9 +36,9 @@ public class CreateUserHandler(AppDbContext context) : ICommandHandler<CreateUse
 
 Command handlers:
 
-- Never call `SaveChangesAsync` — the unit of work commits automatically
-- Never dispatch domain events — the unit of work does
-- Should return ids or DTOs, never entities
+- Never call `SaveChangesAsync`. The unit of work commits automatically.
+- Never dispatch domain events. The unit of work does.
+- Should return ids or DTOs, never entities.
 
 Commands with no result return `Unit`:
 
@@ -75,7 +75,7 @@ public class GetUserByIdHandler(AppDbContext context) : IQueryHandler<GetUserByI
 }
 ```
 
-Queries do not create a unit of work and never trigger a commit — reading is free of transactional overhead.
+Queries do not create a unit of work and never trigger a commit. Reading is free of transactional overhead.
 
 ---
 
@@ -93,10 +93,10 @@ public class UsersController(IDispatcher dispatcher)
 
 Dispatch characteristics:
 
-- Handlers and behaviors are resolved from the **current scope** — the same `DbContext` your request already uses
-- The `CancellationToken` is propagated end to end
-- A missing handler fails immediately with a clear exception
-- Reflection happens **once per request type**; subsequent dispatches are strongly-typed calls on a cached invoker
+- Handlers and behaviors are resolved from the current scope, so they share the same `DbContext` your request already uses.
+- The `CancellationToken` is propagated end to end.
+- A missing handler fails immediately with a clear exception.
+- Reflection happens once per request type. Subsequent dispatches are strongly-typed calls on a cached invoker.
 
 ---
 
@@ -115,7 +115,7 @@ public class OrderPlacedHandler(AppDbContext context) : IDomainEventHandler<Orde
 }
 ```
 
-Handlers run **inside the unit of work**, before persistence — any state they modify is committed atomically with the command. Zero or more handlers may exist per event. See [Unit of Work](unit-of-work.md) for the full dispatch semantics.
+Handlers run inside the unit of work, before persistence. Any state they modify is committed atomically with the command. Zero or more handlers may exist per event. See [Unit of Work](unit-of-work.md) for the full dispatch semantics.
 
 ---
 
@@ -130,4 +130,4 @@ services.AddTruss(options =>
 });
 ```
 
-Using a marker type ensures the correct assembly is scanned. Registration is explicit — assemblies are never discovered implicitly.
+Using a marker type ensures the correct assembly is scanned. Registration is explicit. Assemblies are never discovered implicitly.

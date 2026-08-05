@@ -1,6 +1,6 @@
 # Building Blocks
 
-Everything in `Truss.Domain` lives in a single namespace — one using gives you the whole domain kernel:
+Everything in `Truss.Domain` lives in a single namespace. One using gives you the whole domain kernel:
 
 ```csharp
 using Truss.Domain;
@@ -10,7 +10,7 @@ using Truss.Domain;
 
 ## Entities
 
-Entities are objects with identity. Two entities are equal when they have the **same type and the same identifier** — never by their attributes.
+Entities are objects with identity. Two entities are equal when they have the same type and the same identifier, never by their attributes.
 
 ```csharp
 public class Product : Entity<ProductId>
@@ -28,15 +28,15 @@ public class Product : Entity<ProductId>
 
 Equality rules:
 
-- Same type + same id → equal
-- Different types → never equal, even with the same id
-- Transient entities (no id assigned yet) → never equal to anything but themselves
+- Same type and same id: equal.
+- Different types: never equal, even with the same id.
+- Transient entities (no id assigned yet): never equal to anything but themselves.
 
 ---
 
 ## Aggregate Roots
 
-An aggregate root is the entry point to a cluster of domain objects and its **consistency boundary**. Only aggregate roots are loaded and persisted directly.
+An aggregate root is the entry point to a cluster of domain objects and its consistency boundary. Only aggregate roots are loaded and persisted directly.
 
 ```csharp
 public class Order : AggregateRoot<OrderId>
@@ -57,7 +57,7 @@ public class Order : AggregateRoot<OrderId>
 
 ## Value Objects
 
-Value objects are immutable and compared by their **equality components** — declared explicitly, with no reflection involved:
+Value objects are immutable and compared by their equality components. The components are declared explicitly, with no reflection involved:
 
 ```csharp
 public class Money(decimal amount, string currency) : ValueObject
@@ -111,13 +111,13 @@ CheckRule(new OrderMustHaveItemsRule(_items));
 
 When a rule is broken, a `BusinessRuleValidationException` is thrown carrying the rule instance and its message.
 
-> Business rules protect **domain invariants**. Input validation belongs to the [validation pipeline](pipeline.md) — by the time a command reaches the domain, its shape is already valid.
+> Business rules protect domain invariants. Input validation belongs to the [validation pipeline](pipeline.md). By the time a command reaches the domain, its shape is already valid.
 
 ---
 
 ## Domain Events
 
-Domain events represent something meaningful that **has happened** in the domain. Raise them inside aggregates:
+Domain events represent something meaningful that has happened in the domain. Raise them inside aggregates:
 
 ```csharp
 public sealed record OrderPlaced(OrderId OrderId) : DomainEvent;
@@ -127,4 +127,4 @@ public sealed record OrderPlaced(OrderId OrderId) : DomainEvent;
 AddDomainEvent(new OrderPlaced(Id));
 ```
 
-The `DomainEvent` base record captures `OccurredOn` at creation time. Events accumulate on the entity and are collected and dispatched by the [unit of work](unit-of-work.md) — the domain layer never dispatches anything itself.
+The `DomainEvent` base record captures `OccurredOn` at creation time. Events accumulate on the entity and are collected and dispatched by the [unit of work](unit-of-work.md). The domain layer never dispatches anything itself.

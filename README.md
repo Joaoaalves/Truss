@@ -1,6 +1,6 @@
 # Truss
 
-**Truss** is a modular .NET framework for building applications with **DDD**, **CQRS** and **Clean Architecture** — focused on developer experience, explicit behavior and minimal dependencies per layer.
+**Truss** is a modular .NET framework for building applications with **DDD**, **CQRS** and **Clean Architecture**, focused on developer experience, explicit behavior and minimal dependencies per layer.
 
 Full documentation: **https://joaoaalves.github.io/Truss**
 
@@ -17,7 +17,7 @@ Full documentation: **https://joaoaalves.github.io/Truss**
 
 ## Principles
 
-- **Explicit over implicit** — no hidden conventions, no runtime magic.
-- **Minimal dependencies per layer** — the domain layer depends on nothing; the application layer never sees the ORM.
-- **Developer experience first** — commands validate themselves, the unit of work commits automatically, domain events dispatch at the right moment.
-- **Failure transparency** — exceptions propagate with their original stack trace.
+- **Explicit over implicit.** No hidden conventions, no runtime magic.
+- **Minimal dependencies per layer.** The domain layer depends on nothing; the application layer never sees the ORM.
+- **Developer experience first.** Commands validate themselves, the unit of work commits automatically, domain events dispatch at the right moment.
+- **Failure transparency.** Exceptions propagate with their original stack trace.

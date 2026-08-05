@@ -1,6 +1,6 @@
 # Quickstart
 
-This section describes the **minimum configuration required** to use Truss in a real application.
+This section describes the minimum configuration required to use Truss in a real application.
 
 > Truss packages will be published to **nuget.org**. Until the first release, reference the projects directly from the repository.
 
@@ -15,7 +15,7 @@ A typical Clean Architecture setup:
 | Domain | `Truss.Domain` |
 | Application | `Truss.Application.Abstractions` |
 | Infrastructure | `Truss.Persistence.EntityFrameworkCore` |
-| API / Composition root | `Truss.Application` + infrastructure modules |
+| API / Composition root | `Truss.Application` and infrastructure modules |
 
 ---
 
@@ -37,7 +37,7 @@ builder.Services.AddTruss(options =>
 builder.Services.AddTrussEntityFramework<AppDbContext>();
 ```
 
-`AddTruss` requires at least one assembly. It scans the registered assemblies for command, query and domain event handlers, and for FluentValidation validators. There is no fallback to "all loaded assemblies" — discovery is always explicit.
+`AddTruss` requires at least one assembly. It scans the registered assemblies for command, query and domain event handlers, and for FluentValidation validators. There is no fallback to all loaded assemblies. Discovery is always explicit.
 
 ---
 
@@ -68,7 +68,7 @@ public class CreateUserHandler(AppDbContext context) : ICommandHandler<CreateUse
 }
 ```
 
-Note what the handler does **not** do: it does not validate the command, does not call `SaveChangesAsync` and does not dispatch events. The pipeline does all of that.
+Note what the handler does not do: it does not validate the command, does not call `SaveChangesAsync` and does not dispatch events. The pipeline does all of that.
 
 ---
 
@@ -83,16 +83,16 @@ app.MapPost("/users", (CreateUser command, IDispatcher dispatcher, CancellationT
 
 The execution flow for this request:
 
-1. Validation runs — if it fails, a `RequestValidationException` with **every** failure is thrown and the handler never executes
-2. The handler runs
-3. Domain events raised by aggregates are dispatched
-4. All changes are persisted in a single atomic save
-5. The result is returned
+1. Validation runs. If it fails, a `RequestValidationException` carrying every failure is thrown and the handler never executes.
+2. The handler runs.
+3. Domain events raised by aggregates are dispatched.
+4. All changes are persisted in a single atomic save.
+5. The result is returned.
 
 ---
 
 ## Next Steps
 
-- [Building Blocks](domain.md) — modeling your domain
-- [Commands & Queries](commands-and-queries.md) — the messaging model
-- [Unit of Work](unit-of-work.md) — the transactional boundary in depth
+- [Building Blocks](domain.md) covers modeling your domain.
+- [Commands & Queries](commands-and-queries.md) covers the messaging model.
+- [Unit of Work](unit-of-work.md) covers the transactional boundary in depth.

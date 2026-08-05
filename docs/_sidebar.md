@@ -16,5 +16,9 @@
 * Persistence
     - [Unit of Work](unit-of-work.md)
 
+* Reference
+    - [Design Guidelines](design-guidelines.md)
+    - [Common Pitfalls](pitfalls.md)
+
 * Project
     - [Roadmap](roadmap.md)

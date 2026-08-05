@@ -1,6 +1,6 @@
 # Pipeline Behaviors
 
-Every request dispatched through Truss flows through a **pipeline** of behaviors that wrap the handler, middleware-style.
+Every request dispatched through Truss flows through a pipeline of behaviors that wrap the handler, middleware-style.
 
 ---
 
@@ -16,18 +16,18 @@ public interface IPipelineBehavior<in TRequest, TResponse> where TRequest : IReq
 }
 ```
 
-A behavior can run logic before and after `next()`, short-circuit the pipeline by not calling it, or transform failures. There is exactly **one** pipeline system — commands and queries share it.
+A behavior can run logic before and after `next()`, short-circuit the pipeline by not calling it, or transform failures. There is exactly one pipeline system. Commands and queries share it.
 
 ---
 
 ## Ordering
 
-Behaviors execute in **registration order**: the first registered behavior is the outermost.
+Behaviors execute in registration order: the first registered behavior is the outermost.
 
 ```
-ValidationBehavior          (registered by AddTruss)
-  └─ UnitOfWorkBehavior     (registered by AddTrussEntityFramework)
-      └─ handler
+ValidationBehavior            registered by AddTruss
+    UnitOfWorkBehavior        registered by AddTrussEntityFramework
+        handler
 ```
 
 This order is intentional: validation failures must prevent the unit of work from ever being touched.
@@ -51,9 +51,9 @@ public class CreateUserValidator : AbstractValidator<CreateUser>
 
 When validation fails:
 
-- The handler is **not** executed
-- The unit of work is **not** created
-- A `RequestValidationException` is thrown containing **every** failure — not just the first one
+- The handler is not executed.
+- The unit of work is not created.
+- A `RequestValidationException` is thrown containing every failure, not just the first one.
 
 ```csharp
 public class RequestValidationException : Exception
@@ -64,13 +64,13 @@ public class RequestValidationException : Exception
 
 Each `ValidationError` carries the property name and the message, ready to be mapped to an API error response.
 
-> The upcoming ASP.NET Core module will map `RequestValidationException` to an RFC 7807 `ProblemDetails` response automatically. See [Roadmap](roadmap.md).
+> The upcoming ASP.NET Core module will map `RequestValidationException` to an RFC 7807 `ProblemDetails` response automatically. See the [Roadmap](roadmap.md).
 
 ---
 
 ## Unit of Work Behavior
 
-`UnitOfWorkBehavior` applies to **commands only** — its constraint (`where TRequest : ICommand<TResponse>`) makes the container skip it for queries entirely.
+`UnitOfWorkBehavior` applies to commands only. Its type constraint (`where TRequest : ICommand<TResponse>`) makes the container skip it for queries entirely.
 
 On success, it commits the unit of work. On failure, nothing is committed and the exception propagates unchanged. Details in [Unit of Work](unit-of-work.md).
 
@@ -78,7 +78,7 @@ On success, it commits the unit of work. On failure, nothing is committed and th
 
 ## Custom Behaviors
 
-Register your own behaviors for cross-cutting concerns — logging, caching, metrics:
+Register your own behaviors for cross-cutting concerns such as logging, caching or metrics:
 
 ```csharp
 public class LoggingBehavior<TRequest, TResponse>(ILogger<LoggingBehavior<TRequest, TResponse>> logger)
@@ -102,4 +102,4 @@ public class LoggingBehavior<TRequest, TResponse>(ILogger<LoggingBehavior<TReque
 services.AddScoped(typeof(IPipelineBehavior<,>), typeof(LoggingBehavior<,>));
 ```
 
-Open generic registrations with type constraints are supported — the container skips a behavior whenever the request type does not satisfy its constraints, which is exactly how `UnitOfWorkBehavior` targets commands only.
+Open generic registrations with type constraints are supported. The container skips a behavior whenever the request type does not satisfy its constraints, which is exactly how `UnitOfWorkBehavior` targets commands only.
