@@ -9,3 +9,4 @@
 - Return ids or DTOs from handlers, never entities.
 - Never inject `IUnitOfWork` into application code. The pipeline owns the transaction.
 - Validate input shape with validators. Protect invariants with business rules. These are different concerns and different failure types.
+- Keep authentication state out of the domain. Password hashes, tokens and credentials are infrastructure persistence models behind application abstractions; an aggregate never carries a hash.

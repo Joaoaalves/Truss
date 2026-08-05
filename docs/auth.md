@@ -13,7 +13,7 @@ truss add auth --provider jwt
 Requires a database. The command:
 
 - References `Truss.Auth.Abstractions` in the application layer and `Truss.Auth.Jwt` in the host.
-- Scaffolds the `Accounts` context: `User`, `RefreshToken`, business rules and the `UserRegistered` event in the domain; `RegisterUser`, `Login` and `Refresh` commands with handlers and validators in the application; EF configurations and repositories in the infrastructure.
+- Scaffolds the `Accounts` context: the `User` aggregate, its business rule and the `UserRegistered` event in the domain; the `RegisterUser`, `Login` and `Refresh` commands with handlers, validators and the credential store abstractions in the application; the credential and refresh token persistence models, EF configurations and store implementations in the infrastructure.
 - Wires `Program.cs`: `AddTrussJwtAuth`, `UseAuthentication`, `UseAuthorization` and the three endpoints.
 - Writes a development signing key to `appsettings.json`.
 
@@ -51,25 +51,35 @@ The scaffolded development key must be replaced per environment; keep the produc
 
 ## What Your Project Owns
 
-Everything about the model. The scaffolded `User` is a normal Truss aggregate:
+Everything about the model. The scaffolded `User` is a normal Truss aggregate, and it carries **no authentication state**: no password hash, no tokens. Credentials are not a domain concern.
 
 ```csharp
 public class User : AggregateRoot<UserId>
 {
     public string Email { get; private set; }
     public string Name { get; private set; }
-    public string PasswordHash { get; private set; }
 
-    public static User Register(string email, string name, string passwordHash) { ... }
+    public static User Register(string email, string name) { ... }
 }
 ```
 
-Add fields, rules and events like in any other aggregate; the EF configuration sits next to your others. The handlers are ordinary command handlers using the package services through two small interfaces:
+Password hashes and refresh tokens live in the infrastructure layer as persistence models (`UserCredential`, `RefreshTokenRecord`), reached through two application abstractions the scaffold also generates:
+
+```csharp
+public interface IUserCredentialsStore
+{
+    Task SetPassword(UserId userId, string passwordHash, CancellationToken cancellationToken = default);
+    Task<string?> GetPasswordHash(UserId userId, CancellationToken cancellationToken = default);
+}
+```
+
+Add fields, rules and events to the aggregate like in any other; the EF configurations sit next to your others. The handlers are ordinary command handlers composing the domain, the stores and the package services:
 
 ```csharp
 public class LoginHandler(
     IUserRepository users,
-    IRefreshTokenRepository refreshTokens,
+    IUserCredentialsStore credentials,
+    IRefreshTokenStore refreshTokens,
     IPasswordHasher passwordHasher,
     IJwtTokenService tokens) : ICommandHandler<Login, AuthTokensDto>
 ```
