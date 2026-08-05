@@ -10,18 +10,11 @@ Truss is built module by module, each one opt-in. The framework never installs a
 - Single pipeline with explicit ordering, validation that reports every failure, cancellation propagated end to end.
 - Dispatcher with typed invokers cached per request type. No `dynamic`, no per-call reflection.
 - EF Core unit of work: automatic commit, cascading domain event dispatch, single atomic save.
+- ASP.NET Core module: `MapCommand` and `MapQuery` minimal API extensions, validation failures as RFC 7807 `ProblemDetails` with every field error, business rule violations as 422 responses.
 
 ---
 
 ## Next
-
-### Truss.AspNetCore
-
-Endpoint mapping with developer experience as the goal:
-
-- `MapCommand<T>` and `MapQuery<T>` minimal API extensions.
-- `RequestValidationException` mapped to an RFC 7807 `ProblemDetails` response with every field error.
-- `BusinessRuleValidationException` mapped to clean 4xx responses.
 
 ### Source generators
 

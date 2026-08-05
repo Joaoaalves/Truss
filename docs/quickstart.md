@@ -15,7 +15,7 @@ A typical Clean Architecture setup:
 | Domain | `Truss.Domain` |
 | Application | `Truss.Application.Abstractions` |
 | Infrastructure | `Truss.Persistence.EntityFrameworkCore` |
-| API / Composition root | `Truss.Application` and infrastructure modules |
+| API / Composition root | `Truss.Application`, `Truss.AspNetCore` and infrastructure modules |
 
 ---
 
@@ -72,9 +72,15 @@ Note what the handler does not do: it does not validate the command, does not ca
 
 ---
 
-## Dispatching
+## Exposing the Command as an Endpoint
 
-Inject `IDispatcher` and send the command. In a minimal API, the command doubles as the request body:
+With `Truss.AspNetCore`, one line turns the command into a route. The request body binds to the command and validation errors come back as ProblemDetails:
+
+```csharp
+app.MapCommand<CreateUser, Guid>("/users");
+```
+
+Prefer manual control? Inject `IDispatcher` anywhere and send the command yourself:
 
 ```csharp
 app.MapPost("/users", (CreateUser command, IDispatcher dispatcher, CancellationToken ct)
@@ -95,4 +101,5 @@ The execution flow for this request:
 
 - [Building Blocks](domain.md) covers modeling your domain.
 - [Commands & Queries](commands-and-queries.md) covers the messaging model.
+- [ASP.NET Core](aspnetcore.md) covers endpoint mapping and error responses.
 - [Unit of Work](unit-of-work.md) covers the transactional boundary in depth.

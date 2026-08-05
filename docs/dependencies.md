@@ -48,3 +48,15 @@ EF Core implementation of the unit of work, with domain event collection from tr
 
 - `Truss.Application`
 - `Microsoft.EntityFrameworkCore`
+
+---
+
+## Truss.AspNetCore
+
+**Purpose:**
+Endpoint mapping for commands and queries, with automatic ProblemDetails responses for validation and business rule failures.
+
+### Dependencies
+
+- `Truss.Application.Abstractions`
+- ASP.NET Core shared framework (framework reference, not a package)

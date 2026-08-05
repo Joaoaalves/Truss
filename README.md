@@ -14,6 +14,7 @@ Full documentation: **https://joaoaalves.github.io/Truss**
 | `Truss.Application.Abstractions` | Contracts for commands, queries, handlers, pipeline behaviors and unit of work. | Application |
 | `Truss.Application` | Dispatcher, validation pipeline and handler registration. | Application / Composition root |
 | `Truss.Persistence.EntityFrameworkCore` | EF Core unit of work with automatic commit and domain event dispatching. | Infrastructure |
+| `Truss.AspNetCore` | Endpoint mapping for commands and queries with automatic ProblemDetails responses. | API / Host |
 
 ## Principles
 

@@ -32,6 +32,7 @@ Truss is intentionally explicit, modular and dependency-minimal.
 | `Truss.Application.Abstractions` | Contracts for commands, queries, handlers, pipeline behaviors, dispatching and unit of work. | Application |
 | `Truss.Application` | Dispatcher, validation pipeline, handler registration. | Application / Composition root |
 | `Truss.Persistence.EntityFrameworkCore` | EF Core unit of work with automatic commit and domain event dispatching. | Infrastructure |
+| `Truss.AspNetCore` | Endpoint mapping for commands and queries with automatic ProblemDetails responses. | API / Host |
 
 Each layer references only the packages it needs. See [Architecture](architecture.md) for the full picture.
 

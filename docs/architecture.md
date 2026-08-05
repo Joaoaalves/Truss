@@ -11,7 +11,7 @@ Truss assumes a Clean Architecture layout, but does not enforce one. Each packag
 | Domain | Entities, value objects, domain events, business rules | `Truss.Domain` |
 | Application | Commands, queries, handlers, validators | `Truss.Application.Abstractions` |
 | Infrastructure | Persistence, unit of work implementation | `Truss.Persistence.EntityFrameworkCore` |
-| API / Host | Registration and composition | `Truss.Application` and modules |
+| API / Host | Registration, composition, endpoint mapping | `Truss.Application`, `Truss.AspNetCore` and modules |
 
 The domain layer depends on nothing but `Truss.Domain`, which itself has zero dependencies. The application layer sees only abstractions: never EF Core, never a database driver.
 
