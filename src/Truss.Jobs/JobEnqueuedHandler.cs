@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Truss.Messaging;
@@ -13,6 +14,8 @@ namespace Truss.Jobs
         ILogger<JobEnqueuedHandler> logger,
         TimeProvider timeProvider) : IIntegrationEventHandler<JobEnqueued>
     {
+        private static readonly ActivitySource Source = new("Truss.Jobs");
+
         private readonly TrussJobsOptions _options = options.Value;
 
         public async Task Handle(JobEnqueued integrationEvent, CancellationToken cancellationToken)
@@ -41,6 +44,11 @@ namespace Truss.Jobs
             record.MarkRunning(timeProvider.GetUtcNow());
             await store.Save(cancellationToken);
 
+            using var activity = Source.StartActivity($"job {record.Name}");
+            activity?.SetTag("truss.job", record.Name);
+            activity?.SetTag("truss.job_id", record.Id);
+            activity?.SetTag("truss.job.attempt", record.Attempts);
+
             var context = new JobContext(record.Id, record.Attempts, async (percent, message, progressToken) =>
             {
                 record.UpdateProgress(percent, message);
@@ -62,6 +70,7 @@ namespace Truss.Jobs
             }
             catch (Exception exception)
             {
+                activity?.SetStatus(ActivityStatusCode.Error, exception.Message);
                 await RegisterFailure(record, exception, cancellationToken);
             }
         }

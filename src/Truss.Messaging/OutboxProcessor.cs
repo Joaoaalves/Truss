@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -17,6 +18,8 @@ namespace Truss.Messaging
         ILogger<OutboxProcessor> logger,
         TimeProvider timeProvider) : BackgroundService
     {
+        private static readonly ActivitySource Source = new("Truss.Messaging");
+
         private readonly IServiceScopeFactory _scopeFactory = scopeFactory;
         private readonly IMessageTransport _transport = transport;
         private readonly TrussOutboxOptions _options = options.Value;
@@ -39,6 +42,10 @@ namespace Truss.Messaging
 
             foreach (var message in messages)
             {
+                using var activity = Source.StartActivity($"publish {message.Name}");
+                activity?.SetTag("truss.event", message.Name);
+                activity?.SetTag("truss.message_id", message.Id);
+
                 try
                 {
                     await _transport.Publish(message.ToEnvelope(), cancellationToken);
@@ -46,6 +53,8 @@ namespace Truss.Messaging
                 }
                 catch (Exception exception) when (exception is not OperationCanceledException)
                 {
+                    activity?.SetStatus(ActivityStatusCode.Error, exception.Message);
+
                     message.RegisterFailure(
                         exception.Message,
                         _timeProvider.GetUtcNow(),
