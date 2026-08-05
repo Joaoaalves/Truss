@@ -1,0 +1,84 @@
+using System.Diagnostics;
+using Xunit;
+
+namespace Truss.Cli.Tests
+{
+    public class ScaffoldBuildTests : IDisposable
+    {
+        private readonly CliTestWorkspace _workspace = new();
+        private readonly string _feed;
+        private readonly string _packagesCache;
+
+        public ScaffoldBuildTests()
+        {
+            _feed = Path.Combine(_workspace.Directory, "feed");
+            _packagesCache = Path.Combine(_workspace.Directory, "nuget-cache");
+        }
+
+        [Fact]
+        public void ScaffoldedProject_Builds_WithAllModulesAdded()
+        {
+            PackFramework();
+
+            Assert.Equal(0, _workspace.Scaffold("Shop", "sqlite", "--local-packages", _feed));
+            var root = _workspace.Root("Shop");
+
+            AssertBuildSucceeds(root);
+
+            Assert.Equal(0, _workspace.Run("add", "messaging", "--transport", "inmemory", "--project", root));
+            Assert.Equal(0, _workspace.Run("add", "jobs", "--project", root));
+            Assert.Equal(0, _workspace.Run("add", "observability", "--project", root));
+            Assert.Equal(0, _workspace.Run("generate", "command", "ArchiveProduct", "--context", "Catalog", "--project", root));
+            Assert.Equal(0, _workspace.Run("doctor", "--project", root));
+
+            AssertBuildSucceeds(root);
+        }
+
+        private void PackFramework()
+        {
+            var repoRoot = FindRepoRoot();
+            var result = RunProcess(repoRoot, "dotnet", $"pack Truss.slnx -c Release -o {_feed} --nologo");
+
+            Assert.True(result.ExitCode == 0, $"dotnet pack failed:{Environment.NewLine}{result.Output}");
+        }
+
+        private void AssertBuildSucceeds(string root)
+        {
+            var result = RunProcess(root, "dotnet", "build Shop.slnx -c Release --nologo");
+
+            Assert.True(result.ExitCode == 0, $"Scaffolded project failed to build:{Environment.NewLine}{result.Output}");
+        }
+
+        private (int ExitCode, string Output) RunProcess(string workingDirectory, string fileName, string arguments)
+        {
+            var startInfo = new ProcessStartInfo(fileName, arguments)
+            {
+                WorkingDirectory = workingDirectory,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true
+            };
+
+            startInfo.Environment["NUGET_PACKAGES"] = _packagesCache;
+            startInfo.Environment["MSBUILDDISABLENODEREUSE"] = "1";
+
+            using var process = Process.Start(startInfo)!;
+            var output = process.StandardOutput.ReadToEnd() + process.StandardError.ReadToEnd();
+            process.WaitForExit();
+
+            return (process.ExitCode, output);
+        }
+
+        private static string FindRepoRoot()
+        {
+            var directory = new DirectoryInfo(AppContext.BaseDirectory);
+
+            while (directory is not null && !File.Exists(Path.Combine(directory.FullName, "Truss.slnx")))
+                directory = directory.Parent!;
+
+            Assert.NotNull(directory);
+            return directory.FullName;
+        }
+
+        public void Dispose() => _workspace.Dispose();
+    }
+}
