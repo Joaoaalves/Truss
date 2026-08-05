@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Truss — The load-bearing framework for .NET</title>
+    <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1" />
+    <meta
+      name="description"
+      content="Truss is a modular .NET framework for DDD, CQRS and Clean Architecture, focused on developer experience and explicit behavior."
+    />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, minimum-scale=1.0"
+    />
+    <link rel="icon" href="_media/logo.svg" type="image/svg+xml" />
+
+    <link
+      rel="stylesheet"
+      media="(prefers-color-scheme: light)"
+      href="https://cdn.jsdelivr.net/npm/docsify-themeable@0/dist/css/theme-simple.css"
+    />
+    <link
+      rel="stylesheet"
+      media="(prefers-color-scheme: dark)"
+      href="https://cdn.jsdelivr.net/npm/docsify-themeable@0/dist/css/theme-simple-dark.css"
+    />
+
+    <style>
+      :root {
+        --theme-color: #d97706;
+        --link-color: #d97706;
+        --link-color--hover: #b45309;
+        --sidebar-name-font-size: 1.6rem;
+        --sidebar-name-font-weight: 700;
+        --sidebar-nav-link-font-weight--active: 600;
+        --heading-h1-font-weight: 700;
+        --heading-h2-font-weight: 650;
+        --code-theme-comment: #8b949e;
+        --cover-background-color: linear-gradient(160deg, #1c1917 0%, #292524 55%, #44403c 100%);
+        --cover-color: #fafaf9;
+        --cover-heading-color: #fbbf24;
+        --cover-button-border: 1px solid #fbbf24;
+        --cover-button-color: #fbbf24;
+        --cover-button-primary-background: #d97706;
+        --cover-button-primary-border: 1px solid #d97706;
+        --cover-button-primary-color: #1c1917;
+        --cover-blockquote-color: #d6d3d1;
+      }
+
+      .cover .cover-main img {
+        max-width: 140px;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="app"></div>
+    <script>
+      window.$docsify = {
+        name: "Truss",
+        repo: "https://github.com/Joaoaalves/Truss",
+        coverpage: true,
+        loadSidebar: true,
+        auto2top: true,
+        maxLevel: 3,
+        subMaxLevel: 2,
+        search: {
+          maxAge: 86400000,
+          paths: "auto",
+          placeholder: "Search",
+          noData: "No results!",
+          depth: 3,
+        },
+        pagination: {
+          previousText: "Previous",
+          nextText: "Next",
+          crossChapter: true,
+          auto: true,
+        },
+      };
+    </script>
+    <!-- Docsify v4 -->
+    <script src="https://cdn.jsdelivr.net/npm/docsify@4"></script>
+    <script src="https://cdn.jsdelivr.net/npm/docsify-themeable@0"></script>
+    <script src="https://cdn.jsdelivr.net/npm/docsify/lib/plugins/search.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/docsify-copy-code/dist/docsify-copy-code.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/docsify-pagination/dist/docsify-pagination.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/prismjs@1/components/prism-csharp.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/prismjs@1/components/prism-bash.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/prismjs@1/components/prism-json.min.js"></script>
+  </body>
+</html>

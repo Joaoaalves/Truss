@@ -2,6 +2,8 @@
 
 **Truss** is a modular .NET framework for building applications with **DDD**, **CQRS** and **Clean Architecture** — focused on developer experience, explicit behavior and minimal dependencies per layer.
 
+Full documentation: **https://joaoaalves.github.io/Truss**
+
 > Early development. APIs are subject to change until v1.
 
 ## Packages

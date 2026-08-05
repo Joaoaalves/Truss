@@ -4,5 +4,4 @@ artifacts/
 *.user
 .vs/
 .idea/
-docs/**
 .claude/**
