@@ -25,6 +25,7 @@ Truss is built module by module, each one opt-in. The framework never installs a
 - First release: every package and the CLI published to nuget.org as 0.1.0 through NuGet trusted publishing.
 - RabbitMQ transport and outbox retention: processed messages are cleaned up after a configurable period.
 - Jobs hardening: exponential retry backoff, cancellation of queued and running jobs, retention of finished records, and lease-based scheduler locking so every instance can keep the schedulers enabled.
+- Dashboards: the OpenTelemetry bridge package and one-command wiring of the Aspire dashboard, Grafana or Seq through the CLI, with the compose service and the development environment configured.
 
 ---
 
@@ -41,7 +42,6 @@ ASP.NET Core Identity integration and external OpenID providers over the same sc
 | Module | Purpose |
 |---|---|
 | Auth providers | ASP.NET Core Identity integration and external OpenID providers |
-| Dashboards | Generated compose files for log, trace and job dashboards |
 
 ---
 

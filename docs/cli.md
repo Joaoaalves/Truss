@@ -63,7 +63,7 @@ Installs a module into an existing project: adds the package references to the c
 |---|---|---|
 | `messaging` | `--transport inmemory`, `postgres`, `rabbitmq`, `redis` | With a database, the outbox is installed automatically |
 | `jobs` | | Requires messaging |
-| `observability` | | Logging, tracing and the correlation middleware |
+| `observability` | `--dashboard aspire`, `grafana`, `seq` | Logging, tracing and correlation; the dashboard option wires OTLP export and the compose service |
 | `mapping` | | Compile-time DTO mappers, added to the application layer |
 | `auth` | `--provider jwt` | Scaffolds the editable Accounts context and wires JWT authentication; requires a database |
 

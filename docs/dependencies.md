@@ -149,6 +149,20 @@ Durable Redis transport: Streams with consumer groups, pending message reclaim a
 
 ---
 
+## Truss.Observability.OpenTelemetry
+
+**Purpose:**
+OTLP bridge: exports the Truss activity sources, meter and application logs through the OpenTelemetry SDK, with ASP.NET Core and HttpClient instrumentation.
+
+### Dependencies
+
+- `OpenTelemetry.Exporter.OpenTelemetryProtocol`
+- `OpenTelemetry.Extensions.Hosting`
+- `OpenTelemetry.Instrumentation.AspNetCore`
+- `OpenTelemetry.Instrumentation.Http`
+
+---
+
 ## Truss.Jobs.Abstractions
 
 **Purpose:**

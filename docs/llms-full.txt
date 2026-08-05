@@ -54,6 +54,7 @@ Truss is intentionally explicit, modular and dependency-minimal.
 | `Truss.Jobs.AspNetCore` | Progress endpoints: polling and server-sent events. | API / Host |
 | `Truss.Observability` | Structured request logging, spans, metrics and ambient correlation. | Cross-cutting |
 | `Truss.Observability.AspNetCore` | Correlation middleware bridging HTTP headers. | API / Host |
+| `Truss.Observability.OpenTelemetry` | OTLP export of the framework's traces, metrics and logs in one registration. | API / Host |
 | `Truss.Cli` | The `truss` command line: scaffolding, module installation, code generation. | Tooling (dotnet tool) |
 | `Truss.Mapping` | Compile-time DTO mappers with typed id unwrapping and unmapped members as build errors. | Build (dev dependency) |
 | `Truss.Auth.Abstractions` | Contracts for password hashing and token issuing. | Application |
@@ -410,6 +411,20 @@ Durable Redis transport: Streams with consumer groups, pending message reclaim a
 
 - `Truss.Messaging`
 - `StackExchange.Redis`
+
+---
+
+## Truss.Observability.OpenTelemetry
+
+**Purpose:**
+OTLP bridge: exports the Truss activity sources, meter and application logs through the OpenTelemetry SDK, with ASP.NET Core and HttpClient instrumentation.
+
+### Dependencies
+
+- `OpenTelemetry.Exporter.OpenTelemetryProtocol`
+- `OpenTelemetry.Extensions.Hosting`
+- `OpenTelemetry.Instrumentation.AspNetCore`
+- `OpenTelemetry.Instrumentation.Http`
 
 ---
 
@@ -1687,40 +1702,35 @@ Truss emits spans through three activity sources and metrics through one meter, 
 | `truss.requests` | Counter | request, kind, outcome (success, rejected, failure) |
 | `truss.request.duration` | Histogram (ms) | request, kind, outcome |
 
-Wire them to the OpenTelemetry SDK in the composition root:
+`Truss.Observability.OpenTelemetry` exports everything over OTLP with one registration:
 
 ```csharp
-builder.Services.AddOpenTelemetry()
-    .WithTracing(tracing => tracing
-        .AddAspNetCoreInstrumentation()
-        .AddSource("Truss.Application", "Truss.Messaging", "Truss.Jobs")
-        .AddOtlpExporter())
-    .WithMetrics(metrics => metrics
-        .AddMeter("Truss")
-        .AddOtlpExporter());
+builder.Services.AddTrussOpenTelemetry();
 ```
+
+It subscribes to the three Truss sources and the Truss meter, adds the ASP.NET Core and HttpClient instrumentation, exports the application logs, and reports the service name from the entry assembly. The destination follows the standard environment variables (`OTEL_EXPORTER_OTLP_ENDPOINT`, `OTEL_EXPORTER_OTLP_PROTOCOL`), so any OTLP backend works without code changes; the options type overrides the endpoint, the service name, or disables individual signals. Applications that need instrumentation beyond what the bridge covers can keep using the OpenTelemetry SDK directly; the package is a convenience, not a wall.
 
 ---
 
 ## Dashboards
 
-Truss does not bundle a log viewer; it emits standard signals and any free stack consumes them:
+Truss does not bundle a log viewer; it emits standard signals and any free dashboard consumes them. The CLI wires one in a single command:
 
-- **Development**: a Seq container gives instant structured log search. Point the OpenTelemetry OTLP exporter (or a Seq sink) at `http://localhost:5341`.
-
-```yaml
-services:
-  seq:
-    image: datalust/seq:latest
-    environment:
-      ACCEPT_EULA: "Y"
-    ports:
-      - "5341:80"
+```
+truss add observability --dashboard aspire
 ```
 
-- **Production, fully free**: Grafana with Loki (logs), Tempo (traces) and Prometheus (metrics), all fed by the OTLP exporter through an OpenTelemetry Collector.
+The command references the OpenTelemetry bridge, registers `AddTrussOpenTelemetry`, points the development environment at the dashboard through `launchSettings.json` and adds the container to `docker-compose.yml`:
 
-The Truss CLI will generate these compose files as part of project scaffolding. See the [Roadmap](roadmap.md).
+| Dashboard | Image | UI | Notes |
+|---|---|---|---|
+| `aspire` | `mcr.microsoft.com/dotnet/aspire-dashboard` | `http://localhost:18888` | Traces, logs and metrics in one place; in-memory, made for development |
+| `grafana` | `grafana/otel-lgtm` | `http://localhost:3000` | Grafana with Loki, Tempo and Prometheus in one container |
+| `seq` | `datalust/seq` | `http://localhost:8081` | Structured log search with native OTLP ingestion |
+
+Run `docker compose up`, start the application and the signals appear. Switching later is one command with a different choice; only the destination changes.
+
+For production, the same OTLP output feeds whatever the environment offers: a provisioned Grafana stack, a managed collector, or the single-container `grafana/otel-lgtm` for small deployments. Configure the destination per environment with `OTEL_EXPORTER_OTLP_ENDPOINT`; nothing in the application changes.
 
 ---
 
@@ -1901,7 +1911,7 @@ Installs a module into an existing project: adds the package references to the c
 |---|---|---|
 | `messaging` | `--transport inmemory`, `postgres`, `rabbitmq`, `redis` | With a database, the outbox is installed automatically |
 | `jobs` | | Requires messaging |
-| `observability` | | Logging, tracing and the correlation middleware |
+| `observability` | `--dashboard aspire`, `grafana`, `seq` | Logging, tracing and correlation; the dashboard option wires OTLP export and the compose service |
 | `mapping` | | Compile-time DTO mappers, added to the application layer |
 | `auth` | `--provider jwt` | Scaffolds the editable Accounts context and wires JWT authentication; requires a database |
 
@@ -2068,6 +2078,7 @@ Truss is built module by module, each one opt-in. The framework never installs a
 - First release: every package and the CLI published to nuget.org as 0.1.0 through NuGet trusted publishing.
 - RabbitMQ transport and outbox retention: processed messages are cleaned up after a configurable period.
 - Jobs hardening: exponential retry backoff, cancellation of queued and running jobs, retention of finished records, and lease-based scheduler locking so every instance can keep the schedulers enabled.
+- Dashboards: the OpenTelemetry bridge package and one-command wiring of the Aspire dashboard, Grafana or Seq through the CLI, with the compose service and the development environment configured.
 
 ---
 
@@ -2084,7 +2095,6 @@ ASP.NET Core Identity integration and external OpenID providers over the same sc
 | Module | Purpose |
 |---|---|
 | Auth providers | ASP.NET Core Identity integration and external OpenID providers |
-| Dashboards | Generated compose files for log, trace and job dashboards |
 
 ---
 

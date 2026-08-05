@@ -77,37 +77,32 @@ Truss emits spans through three activity sources and metrics through one meter, 
 | `truss.requests` | Counter | request, kind, outcome (success, rejected, failure) |
 | `truss.request.duration` | Histogram (ms) | request, kind, outcome |
 
-Wire them to the OpenTelemetry SDK in the composition root:
+`Truss.Observability.OpenTelemetry` exports everything over OTLP with one registration:
 
 ```csharp
-builder.Services.AddOpenTelemetry()
-    .WithTracing(tracing => tracing
-        .AddAspNetCoreInstrumentation()
-        .AddSource("Truss.Application", "Truss.Messaging", "Truss.Jobs")
-        .AddOtlpExporter())
-    .WithMetrics(metrics => metrics
-        .AddMeter("Truss")
-        .AddOtlpExporter());
+builder.Services.AddTrussOpenTelemetry();
 ```
+
+It subscribes to the three Truss sources and the Truss meter, adds the ASP.NET Core and HttpClient instrumentation, exports the application logs, and reports the service name from the entry assembly. The destination follows the standard environment variables (`OTEL_EXPORTER_OTLP_ENDPOINT`, `OTEL_EXPORTER_OTLP_PROTOCOL`), so any OTLP backend works without code changes; the options type overrides the endpoint, the service name, or disables individual signals. Applications that need instrumentation beyond what the bridge covers can keep using the OpenTelemetry SDK directly; the package is a convenience, not a wall.
 
 ---
 
 ## Dashboards
 
-Truss does not bundle a log viewer; it emits standard signals and any free stack consumes them:
+Truss does not bundle a log viewer; it emits standard signals and any free dashboard consumes them. The CLI wires one in a single command:
 
-- **Development**: a Seq container gives instant structured log search. Point the OpenTelemetry OTLP exporter (or a Seq sink) at `http://localhost:5341`.
-
-```yaml
-services:
-  seq:
-    image: datalust/seq:latest
-    environment:
-      ACCEPT_EULA: "Y"
-    ports:
-      - "5341:80"
+```
+truss add observability --dashboard aspire
 ```
 
-- **Production, fully free**: Grafana with Loki (logs), Tempo (traces) and Prometheus (metrics), all fed by the OTLP exporter through an OpenTelemetry Collector.
+The command references the OpenTelemetry bridge, registers `AddTrussOpenTelemetry`, points the development environment at the dashboard through `launchSettings.json` and adds the container to `docker-compose.yml`:
 
-The Truss CLI will generate these compose files as part of project scaffolding. See the [Roadmap](roadmap.md).
+| Dashboard | Image | UI | Notes |
+|---|---|---|---|
+| `aspire` | `mcr.microsoft.com/dotnet/aspire-dashboard` | `http://localhost:18888` | Traces, logs and metrics in one place; in-memory, made for development |
+| `grafana` | `grafana/otel-lgtm` | `http://localhost:3000` | Grafana with Loki, Tempo and Prometheus in one container |
+| `seq` | `datalust/seq` | `http://localhost:8081` | Structured log search with native OTLP ingestion |
+
+Run `docker compose up`, start the application and the signals appear. Switching later is one command with a different choice; only the destination changes.
+
+For production, the same OTLP output feeds whatever the environment offers: a provisioned Grafana stack, a managed collector, or the single-container `grafana/otel-lgtm` for small deployments. Configure the destination per environment with `OTEL_EXPORTER_OTLP_ENDPOINT`; nothing in the application changes.
