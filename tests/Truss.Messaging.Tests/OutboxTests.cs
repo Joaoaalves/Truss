@@ -39,9 +39,14 @@ namespace Truss.Messaging.Tests
             scope.ServiceProvider.GetRequiredService<MessagingDbContext>().Database.EnsureCreated();
         }
 
-        private async Task SendAsync(Truss.Application.ICommand command)
+        private Task SendAsync(Truss.Application.ICommand command)
         {
-            using var scope = _provider.CreateScope();
+            return SendAsync(_provider, command);
+        }
+
+        private static async Task SendAsync(ServiceProvider provider, Truss.Application.ICommand command)
+        {
+            using var scope = provider.CreateScope();
             var dispatcher = scope.ServiceProvider.GetRequiredService<IDispatcher>();
             await dispatcher.Send(command);
         }
@@ -117,6 +122,48 @@ namespace Truss.Messaging.Tests
 
             Assert.Single(_transport.Published);
             Assert.Equal(OutboxMessageStatus.Processed, SingleStoredMessage().Status);
+        }
+
+        [Fact]
+        public async Task Processor_CleansProcessedMessages_PastRetention_ButKeepsFailed()
+        {
+            var transport = new FakeTransport();
+            var services = new ServiceCollection();
+            services.AddLogging();
+            services.AddSingleton<ReceivedEvents>();
+            services.AddDbContext<MessagingDbContext>(options => options.UseSqlite(_connection));
+            services.AddTruss(options => options.AddAssembly<CreateItemCommand>());
+            services.AddTrussEntityFramework<MessagingDbContext>();
+            services.AddTrussMessaging(options => options.AddAssembly<CreateItemCommand>());
+            services.AddSingleton<IMessageTransport>(transport);
+            services.AddTrussOutbox<MessagingDbContext>(options =>
+            {
+                options.RetryBaseDelay = TimeSpan.FromMilliseconds(1);
+                options.MaxAttempts = 1;
+                options.RetentionPeriod = TimeSpan.FromMilliseconds(1);
+                options.CleanupInterval = TimeSpan.Zero;
+            });
+
+            var provider = services.BuildServiceProvider();
+            await using var _ = provider;
+
+            transport.Fail = true;
+            await SendAsync(provider, new CreateItemCommand(Guid.NewGuid()));
+            var processor = provider.GetRequiredService<OutboxProcessor>();
+            await processor.ProcessPendingAsync();
+
+            transport.Fail = false;
+            await SendAsync(provider, new CreateItemCommand(Guid.NewGuid()));
+            await processor.ProcessPendingAsync();
+
+            await Task.Delay(20);
+            await processor.ProcessPendingAsync();
+
+            using var scope = provider.CreateScope();
+            var context = scope.ServiceProvider.GetRequiredService<MessagingDbContext>();
+            var remaining = await context.Set<OutboxMessage>().ToListAsync();
+            var message = Assert.Single(remaining);
+            Assert.Equal(OutboxMessageStatus.Failed, message.Status);
         }
 
         [Fact]

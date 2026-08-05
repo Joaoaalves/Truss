@@ -26,6 +26,7 @@ namespace Truss.Messaging
         private readonly TrussOutboxOptions _options = options.Value;
         private readonly ILogger<OutboxProcessor> _logger = logger;
         private readonly TimeProvider _timeProvider = timeProvider;
+        private DateTimeOffset _nextCleanup = DateTimeOffset.MinValue;
 
         /// <summary>
         /// Publishes every due message once and persists the outcome.
@@ -72,7 +73,30 @@ namespace Truss.Messaging
             if (messages.Count > 0)
                 await store.Save(cancellationToken);
 
+            await CleanupIfDue(store, cancellationToken);
+
             return messages.Count;
+        }
+
+        /// <summary>
+        /// Sweeps processed messages past their retention, at most once per cleanup interval.
+        /// </summary>
+        private async Task CleanupIfDue(IOutboxStore store, CancellationToken cancellationToken)
+        {
+            if (_options.RetentionPeriod is not { } retention)
+                return;
+
+            var now = _timeProvider.GetUtcNow();
+
+            if (now < _nextCleanup)
+                return;
+
+            _nextCleanup = now + _options.CleanupInterval;
+
+            var deleted = await store.DeleteProcessedBefore(now - retention, cancellationToken);
+
+            if (deleted > 0)
+                _logger.LogInformation("Outbox cleanup removed {Count} processed messages older than {Retention}.", deleted, retention);
         }
 
         /// <inheritdoc />

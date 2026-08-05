@@ -38,5 +38,13 @@ namespace Truss.Messaging.EntityFrameworkCore
         {
             return _context.SaveChangesAsync(cancellationToken);
         }
+
+        /// <inheritdoc />
+        public Task<int> DeleteProcessedBefore(DateTimeOffset threshold, CancellationToken cancellationToken = default)
+        {
+            return _context.Set<OutboxMessage>()
+                .Where(message => message.Status == OutboxMessageStatus.Processed && message.ProcessedOn < threshold)
+                .ExecuteDeleteAsync(cancellationToken);
+        }
     }
 }

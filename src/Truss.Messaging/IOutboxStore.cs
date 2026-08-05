@@ -28,5 +28,14 @@ namespace Truss.Messaging
         /// </summary>
         /// <param name="cancellationToken">The cancellation token.</param>
         Task Save(CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Deletes processed messages older than the given threshold.
+        /// Pending and failed messages are never touched.
+        /// </summary>
+        /// <param name="threshold">The processing time before which messages are deleted.</param>
+        /// <param name="cancellationToken">The cancellation token.</param>
+        /// <returns>The number of deleted messages.</returns>
+        Task<int> DeleteProcessedBefore(DateTimeOffset threshold, CancellationToken cancellationToken = default);
     }
 }

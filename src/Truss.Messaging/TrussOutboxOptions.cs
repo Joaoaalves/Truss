@@ -34,5 +34,18 @@ namespace Truss.Messaging
         /// Gets or sets the upper bound of the retry backoff. Defaults to 5 minutes.
         /// </summary>
         public TimeSpan RetryMaxDelay { get; set; } = TimeSpan.FromMinutes(5);
+
+        /// <summary>
+        /// Gets or sets how long processed messages are kept before deletion.
+        /// Defaults to 3 days. Set to null to keep them forever.
+        /// Failed messages are never deleted; they wait for inspection.
+        /// </summary>
+        public TimeSpan? RetentionPeriod { get; set; } = TimeSpan.FromDays(3);
+
+        /// <summary>
+        /// Gets or sets how often the processor sweeps processed messages past
+        /// their retention. Defaults to 1 hour.
+        /// </summary>
+        public TimeSpan CleanupInterval { get; set; } = TimeSpan.FromHours(1);
     }
 }
