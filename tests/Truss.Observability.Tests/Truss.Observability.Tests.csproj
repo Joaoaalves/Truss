@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Truss.Observability\Truss.Observability.csproj" />
+    <ProjectReference Include="..\..\src\Truss.Observability.AspNetCore\Truss.Observability.AspNetCore.csproj" />
+    <ProjectReference Include="..\..\src\Truss.AspNetCore\Truss.AspNetCore.csproj" />
+    <ProjectReference Include="..\..\src\Truss.Application\Truss.Application.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.TestHost" Version="10.*" />
+  </ItemGroup>
+
+</Project>
