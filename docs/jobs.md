@@ -70,18 +70,44 @@ services.AddTrussJobs(options =>
 
 ## Execution, Retry and Timeout
 
-A queued job flows through the messaging pipeline: outbox, transport, consumer. The executor loads the record, marks it running and invokes the job. On failure the job is requeued until the attempt limit, then failed permanently with the error preserved. A timeout can bound each attempt.
+A queued job flows through the messaging pipeline: outbox, transport, consumer. The executor loads the record, marks it running and invokes the job. On failure the job waits an exponential backoff and runs again until the attempt limit, then fails permanently with the error preserved. Between attempts the record shows as scheduled, with the next attempt moment in `ScheduledFor`. A timeout can bound each attempt.
 
 | Setting | Default | Meaning |
 |---|---|---|
 | `MaxAttempts` | 3 | Attempts before the job fails permanently |
 | `JobTimeout` | none | Time limit per attempt |
+| `RetryBaseDelay` | 5 s | Base of the exponential backoff; zero retries immediately |
+| `RetryMaxDelay` | 5 min | Upper bound of the backoff |
 | `ScheduledPollingInterval` | 5 s | How often due scheduled jobs are queued |
 | `EnableSchedulers` | true | Runs the scheduled and recurring services on this instance |
+| `SchedulerLockLeaseDuration` | 30 s | Lease of the scheduler lock in multi-instance deployments |
+| `CancellationPollingInterval` | 2 s | How often a running job checks for a cancellation request |
+| `RetentionPeriod` | 7 days | How long succeeded and cancelled jobs are kept; null keeps forever |
+| `CleanupInterval` | 1 h | How often the retention sweep runs |
 
 All settings bind from configuration, for example `Truss__Jobs__MaxAttempts=5`.
 
-> Run the schedulers on a single instance for now: with `EnableSchedulers` on several instances, scheduled and recurring jobs are enqueued more than once. Distributed locking is on the roadmap.
+### Multiple instances
+
+With the EF store, the schedulers elect a leader through a lease-based lock stored next to the job records, so `EnableSchedulers` can stay enabled everywhere: one instance sweeps scheduled and recurring jobs at a time, and when it stops, another takes over once the lease expires. Execution itself is already distributed by the transport; the lock only covers who enqueues.
+
+---
+
+## Cancelling
+
+Request cancellation through the scheduler or the endpoint:
+
+```csharp
+await scheduler.Cancel(jobId);
+```
+
+A queued or scheduled job is cancelled immediately and never runs. A running job observes the request through the `CancellationToken` passed to `Execute`: the token fires within the cancellation polling interval, and a job that honors it ends as cancelled. Jobs already in a terminal state are left untouched.
+
+---
+
+## Retention
+
+Succeeded and cancelled jobs are deleted after `RetentionPeriod`, 7 days by default. Failed jobs are never deleted; they stay for inspection. The sweep runs with the scheduler lock, so a single instance cleans.
 
 ---
 
@@ -103,6 +129,7 @@ app.MapTrussJobs();
 |---|---|
 | `GET /truss/jobs/{id}` | Returns the current snapshot: status, attempts, progress, error, timestamps |
 | `GET /truss/jobs/{id}/stream` | Server-sent events: pushes a snapshot on every change interval until the job completes |
+| `POST /truss/jobs/{id}/cancel` | Requests cancellation and returns the resulting snapshot |
 
 The snapshot serializes with camelCase names and string statuses:
 
@@ -144,4 +171,4 @@ protected override void OnModelCreating(ModelBuilder modelBuilder)
 
 `AddTrussJobs` requires messaging to be registered first. Without `AddTrussJobsEntityFramework`, an in-memory store is used: fine for development, lost on restart.
 
-Because jobs ride the messaging pipeline, choosing where jobs run is a transport decision: in-process with the in-memory transport, or distributed across instances with the [Postgres or Redis transports](messaging.md), where any instance can pick up the work.
+Because jobs ride the messaging pipeline, choosing where jobs run is a transport decision: in-process with the in-memory transport, or distributed across instances with the [Postgres, RabbitMQ or Redis transports](messaging.md), where any instance can pick up the work.
