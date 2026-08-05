@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <PackageId>Truss.Messaging.RabbitMq</PackageId>
+    <Description>RabbitMQ transport for Truss messaging: durable delivery over quorum queues with publisher confirms, broker-side retry accounting and dead-lettering.</Description>
+    <PackageTags>Messaging;RabbitMQ;AMQP;Transport;IntegrationEvents</PackageTags>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Truss.Messaging\Truss.Messaging.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="RabbitMQ.Client" Version="7.*" />
+  </ItemGroup>
+
+</Project>

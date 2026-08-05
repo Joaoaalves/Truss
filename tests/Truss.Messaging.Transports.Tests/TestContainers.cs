@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using Npgsql;
+using RabbitMQ.Client;
 using StackExchange.Redis;
 using Xunit;
 
@@ -36,6 +37,19 @@ namespace Truss.Messaging.Transports.Tests
             }
 
             return PostgresConnectionString;
+        }
+
+        public const string RabbitMqConnectionString = "amqp://guest:guest@localhost:56729";
+
+        public static async Task<string> EnsureRabbitMq()
+        {
+            await WaitUntilReady("truss-test-rabbit", "run -d --name truss-test-rabbit -p 56729:5672 rabbitmq:4-alpine", async () =>
+            {
+                var factory = new ConnectionFactory { Uri = new Uri(RabbitMqConnectionString) };
+                await using var connection = await factory.CreateConnectionAsync();
+            });
+
+            return RabbitMqConnectionString;
         }
 
         public static async Task<string> EnsureRedis()
@@ -127,6 +141,23 @@ namespace Truss.Messaging.Transports.Tests
 
     [CollectionDefinition("redis")]
     public class RedisCollection : ICollectionFixture<RedisFixture>
+    {
+    }
+
+    public class RabbitMqFixture : IAsyncLifetime
+    {
+        public string ConnectionString { get; private set; } = string.Empty;
+
+        public async Task InitializeAsync()
+        {
+            ConnectionString = await TestContainers.EnsureRabbitMq();
+        }
+
+        public Task DisposeAsync() => Task.CompletedTask;
+    }
+
+    [CollectionDefinition("rabbitmq")]
+    public class RabbitMqCollection : ICollectionFixture<RabbitMqFixture>
     {
     }
 }

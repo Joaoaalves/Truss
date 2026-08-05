@@ -2,6 +2,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\Truss.Messaging.Postgres\Truss.Messaging.Postgres.csproj" />
+    <ProjectReference Include="..\..\src\Truss.Messaging.RabbitMq\Truss.Messaging.RabbitMq.csproj" />
     <ProjectReference Include="..\..\src\Truss.Messaging.Redis\Truss.Messaging.Redis.csproj" />
   </ItemGroup>
 
