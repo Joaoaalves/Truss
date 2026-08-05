@@ -1,0 +1,9 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <PackageId>Truss.Domain</PackageId>
+    <Description>Domain-Driven Design building blocks: entities, aggregate roots, value objects, typed identifiers, business rules and domain events. No external dependencies.</Description>
+    <PackageTags>DDD;Domain;CQRS;CleanArchitecture</PackageTags>
+  </PropertyGroup>
+
+</Project>
