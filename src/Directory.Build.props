@@ -1,0 +1,19 @@
+<Project>
+
+  <Import Project="$([MSBuild]::GetPathOfFileAbove('Directory.Build.props', '$(MSBuildThisFileDirectory)..'))" />
+
+  <PropertyGroup>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <Authors>João Alves</Authors>
+    <Company>João Alves</Company>
+    <RepositoryUrl>https://github.com/Joaoaalves/Truss</RepositoryUrl>
+    <PackageProjectUrl>https://github.com/Joaoaalves/Truss</PackageProjectUrl>
+    <RepositoryType>git</RepositoryType>
+    <MinVerTagPrefix>v</MinVerTagPrefix>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="MinVer" Version="6.*" PrivateAssets="All" />
+  </ItemGroup>
+
+</Project>

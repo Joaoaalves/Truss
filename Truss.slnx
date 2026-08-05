@@ -1,0 +1,13 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Truss.Application.Abstractions/Truss.Application.Abstractions.csproj" />
+    <Project Path="src/Truss.Application/Truss.Application.csproj" />
+    <Project Path="src/Truss.Domain/Truss.Domain.csproj" />
+    <Project Path="src/Truss.Persistence.EntityFrameworkCore/Truss.Persistence.EntityFrameworkCore.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Truss.Application.Tests/Truss.Application.Tests.csproj" />
+    <Project Path="tests/Truss.Domain.Tests/Truss.Domain.Tests.csproj" />
+    <Project Path="tests/Truss.Persistence.EntityFrameworkCore.Tests/Truss.Persistence.EntityFrameworkCore.Tests.csproj" />
+  </Folder>
+</Solution>
