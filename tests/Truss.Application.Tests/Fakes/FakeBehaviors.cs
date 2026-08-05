@@ -1,4 +1,4 @@
-using Truss.Application.Abstractions.Requests;
+using Truss.Application;
 
 namespace Truss.Application.Tests.Fakes
 {

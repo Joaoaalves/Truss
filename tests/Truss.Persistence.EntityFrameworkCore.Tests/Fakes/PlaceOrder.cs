@@ -1,5 +1,4 @@
-using Truss.Application.Abstractions.Commands;
-using Truss.Application.Abstractions.Events;
+using Truss.Application;
 
 namespace Truss.Persistence.EntityFrameworkCore.Tests.Fakes
 {

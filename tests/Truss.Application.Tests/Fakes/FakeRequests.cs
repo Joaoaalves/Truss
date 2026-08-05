@@ -1,5 +1,4 @@
-using Truss.Application.Abstractions.Commands;
-using Truss.Application.Abstractions.Queries;
+using Truss.Application;
 
 namespace Truss.Application.Tests.Fakes
 {

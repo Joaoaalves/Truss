@@ -1,4 +1,4 @@
-using Truss.Domain.Rules;
+using Truss.Domain;
 
 namespace Truss.Domain.Tests.Fakes
 {

@@ -1,9 +1,7 @@
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
-using Truss.Application.Abstractions.Dispatching;
-using Truss.Application.DependencyInjection;
-using Truss.Persistence.EntityFrameworkCore.DependencyInjection;
+using Truss.Application;
 using Truss.Persistence.EntityFrameworkCore.Tests.Fakes;
 using Xunit;
 

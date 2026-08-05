@@ -1,5 +1,4 @@
-using Truss.Domain.Common;
-using Truss.Domain.Events;
+using Truss.Domain;
 
 namespace Truss.Persistence.EntityFrameworkCore.Tests.Fakes
 {
