@@ -221,3 +221,14 @@ The `truss` command line tool: project scaffolding, manifest-driven module insta
 - `Spectre.Console.Cli`
 
 Installed as a dotnet global tool; never referenced by application code.
+
+---
+
+## Truss.Mapping
+
+**Purpose:**
+Compile-time DTO mapping: mapper implementations generated from partial method declarations. Development dependency: nothing is added to the published application.
+
+### Dependencies
+
+None at runtime. Referenced with `PrivateAssets="all"`, usually in the application layer.

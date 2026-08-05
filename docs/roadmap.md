@@ -17,6 +17,7 @@ Truss is built module by module, each one opt-in. The framework never installs a
 - Background jobs: transactional enqueueing through the outbox, retry and timeout per attempt, live progress with polling and server-sent events endpoints, scheduled and cron-recurring jobs.
 - Observability: structured logging of every request with outcome-aware levels, correlation ids flowing from HTTP to handlers, spans for requests, messages and jobs, request metrics, all through BCL diagnostics with no exporter dependency.
 - The `truss` CLI: interactive scaffolding with database and docker choices, a manifest that lets modules be installed months after the project started, generators for aggregates, commands and queries, and a doctor that verifies the project against the manifest.
+- Compile-time DTO mapping: mappers generated from partial method declarations, typed id unwrapping, nested and collection mapping, computed members through named methods, unmapped members as build errors.
 
 ---
 
@@ -33,7 +34,6 @@ Pluggable authentication installed through `truss add auth`: the mechanics live 
 | Module | Purpose |
 |---|---|
 | Auth | Pluggable authentication modules with a user model scaffolded into your domain, fully editable |
-| Mapping | Source-generated DTO mapping |
 | Dashboards | Generated compose files for log, trace and job dashboards |
 
 ---

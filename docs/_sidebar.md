@@ -12,6 +12,7 @@
 * Application
     - [Commands & Queries](commands-and-queries.md)
     - [Pipeline Behaviors](pipeline.md)
+    - [DTO Mapping](mapping.md)
 
 * API
     - [ASP.NET Core](aspnetcore.md)

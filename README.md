@@ -28,6 +28,7 @@ Full documentation: **https://joaoaalves.github.io/Truss**
 | `Truss.Observability` | Structured request logging, spans, metrics and ambient correlation. | Cross-cutting |
 | `Truss.Observability.AspNetCore` | Correlation middleware bridging HTTP headers. | API / Host |
 | `Truss.Cli` | The `truss` command line: scaffolding, module installation, code generation. | Tooling (dotnet tool) |
+| `Truss.Mapping` | Compile-time DTO mappers with typed id unwrapping and unmapped members as build errors. | Build (dev dependency) |
 
 ## Principles
 
