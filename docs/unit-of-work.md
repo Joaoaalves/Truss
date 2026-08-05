@@ -61,7 +61,7 @@ public class OrderPlacedHandler(AppDbContext context) : IDomainEventHandler<Orde
 | Domain event handler throws | No commit, the whole command fails atomically |
 | `SaveChangesAsync` throws | Events were dispatched in-memory, but nothing was persisted; exception propagates |
 
-Because domain event handlers run inside the transactional boundary, a failing handler fails the command, by design. Side effects that must not roll back with the command (e-mails, broker messages) belong to integration events, planned via the outbox pattern in the messaging module.
+Because domain event handlers run inside the transactional boundary, a failing handler fails the command, by design. Side effects that must not roll back with the command (e-mails, broker messages) belong to [integration events](messaging.md), published through the outbox so they are stored atomically with the command and delivered after the commit.
 
 ---
 

@@ -62,4 +62,4 @@ IDispatcher.Send(request)
 
 Domain events are raised inside aggregates and dispatched by the unit of work inside the transactional boundary, before persistence. Handlers may modify other aggregates, and every change is committed atomically in a single save.
 
-Side effects that must only happen after a successful commit, such as publishing to a message broker or sending e-mail, belong to integration events. That is a separate concept planned for the messaging module. See the [Roadmap](roadmap.md).
+Side effects that must only happen after a successful commit, such as publishing to a message broker or sending e-mail, belong to [integration events](messaging.md): stored transactionally through the outbox and delivered by a background processor after the commit.

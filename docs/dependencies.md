@@ -71,3 +71,42 @@ Compile-time handler discovery, dispatch priming and build diagnostics. Developm
 ### Dependencies
 
 None at runtime. Referenced with `PrivateAssets="all"` in the composition root project.
+
+---
+
+## Truss.Messaging.Abstractions
+
+**Purpose:**
+Contracts for integration events: the event marker and base record, the handler, the publisher and the naming attribute with versioning.
+
+### Dependencies
+
+None.
+
+---
+
+## Truss.Messaging
+
+**Purpose:**
+Integration event runtime: versioned JSON serialization, outbox model and processor, transport abstraction, consumer dispatch and the in-memory transport.
+
+### Dependencies
+
+- `Truss.Messaging.Abstractions`
+- `Truss.Application.Abstractions`
+- `Microsoft.Extensions.DependencyInjection.Abstractions`
+- `Microsoft.Extensions.Hosting.Abstractions`
+- `Microsoft.Extensions.Logging.Abstractions`
+- `Microsoft.Extensions.Options`
+
+---
+
+## Truss.Messaging.EntityFrameworkCore
+
+**Purpose:**
+Outbox persistence through EF Core: the model configuration and a store that joins the command's unit of work.
+
+### Dependencies
+
+- `Truss.Messaging`
+- `Microsoft.EntityFrameworkCore.Relational`

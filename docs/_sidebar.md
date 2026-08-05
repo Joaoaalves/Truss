@@ -19,6 +19,9 @@
 * Persistence
     - [Unit of Work](unit-of-work.md)
 
+* Messaging
+    - [Integration Events](messaging.md)
+
 * Tooling
     - [Source Generators](generators.md)
 

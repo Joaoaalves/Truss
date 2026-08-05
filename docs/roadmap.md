@@ -12,15 +12,15 @@ Truss is built module by module, each one opt-in. The framework never installs a
 - EF Core unit of work: automatic commit, cascading domain event dispatch, single atomic save.
 - ASP.NET Core module: `MapCommand` and `MapQuery` minimal API extensions, validation failures as RFC 7807 `ProblemDetails` with every field error, business rule violations as 422 responses.
 - Source generators: compile-time handler discovery and dispatch priming, missing handlers reported at build time, duplicate handlers fail the build, Native AOT ready.
+- Messaging: integration events with versioned JSON serialization, transactional outbox with retry and dead-letter, consumer dispatch with a unit of work per message, in-memory transport.
 
 ---
 
 ## Next
 
-### Messaging and integration events
+### Message transports
 
-- Outbox pattern: integration events stored with the commit, published after it.
-- Broker adapters, free options first (RabbitMQ, Redis).
+Durable broker adapters over the transport seam, free options first: Postgres (LISTEN/NOTIFY), Redis, RabbitMQ. Each one an opt-in package configured in code or from environment variables.
 
 ---
 
