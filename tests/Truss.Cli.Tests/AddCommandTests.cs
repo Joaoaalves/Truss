@@ -42,6 +42,30 @@ namespace Truss.Cli.Tests
         }
 
         [Fact]
+        public void AddMessaging_WithRabbitMq_WiresTransportAndCompose()
+        {
+            Assert.Equal(0, _workspace.Scaffold("Shop", "sqlite", "--docker"));
+            var root = _workspace.Root("Shop");
+
+            var exitCode = _workspace.Run("add", "messaging", "--transport", "rabbitmq", "--project", root);
+
+            Assert.Equal(0, exitCode);
+
+            var infrastructureCsproj = _workspace.ReadFile("Shop", "src", "Shop.Infrastructure", "Shop.Infrastructure.csproj");
+            Assert.Contains("Truss.Messaging.RabbitMq", infrastructureCsproj);
+
+            var program = _workspace.ReadFile("Shop", "src", "Shop.Api", "Program.cs");
+            Assert.Contains("AddTrussRabbitMqTransport", program);
+
+            var compose = _workspace.ReadFile("Shop", "docker-compose.yml");
+            Assert.Contains("rabbitmq:4-management-alpine", compose);
+            Assert.Contains("rabbitmq-data:", compose);
+
+            var manifest = TrussManifest.Load(root);
+            Assert.Equal("rabbitmq", manifest!.Settings["messaging.transport"]);
+        }
+
+        [Fact]
         public void AddJobs_RequiresMessaging()
         {
             var root = ScaffoldShop();

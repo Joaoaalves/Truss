@@ -4,7 +4,7 @@ namespace Truss.Cli
     {
         public static readonly string[] Modules = ["messaging", "jobs", "observability", "mapping", "auth"];
 
-        public static readonly string[] Transports = ["inmemory", "postgres", "redis"];
+        public static readonly string[] Transports = ["inmemory", "postgres", "rabbitmq", "redis"];
 
         public static int Install(string module, string? transport, TrussManifest manifest, string root, Action<string> log)
         {
@@ -59,6 +59,8 @@ namespace Truss.Cli
 
             if (transport == "postgres")
                 CsprojEditor.AddPackageReference(hostCsproj, "Truss.Messaging.Postgres", version);
+            else if (transport == "rabbitmq")
+                CsprojEditor.AddPackageReference(hostCsproj, "Truss.Messaging.RabbitMq", version);
             else if (transport == "redis")
                 CsprojEditor.AddPackageReference(hostCsproj, "Truss.Messaging.Redis", version);
 
@@ -92,6 +94,12 @@ namespace Truss.Cli
                 builder.Services.AddTrussPostgresTransport(options =>
                 {
                     options.ConnectionString = builder.Configuration.GetConnectionString("Default")!;
+                });
+                """,
+            "rabbitmq" => """
+                builder.Services.AddTrussRabbitMqTransport(options =>
+                {
+                    options.ConnectionString = builder.Configuration.GetConnectionString("RabbitMq") ?? "amqp://guest:guest@localhost:5672";
                 });
                 """,
             "redis" => """

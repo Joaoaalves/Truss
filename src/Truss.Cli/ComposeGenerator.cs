@@ -42,7 +42,9 @@ namespace Truss.Cli
                     break;
             }
 
-            if (manifest.Settings.TryGetValue("messaging.transport", out var transport) && transport == "redis")
+            manifest.Settings.TryGetValue("messaging.transport", out var transport);
+
+            if (transport == "redis")
             {
                 services.AppendLine("""
                       redis:
@@ -51,12 +53,32 @@ namespace Truss.Cli
                           - "6379:6379"
                     """);
             }
+            else if (transport == "rabbitmq")
+            {
+                services.AppendLine("""
+                      rabbitmq:
+                        image: rabbitmq:4-management-alpine
+                        ports:
+                          - "5672:5672"
+                          - "15672:15672"
+                        volumes:
+                          - rabbitmq-data:/var/lib/rabbitmq
+                    """);
+            }
 
             if (services.Length == 0)
                 return;
 
-            var volumes = manifest.Database is "postgres" or "sqlserver"
-                ? $"{Environment.NewLine}volumes:{Environment.NewLine}  db-data:{Environment.NewLine}"
+            var volumeNames = new List<string>();
+
+            if (manifest.Database is "postgres" or "sqlserver")
+                volumeNames.Add("db-data");
+
+            if (transport == "rabbitmq")
+                volumeNames.Add("rabbitmq-data");
+
+            var volumes = volumeNames.Count > 0
+                ? $"{Environment.NewLine}volumes:{Environment.NewLine}{string.Join(Environment.NewLine, volumeNames.Select(name => $"  {name}:"))}{Environment.NewLine}"
                 : Environment.NewLine;
 
             var compose = $"services:{Environment.NewLine}{services}{volumes}";
