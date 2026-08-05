@@ -1,6 +1,13 @@
 # Quickstart
 
-This section describes the minimum configuration required to use Truss in a real application.
+The fastest start is the [truss CLI](cli.md): one command scaffolds a complete Clean Architecture solution with a working sample.
+
+```
+dotnet tool install -g Truss.Cli
+truss new MyShop --database postgres --docker
+```
+
+The rest of this page describes the manual configuration, which is also what the scaffolded code contains.
 
 > Truss packages will be published to **nuget.org**. Until the first release, reference the projects directly from the repository.
 

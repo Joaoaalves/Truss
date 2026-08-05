@@ -207,3 +207,17 @@ Correlation middleware: reads or creates the correlation id per request and echo
 
 - `Truss.Observability`
 - ASP.NET Core shared framework (framework reference, not a package)
+
+---
+
+## Truss.Cli
+
+**Purpose:**
+The `truss` command line tool: project scaffolding, manifest-driven module installation, code generation and project verification.
+
+### Dependencies
+
+- `Spectre.Console`
+- `Spectre.Console.Cli`
+
+Installed as a dotnet global tool; never referenced by application code.

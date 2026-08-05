@@ -16,14 +16,15 @@ Truss is built module by module, each one opt-in. The framework never installs a
 - Durable transports: Postgres (SKIP LOCKED queue with LISTEN/NOTIFY wake-up) and Redis (Streams with consumer groups), both with retry, dead-letter and competing consumers, configured in code or from environment variables.
 - Background jobs: transactional enqueueing through the outbox, retry and timeout per attempt, live progress with polling and server-sent events endpoints, scheduled and cron-recurring jobs.
 - Observability: structured logging of every request with outcome-aware levels, correlation ids flowing from HTTP to handlers, spans for requests, messages and jobs, request metrics, all through BCL diagnostics with no exporter dependency.
+- The `truss` CLI: interactive scaffolding with database and docker choices, a manifest that lets modules be installed months after the project started, generators for aggregates, commands and queries, and a doctor that verifies the project against the manifest.
 
 ---
 
 ## Next
 
-### CLI
+### Auth
 
-The `truss` dotnet tool: interactive project scaffolding, a manifest that lets modules be added months after the project started, generators for bounded contexts, commands and queries, and docker compose generation for the chosen infrastructure.
+Pluggable authentication installed through `truss add auth`: the mechanics live in packages, while the user model and the account commands are scaffolded into your own domain, fully editable.
 
 ---
 
@@ -31,11 +32,9 @@ The `truss` dotnet tool: interactive project scaffolding, a manifest that lets m
 
 | Module | Purpose |
 |---|---|
-| CLI (`truss`) | Project scaffolding, `truss new`, `truss add`, manifest-driven module installation |
 | Auth | Pluggable authentication modules with a user model scaffolded into your domain, fully editable |
-| Jobs and queues | Background jobs with progress tracking (streaming, websockets or polling), pluggable brokers, dashboard |
-| Observability | Structured logging, OpenTelemetry, optional dashboards, enabled only if you want them |
 | Mapping | Source-generated DTO mapping |
+| Dashboards | Generated compose files for log, trace and job dashboards |
 
 ---
 

@@ -45,6 +45,7 @@ Truss is intentionally explicit, modular and dependency-minimal.
 | `Truss.Jobs.AspNetCore` | Progress endpoints: polling and server-sent events. | API / Host |
 | `Truss.Observability` | Structured request logging, spans, metrics and ambient correlation. | Cross-cutting |
 | `Truss.Observability.AspNetCore` | Correlation middleware bridging HTTP headers. | API / Host |
+| `Truss.Cli` | The `truss` command line: scaffolding, module installation, code generation. | Tooling (dotnet tool) |
 
 Each layer references only the packages it needs. See [Architecture](architecture.md) for the full picture.
 

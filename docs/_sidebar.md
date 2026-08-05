@@ -29,6 +29,7 @@
     - [Logging, Tracing & Correlation](observability.md)
 
 * Tooling
+    - [The truss CLI](cli.md)
     - [Source Generators](generators.md)
 
 * Reference
