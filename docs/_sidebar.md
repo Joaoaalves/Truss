@@ -25,6 +25,9 @@
 * Jobs
     - [Background Jobs](jobs.md)
 
+* Observability
+    - [Logging, Tracing & Correlation](observability.md)
+
 * Tooling
     - [Source Generators](generators.md)
 

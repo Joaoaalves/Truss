@@ -25,6 +25,8 @@ Full documentation: **https://joaoaalves.github.io/Truss**
 | `Truss.Jobs` | Job runtime: transactional enqueueing, retry, timeout, scheduled and recurring jobs. | Infrastructure |
 | `Truss.Jobs.EntityFrameworkCore` | Job records persisted in the application database. | Infrastructure |
 | `Truss.Jobs.AspNetCore` | Progress endpoints: polling and server-sent events. | API / Host |
+| `Truss.Observability` | Structured request logging, spans, metrics and ambient correlation. | Cross-cutting |
+| `Truss.Observability.AspNetCore` | Correlation middleware bridging HTTP headers. | API / Host |
 
 ## Principles
 

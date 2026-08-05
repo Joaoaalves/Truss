@@ -182,3 +182,28 @@ Progress endpoints: snapshot polling and server-sent events streaming.
 
 - `Truss.Jobs.Abstractions`
 - ASP.NET Core shared framework (framework reference, not a package)
+
+---
+
+## Truss.Observability
+
+**Purpose:**
+Structured request logging, spans and metrics through BCL diagnostics, and the ambient execution context.
+
+### Dependencies
+
+- `Truss.Application.Abstractions`
+- `Microsoft.Extensions.DependencyInjection.Abstractions`
+- `Microsoft.Extensions.Logging.Abstractions`
+
+---
+
+## Truss.Observability.AspNetCore
+
+**Purpose:**
+Correlation middleware: reads or creates the correlation id per request and echoes it back.
+
+### Dependencies
+
+- `Truss.Observability`
+- ASP.NET Core shared framework (framework reference, not a package)
