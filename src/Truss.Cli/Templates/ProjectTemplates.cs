@@ -234,6 +234,20 @@ namespace Truss.Cli.Templates
             }
             """;
 
+        public const string LaunchSettings = """
+            {
+              "profiles": {
+                "http": {
+                  "commandName": "Project",
+                  "applicationUrl": "http://localhost:5000",
+                  "environmentVariables": {
+                    "ASPNETCORE_ENVIRONMENT": "Development"
+                  }
+                }
+              }
+            }
+            """;
+
         public const string NuGetConfig = """
             <?xml version="1.0" encoding="utf-8"?>
             <configuration>

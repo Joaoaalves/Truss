@@ -18,6 +18,7 @@ namespace Truss.Cli.Tests
             Assert.True(_workspace.FileExists("Shop", "src", "Shop.Application", "ApplicationAssemblyMarker.cs"));
             Assert.True(_workspace.FileExists("Shop", "src", "Shop.Infrastructure", "AppDbContext.cs"));
             Assert.True(_workspace.FileExists("Shop", "src", "Shop.Api", "Program.cs"));
+            Assert.True(_workspace.FileExists("Shop", "src", "Shop.Api", "Properties", "launchSettings.json"));
             Assert.True(_workspace.FileExists("Shop", "src", "Shop.Domain", "Catalog", "Product.cs"));
             Assert.True(_workspace.FileExists("Shop", "docker-compose.yml"));
 

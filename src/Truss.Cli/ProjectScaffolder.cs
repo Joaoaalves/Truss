@@ -62,6 +62,7 @@ namespace Truss.Cli
             }
 
             Write(root, Path.Combine(manifest.ApiProject, "Program.cs"), BuildProgramTemplate(manifest), manifest);
+            Write(root, Path.Combine(manifest.ApiProject, "Properties", "launchSettings.json"), ProjectTemplates.LaunchSettings, manifest);
 
             if (options.Sample)
                 WriteSample(root, manifest);
