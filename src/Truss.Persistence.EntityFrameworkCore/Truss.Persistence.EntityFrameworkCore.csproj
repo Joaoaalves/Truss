@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <PackageId>Truss.Persistence.EntityFrameworkCore</PackageId>
+    <Description>Entity Framework Core persistence for Truss: unit of work with automatic commit and domain event dispatching before save.</Description>
+    <PackageTags>CQRS;DDD;EntityFramework;UnitOfWork;DomainEvents</PackageTags>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Truss.Application\Truss.Application.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="10.*" />
+  </ItemGroup>
+
+</Project>
