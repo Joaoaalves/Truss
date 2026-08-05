@@ -12,6 +12,9 @@ namespace Truss.Cli.Commands
             [CommandOption("--transport <TRANSPORT>")]
             public string? Transport { get; init; }
 
+            [CommandOption("--provider <PROVIDER>")]
+            public string? Provider { get; init; }
+
             [CommandOption("--project <PATH>")]
             public string? Project { get; init; }
         }
@@ -26,9 +29,12 @@ namespace Truss.Cli.Commands
                 return 1;
             }
 
+            var module = settings.Module.ToLowerInvariant();
+            var option = module == "auth" ? settings.Provider : settings.Transport;
+
             return ModuleInstaller.Install(
-                settings.Module.ToLowerInvariant(),
-                settings.Transport?.ToLowerInvariant(),
+                module,
+                option?.ToLowerInvariant(),
                 project.Manifest,
                 project.Root,
                 Console.WriteLine);

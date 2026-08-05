@@ -83,6 +83,45 @@ namespace Truss.Cli.Tests
         }
 
         [Fact]
+        public void AddAuth_ScaffoldsEditableAccountsContext()
+        {
+            var root = ScaffoldShop();
+
+            Assert.Equal(0, _workspace.Run("add", "auth", "--provider", "jwt", "--project", root));
+
+            Assert.True(_workspace.FileExists("Shop", "src", "Shop.Domain", "Accounts", "User.cs"));
+            Assert.True(_workspace.FileExists("Shop", "src", "Shop.Application", "Accounts", "LoginHandler.cs"));
+            Assert.True(_workspace.FileExists("Shop", "src", "Shop.Infrastructure", "Accounts", "EfUserRepository.cs"));
+
+            var user = _workspace.ReadFile("Shop", "src", "Shop.Domain", "Accounts", "User.cs");
+            Assert.Contains("namespace Shop.Domain.Accounts", user);
+            Assert.Contains("public class User : AggregateRoot<UserId>", user);
+
+            var program = _workspace.ReadFile("Shop", "src", "Shop.Api", "Program.cs");
+            Assert.Contains("AddTrussJwtAuth", program);
+            Assert.Contains("app.UseAuthentication();", program);
+            Assert.Contains("/auth/login", program);
+
+            var appsettings = _workspace.ReadFile("Shop", "src", "Shop.Api", "appsettings.json");
+            Assert.Contains("SigningKey", appsettings);
+
+            var applicationCsproj = _workspace.ReadFile("Shop", "src", "Shop.Application", "Shop.Application.csproj");
+            Assert.Contains("Truss.Auth.Abstractions", applicationCsproj);
+
+            var manifest = TrussManifest.Load(root);
+            Assert.Contains("auth", manifest!.Modules);
+            Assert.Equal("jwt", manifest.Settings["auth.provider"]);
+        }
+
+        [Fact]
+        public void AddAuth_RequiresDatabase()
+        {
+            Assert.Equal(0, _workspace.Scaffold("Tool", "none"));
+
+            Assert.Equal(1, _workspace.Run("add", "auth", "--project", _workspace.Root("Tool")));
+        }
+
+        [Fact]
         public void AddSameModuleTwice_IsIdempotent()
         {
             var root = ScaffoldShop();

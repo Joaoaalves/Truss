@@ -2,18 +2,12 @@ namespace Truss.Cli
 {
     internal static class ModuleInstaller
     {
-        public static readonly string[] Modules = ["messaging", "jobs", "observability", "mapping"];
+        public static readonly string[] Modules = ["messaging", "jobs", "observability", "mapping", "auth"];
 
         public static readonly string[] Transports = ["inmemory", "postgres", "redis"];
 
         public static int Install(string module, string? transport, TrussManifest manifest, string root, Action<string> log)
         {
-            if (module is "auth")
-            {
-                log($"The {module} module is on the roadmap but not available yet.");
-                return 1;
-            }
-
             if (!Modules.Contains(module))
             {
                 log($"Unknown module '{module}'. Available modules: {string.Join(", ", Modules)}.");
@@ -31,6 +25,7 @@ namespace Truss.Cli
                 "messaging" => InstallMessaging(transport, manifest, root, log),
                 "jobs" => InstallJobs(manifest, root, log),
                 "mapping" => InstallMapping(manifest, root),
+                "auth" => InstallAuth(transport, manifest, root, log),
                 _ => InstallObservability(manifest, root, log)
             };
 
@@ -143,6 +138,27 @@ namespace Truss.Cli
                 InsertModelConfiguration(root, manifest, "modelBuilder.ApplyTrussJobs();", log);
 
             return 0;
+        }
+
+        private static int InstallAuth(string? provider, TrussManifest manifest, string root, Action<string> log)
+        {
+            provider ??= "jwt";
+
+            if (provider != "jwt")
+            {
+                log($"Unknown auth provider '{provider}'. Available now: jwt. Identity integration is on the roadmap.");
+                return 1;
+            }
+
+            var result = AuthScaffolder.Install(manifest, root, log);
+
+            if (result == 0)
+            {
+                log("The Accounts context was scaffolded into your projects. It is your code: edit the User entity and the commands freely.");
+                log("A development signing key was written to appsettings.json; override it per environment with Truss__Auth__Jwt__SigningKey.");
+            }
+
+            return result;
         }
 
         private static int InstallMapping(TrussManifest manifest, string root)

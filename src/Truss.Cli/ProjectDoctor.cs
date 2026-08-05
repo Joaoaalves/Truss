@@ -27,6 +27,7 @@ namespace Truss.Cli
                     "messaging" => "Truss.Messaging",
                     "jobs" => "Truss.Jobs",
                     "mapping" => "Truss.Mapping",
+                    "auth" => "Truss.Auth.Jwt",
                     _ => "Truss.Observability"
                 };
 
