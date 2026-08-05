@@ -29,6 +29,9 @@
 * Observability
     - [Logging, Tracing & Correlation](observability.md)
 
+* Auth
+    - [Authentication](auth.md)
+
 * Tooling
     - [The truss CLI](cli.md)
     - [Source Generators](generators.md)

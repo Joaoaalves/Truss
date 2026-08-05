@@ -232,3 +232,27 @@ Compile-time DTO mapping: mapper implementations generated from partial method d
 ### Dependencies
 
 None at runtime. Referenced with `PrivateAssets="all"`, usually in the application layer.
+
+---
+
+## Truss.Auth.Abstractions
+
+**Purpose:**
+Contracts for authentication mechanics: password hashing and token issuing, referenced by the application layer.
+
+### Dependencies
+
+None.
+
+---
+
+## Truss.Auth.Jwt
+
+**Purpose:**
+JWT authentication mechanics: PBKDF2 password hashing, access and refresh token issuing, JwtBearer wiring.
+
+### Dependencies
+
+- `Truss.Auth.Abstractions`
+- `Microsoft.AspNetCore.Authentication.JwtBearer`
+- ASP.NET Core shared framework (framework reference, not a package)

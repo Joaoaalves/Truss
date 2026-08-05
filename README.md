@@ -29,6 +29,8 @@ Full documentation: **https://joaoaalves.github.io/Truss**
 | `Truss.Observability.AspNetCore` | Correlation middleware bridging HTTP headers. | API / Host |
 | `Truss.Cli` | The `truss` command line: scaffolding, module installation, code generation. | Tooling (dotnet tool) |
 | `Truss.Mapping` | Compile-time DTO mappers with typed id unwrapping and unmapped members as build errors. | Build (dev dependency) |
+| `Truss.Auth.Abstractions` | Contracts for password hashing and token issuing. | Application |
+| `Truss.Auth.Jwt` | PBKDF2 hashing, JWT issuing and JwtBearer wiring; the user model is scaffolded into your domain. | API / Host |
 
 ## Principles
 

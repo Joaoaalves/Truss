@@ -65,7 +65,7 @@ Installs a module into an existing project: adds the package references to the c
 | `jobs` | | Requires messaging |
 | `observability` | | Logging, tracing and the correlation middleware |
 | `mapping` | | Compile-time DTO mappers, added to the application layer |
-| `auth` | | On the roadmap, not available yet |
+| `auth` | `--provider jwt` | Scaffolds the editable Accounts context and wires JWT authentication; requires a database |
 
 ---
 
