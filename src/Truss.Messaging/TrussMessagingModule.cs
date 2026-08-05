@@ -1,3 +1,4 @@
+using System.Reflection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Truss.Messaging;
 
@@ -34,27 +35,50 @@ namespace Microsoft.Extensions.DependencyInjection
                 );
             }
 
-            var assemblies = options.Assemblies.Distinct().ToArray();
+            var assemblyList = GetOrCreateAssemblyList(services);
 
-            services.AddSingleton(IntegrationEventTypeRegistry.FromAssemblies(assemblies));
-            services.AddSingleton<IIntegrationEventSerializer, JsonIntegrationEventSerializer>();
-            services.AddSingleton<IIntegrationEventDispatcher, IntegrationEventDispatcher>();
+            services.TryAddSingleton(provider =>
+                IntegrationEventTypeRegistry.FromAssemblies(assemblyList.Assemblies));
+            services.TryAddSingleton<IIntegrationEventSerializer, JsonIntegrationEventSerializer>();
+            services.TryAddSingleton<IIntegrationEventDispatcher, IntegrationEventDispatcher>();
             services.TryAddSingleton(TimeProvider.System);
             services.TryAddScoped<IIntegrationEventPublisher, DirectIntegrationEventPublisher>();
 
-            foreach (var assembly in assemblies)
+            foreach (var assembly in options.Assemblies.Distinct())
+                services.AddTrussMessagingAssembly(assembly);
+
+            return services;
+        }
+
+        /// <summary>
+        /// Exposes an additional assembly of integration events and handlers to the messaging runtime.
+        /// Intended for modules that ship their own events, such as the jobs module,
+        /// and for modular monoliths registering events per module.
+        /// </summary>
+        /// <param name="services">The service collection.</param>
+        /// <param name="assembly">The assembly to expose.</param>
+        /// <returns>The updated <see cref="IServiceCollection"/>.</returns>
+        public static IServiceCollection AddTrussMessagingAssembly(this IServiceCollection services, Assembly assembly)
+        {
+            ArgumentNullException.ThrowIfNull(assembly);
+
+            var assemblyList = GetOrCreateAssemblyList(services);
+
+            if (assemblyList.Assemblies.Contains(assembly))
+                return services;
+
+            assemblyList.Add(assembly);
+
+            var types = assembly.GetTypes().Where(type => type.IsClass && !type.IsAbstract);
+
+            foreach (var type in types)
             {
-                var types = assembly.GetTypes().Where(type => type.IsClass && !type.IsAbstract);
+                var interfaces = type.GetInterfaces()
+                    .Where(i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof(IIntegrationEventHandler<>));
 
-                foreach (var type in types)
+                foreach (var @interface in interfaces)
                 {
-                    var interfaces = type.GetInterfaces()
-                        .Where(i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof(IIntegrationEventHandler<>));
-
-                    foreach (var @interface in interfaces)
-                    {
-                        services.AddTransient(@interface, type);
-                    }
+                    services.AddTransient(@interface, type);
                 }
             }
 
@@ -74,6 +98,22 @@ namespace Microsoft.Extensions.DependencyInjection
             services.AddHostedService<InMemoryTransportWorker>();
 
             return services;
+        }
+
+        /// <summary>
+        /// Finds the assembly list accumulated across module registrations, creating it on first use.
+        /// The registry is built lazily from this list, so modules can add assemblies in any order.
+        /// </summary>
+        private static TrussMessagingAssemblyList GetOrCreateAssemblyList(IServiceCollection services)
+        {
+            var descriptor = services.FirstOrDefault(d => d.ServiceType == typeof(TrussMessagingAssemblyList));
+
+            if (descriptor?.ImplementationInstance is TrussMessagingAssemblyList existing)
+                return existing;
+
+            var created = new TrussMessagingAssemblyList();
+            services.AddSingleton(created);
+            return created;
         }
     }
 }

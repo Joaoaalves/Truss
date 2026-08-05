@@ -5,6 +5,10 @@
     <Project Path="src/Truss.AspNetCore/Truss.AspNetCore.csproj" />
     <Project Path="src/Truss.Domain/Truss.Domain.csproj" />
     <Project Path="src/Truss.Generators/Truss.Generators.csproj" />
+    <Project Path="src/Truss.Jobs.Abstractions/Truss.Jobs.Abstractions.csproj" />
+    <Project Path="src/Truss.Jobs.AspNetCore/Truss.Jobs.AspNetCore.csproj" />
+    <Project Path="src/Truss.Jobs.EntityFrameworkCore/Truss.Jobs.EntityFrameworkCore.csproj" />
+    <Project Path="src/Truss.Jobs/Truss.Jobs.csproj" />
     <Project Path="src/Truss.Messaging.Abstractions/Truss.Messaging.Abstractions.csproj" />
     <Project Path="src/Truss.Messaging.EntityFrameworkCore/Truss.Messaging.EntityFrameworkCore.csproj" />
     <Project Path="src/Truss.Messaging.Postgres/Truss.Messaging.Postgres.csproj" />
@@ -17,6 +21,7 @@
     <Project Path="tests/Truss.AspNetCore.Tests/Truss.AspNetCore.Tests.csproj" />
     <Project Path="tests/Truss.Domain.Tests/Truss.Domain.Tests.csproj" />
     <Project Path="tests/Truss.Generators.Tests/Truss.Generators.Tests.csproj" />
+    <Project Path="tests/Truss.Jobs.Tests/Truss.Jobs.Tests.csproj" />
     <Project Path="tests/Truss.Messaging.Tests/Truss.Messaging.Tests.csproj" />
     <Project Path="tests/Truss.Messaging.Transports.Tests/Truss.Messaging.Transports.Tests.csproj" />
     <Project Path="tests/Truss.Persistence.EntityFrameworkCore.Tests/Truss.Persistence.EntityFrameworkCore.Tests.csproj" />
