@@ -7,9 +7,7 @@ dotnet tool install -g Truss.Cli
 truss new MyShop --database postgres --docker
 ```
 
-The rest of this page describes the manual configuration, which is also what the scaffolded code contains.
-
-> Truss packages will be published to **nuget.org**. Until the first release, reference the projects directly from the repository.
+The rest of this page describes the manual configuration, which is also what the scaffolded code contains. All packages are on [nuget.org](https://www.nuget.org/packages?q=Truss.).
 
 ---
 

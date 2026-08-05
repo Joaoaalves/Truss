@@ -56,4 +56,4 @@ Each layer references only the packages it needs. See [Architecture](architectur
 
 ## Status
 
-Truss is in early development. The kernel is implemented and tested: domain building blocks, the dispatching pipeline, validation and the unit of work. See the [Roadmap](roadmap.md) for what comes next.
+Truss 0.1.x is published on [nuget.org](https://www.nuget.org/packages?q=Truss.): the domain building blocks, the pipeline, persistence, messaging with outbox and durable transports, background jobs with live progress, observability, authentication, the source generators and the CLI. APIs may still change until v1. See the [Roadmap](roadmap.md) for what comes next.

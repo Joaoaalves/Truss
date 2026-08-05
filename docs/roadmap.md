@@ -22,11 +22,15 @@ Truss is built module by module, each one opt-in. The framework never installs a
 
 ---
 
+- First release: every package and the CLI published to nuget.org as 0.1.0 through NuGet trusted publishing.
+
+---
+
 ## Next
 
-### First release
+### Auth providers
 
-Publishing every package and the CLI to nuget.org.
+ASP.NET Core Identity integration and external OpenID providers over the same scaffolded, editable account model.
 
 ---
 
