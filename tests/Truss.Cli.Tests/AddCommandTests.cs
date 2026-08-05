@@ -68,6 +68,21 @@ namespace Truss.Cli.Tests
         }
 
         [Fact]
+        public void AddMapping_AddsDevelopmentDependency()
+        {
+            var root = ScaffoldShop();
+
+            Assert.Equal(0, _workspace.Run("add", "mapping", "--project", root));
+
+            var applicationCsproj = _workspace.ReadFile("Shop", "src", "Shop.Application", "Shop.Application.csproj");
+            Assert.Contains("Include=\"Truss.Mapping\"", applicationCsproj);
+            Assert.Contains("PrivateAssets=\"all\"", applicationCsproj);
+
+            var manifest = TrussManifest.Load(root);
+            Assert.Contains("mapping", manifest!.Modules);
+        }
+
+        [Fact]
         public void AddSameModuleTwice_IsIdempotent()
         {
             var root = ScaffoldShop();

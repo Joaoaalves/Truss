@@ -2,13 +2,13 @@ namespace Truss.Cli
 {
     internal static class ModuleInstaller
     {
-        public static readonly string[] Modules = ["messaging", "jobs", "observability"];
+        public static readonly string[] Modules = ["messaging", "jobs", "observability", "mapping"];
 
         public static readonly string[] Transports = ["inmemory", "postgres", "redis"];
 
         public static int Install(string module, string? transport, TrussManifest manifest, string root, Action<string> log)
         {
-            if (module is "auth" or "mapping")
+            if (module is "auth")
             {
                 log($"The {module} module is on the roadmap but not available yet.");
                 return 1;
@@ -30,6 +30,7 @@ namespace Truss.Cli
             {
                 "messaging" => InstallMessaging(transport, manifest, root, log),
                 "jobs" => InstallJobs(manifest, root, log),
+                "mapping" => InstallMapping(manifest, root),
                 _ => InstallObservability(manifest, root, log)
             };
 
@@ -140,6 +141,17 @@ namespace Truss.Cli
 
             if (manifest.UsesEntityFramework)
                 InsertModelConfiguration(root, manifest, "modelBuilder.ApplyTrussJobs();", log);
+
+            return 0;
+        }
+
+        private static int InstallMapping(TrussManifest manifest, string root)
+        {
+            CsprojEditor.AddPackageReference(
+                CsprojPath(root, manifest.ApplicationProject),
+                "Truss.Mapping",
+                manifest.TrussVersion,
+                developmentDependency: true);
 
             return 0;
         }

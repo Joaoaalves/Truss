@@ -26,6 +26,7 @@ namespace Truss.Cli
                 {
                     "messaging" => "Truss.Messaging",
                     "jobs" => "Truss.Jobs",
+                    "mapping" => "Truss.Mapping",
                     _ => "Truss.Observability"
                 };
 
