@@ -60,3 +60,14 @@ Endpoint mapping for commands and queries, with automatic ProblemDetails respons
 
 - `Truss.Application.Abstractions`
 - ASP.NET Core shared framework (framework reference, not a package)
+
+---
+
+## Truss.Generators
+
+**Purpose:**
+Compile-time handler discovery, dispatch priming and build diagnostics. Development dependency: nothing is added to the published application.
+
+### Dependencies
+
+None at runtime. Referenced with `PrivateAssets="all"` in the composition root project.

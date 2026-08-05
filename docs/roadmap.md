@@ -11,14 +11,11 @@ Truss is built module by module, each one opt-in. The framework never installs a
 - Dispatcher with typed invokers cached per request type. No `dynamic`, no per-call reflection.
 - EF Core unit of work: automatic commit, cascading domain event dispatch, single atomic save.
 - ASP.NET Core module: `MapCommand` and `MapQuery` minimal API extensions, validation failures as RFC 7807 `ProblemDetails` with every field error, business rule violations as 422 responses.
+- Source generators: compile-time handler discovery and dispatch priming, missing handlers reported at build time, duplicate handlers fail the build, Native AOT ready.
 
 ---
 
 ## Next
-
-### Source generators
-
-Compile-time dispatch and registration: no startup assembly scanning, missing handlers become build errors, full Native AOT support.
 
 ### Messaging and integration events
 

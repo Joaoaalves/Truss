@@ -42,6 +42,7 @@ IDispatcher.Send(request)
 - The dispatcher resolves the handler and behaviors from the current dependency injection scope. In a web application, that is the request scope.
 - The `CancellationToken` flows from the caller through every behavior into the handler.
 - Dispatch uses a typed invoker cached per request type: reflection happens once per type, never per call.
+- With the [Truss.Generators](generators.md) package installed, discovery and invokers are produced at compile time and no reflection runs at all.
 
 ---
 
