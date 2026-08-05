@@ -1,0 +1,9 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <PackageId>Truss.Auth.Abstractions</PackageId>
+    <Description>Contracts for Truss authentication: password hashing and token issuing, referenced by the application layer.</Description>
+    <PackageTags>Auth;Authentication;JWT;Security</PackageTags>
+  </PropertyGroup>
+
+</Project>
