@@ -20,6 +20,7 @@
     <Project Path="src/Truss.Messaging.Redis/Truss.Messaging.Redis.csproj" />
     <Project Path="src/Truss.Messaging/Truss.Messaging.csproj" />
     <Project Path="src/Truss.Observability.AspNetCore/Truss.Observability.AspNetCore.csproj" />
+    <Project Path="src/Truss.Observability.OpenTelemetry/Truss.Observability.OpenTelemetry.csproj" />
     <Project Path="src/Truss.Observability/Truss.Observability.csproj" />
     <Project Path="src/Truss.Persistence.EntityFrameworkCore/Truss.Persistence.EntityFrameworkCore.csproj" />
   </Folder>
