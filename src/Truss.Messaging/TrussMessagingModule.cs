@@ -42,6 +42,7 @@ namespace Microsoft.Extensions.DependencyInjection
             services.TryAddSingleton<IIntegrationEventSerializer, JsonIntegrationEventSerializer>();
             services.TryAddSingleton<IIntegrationEventDispatcher, IntegrationEventDispatcher>();
             services.TryAddSingleton(TimeProvider.System);
+            services.TryAddSingleton<OutboxSignal>();
             services.TryAddScoped<IIntegrationEventPublisher, DirectIntegrationEventPublisher>();
 
             foreach (var assembly in options.Assemblies.Distinct())

@@ -14,6 +14,7 @@ namespace Truss.Messaging
     public class OutboxProcessor(
         IServiceScopeFactory scopeFactory,
         IMessageTransport transport,
+        OutboxSignal signal,
         IOptions<TrussOutboxOptions> options,
         ILogger<OutboxProcessor> logger,
         TimeProvider timeProvider) : BackgroundService
@@ -98,7 +99,7 @@ namespace Truss.Messaging
                 {
                     try
                     {
-                        await Task.Delay(_options.PollingInterval, stoppingToken);
+                        await signal.WaitAsync(_options.PollingInterval, stoppingToken);
                     }
                     catch (OperationCanceledException)
                     {

@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Truss.Messaging;
 using Truss.Messaging.EntityFrameworkCore;
@@ -34,6 +35,10 @@ namespace Microsoft.Extensions.DependencyInjection
 
             services.AddScoped<IOutboxStore, EfOutboxStore<TDbContext>>();
             services.Replace(ServiceDescriptor.Scoped<IIntegrationEventPublisher, OutboxIntegrationEventPublisher>());
+
+            services.TryAddSingleton<OutboxCommitInterceptor>();
+            services.AddSingleton<IDbContextOptionsConfiguration<TDbContext>>(provider =>
+                new OutboxInterceptorConfiguration<TDbContext>(provider.GetRequiredService<OutboxCommitInterceptor>()));
 
             services.AddSingleton<OutboxProcessor>();
             services.AddHostedService(provider => provider.GetRequiredService<OutboxProcessor>());
