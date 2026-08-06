@@ -24,6 +24,7 @@ That handler shape is the recommended one on purpose: sending from an integratio
 ```
 truss add email                     # console provider
 truss add email --provider smtp     # smtp provider with Mailpit for development
+truss add email --provider resend   # delivery through the Resend API
 ```
 
 The command references `Truss.Email.Abstractions` in the application layer, `Truss.Email` in the hosts (the worker included, when present) and registers the sender:
@@ -32,6 +33,7 @@ The command references `Truss.Email.Abstractions` in the application layer, `Tru
 |---|---|
 | `console` | Messages print to the log; reset links and codes show up right in the terminal |
 | `smtp` | Delivery over SMTP through MailKit; development points at Mailpit |
+| `resend` | Delivery through the official Resend API client |
 
 With docker and the smtp provider, `docker compose up` starts [Mailpit](https://mailpit.axllent.org), a local SMTP server with a web inbox at `http://localhost:8025`; `truss dev` prints the URL. Every email the application sends lands there, visible and clickable, with nothing leaving the machine.
 
@@ -52,7 +54,19 @@ Truss__Email__Smtp__UseStartTls=true
 
 Any SMTP provider works, which keeps the free-first principle: a transactional provider's SMTP endpoint, a self-hosted relay, or the company server. Keep the password out of source control; bind it from the environment.
 
-`EmailMessage` carries the recipient, the subject and an HTML body with an optional plain text alternative. A custom `IEmailSender` implementation swaps the mechanism (a provider API, a fake for tests) without touching a handler. Provider packages for transactional APIs (Resend first) are planned; any of them slots behind the same abstraction.
+`EmailMessage` carries the recipient, the subject and an HTML body with an optional plain text alternative. A custom `IEmailSender` implementation swaps the mechanism (a provider API, a fake for tests) without touching a handler.
+
+### Resend
+
+`Truss.Email.Resend` delivers through the [Resend](https://resend.com) API with the official client, behind the same abstraction, so switching from Mailpit in development to Resend in production changes configuration and nothing else. The section carries the sender; the API key comes only from the environment:
+
+```
+Truss__Email__Resend__ApiKey=<secret>
+Truss__Email__Resend__From=noreply@example.com
+Truss__Email__Resend__FromName=My Shop
+```
+
+The `From` domain must be verified in the Resend dashboard, and the free tier is enough for development and small applications. Other transactional providers (SendGrid, SES, Postmark) slot behind `IEmailSender` the same way when demand appears.
 
 ---
 

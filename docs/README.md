@@ -54,6 +54,7 @@ Truss is intentionally explicit, modular and dependency-minimal.
 | `Truss.Auth.Jwt` | PBKDF2 hashing, JWT issuing and JwtBearer wiring; the user model is scaffolded into your domain. | API / Host |
 | `Truss.Email.Abstractions` | Contracts for sending email from the application layer. | Application |
 | `Truss.Email` | SMTP sender through MailKit and a console sender for development. | API / Host |
+| `Truss.Email.Resend` | Delivery through the Resend API behind the same sender abstraction. | API / Host |
 
 Each layer references only the packages it needs. See [Architecture](architecture.md) for the full picture.
 

@@ -175,6 +175,18 @@ Email senders and address validation: SMTP through MailKit, a console sender for
 
 ---
 
+## Truss.Email.Resend
+
+**Purpose:**
+Resend provider: delivery through the official API client behind the sender abstraction.
+
+### Dependencies
+
+- `Truss.Email.Abstractions`
+- `Resend`
+
+---
+
 ## Truss.Observability.OpenTelemetry
 
 **Purpose:**
