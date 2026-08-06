@@ -151,6 +151,29 @@ Durable Redis transport: Streams with consumer groups, pending message reclaim a
 
 ---
 
+## Truss.Email.Abstractions
+
+**Purpose:**
+Contracts for sending email: the message shape and the sender abstraction.
+
+### Dependencies
+
+None.
+
+---
+
+## Truss.Email
+
+**Purpose:**
+Email senders: SMTP through MailKit bound from options or environment variables, and a console sender for development.
+
+### Dependencies
+
+- `Truss.Email.Abstractions`
+- `MailKit`
+
+---
+
 ## Truss.Observability.OpenTelemetry
 
 **Purpose:**

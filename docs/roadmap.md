@@ -37,14 +37,15 @@ Truss is built module by module, each one opt-in. The framework never installs a
 - Worker template: truss add worker scaffolds a separate consumer process sharing the application layers, competing for messages and jobs with the API.
 - Error catalog: business rules carry a stable Code surfaced in 422 responses, overridable to survive renames.
 - Seeders: ITrussSeeder classes plant development data after the schema is ready; the sample ships one.
+- Email: IEmailSender for the application layer with SMTP and console providers, and Mailpit wired into development by truss add email.
 
 ---
 
 ## Next
 
-### Auth providers
+### Account flows over email
 
-External OpenID providers (Google, Microsoft, GitHub) and scaffolded password reset and email confirmation flows over the same editable account model.
+Scaffolded password reset, email confirmation and two factor login by email, built on the email module and the same editable account model. External OpenID providers follow.
 
 ---
 

@@ -32,6 +32,9 @@
 * Auth
     - [Authentication](auth.md)
 
+* Email
+    - [Sending Email](email.md)
+
 * Testing
     - [Integration Testing](testing.md)
 

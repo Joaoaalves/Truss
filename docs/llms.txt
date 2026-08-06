@@ -29,6 +29,7 @@ Every page below is plain Markdown and can be fetched directly. The whole docume
 
 ## Tooling
 
+- [Sending Email](https://joaoaalves.github.io/Truss/email.md): IEmailSender, console and smtp providers, Mailpit development inbox
 - [Integration Testing](https://joaoaalves.github.io/Truss/testing.md): TrussTestHost, throwaway database, deterministic outbox drain, job helpers
 - [The truss CLI](https://joaoaalves.github.io/Truss/cli.md): truss new, add, generate and doctor; the truss.json manifest
 - [Source Generators](https://joaoaalves.github.io/Truss/generators.md): compile-time handler discovery, build diagnostics, Native AOT

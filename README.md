@@ -34,6 +34,8 @@ Full documentation: **https://joaoaalves.github.io/Truss**
 | `Truss.Mapping` | Compile-time DTO mappers with typed id unwrapping and unmapped members as build errors. | Build (dev dependency) |
 | `Truss.Auth.Abstractions` | Contracts for password hashing and token issuing. | Application |
 | `Truss.Auth.Jwt` | PBKDF2 hashing, JWT issuing and JwtBearer wiring; the user model is scaffolded into your domain. | API / Host |
+| `Truss.Email.Abstractions` | Contracts for sending email from the application layer. | Application |
+| `Truss.Email` | SMTP sender through MailKit and a console sender for development. | API / Host |
 
 ## Principles
 
