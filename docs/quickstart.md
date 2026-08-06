@@ -110,3 +110,5 @@ The execution flow for this request:
 - [Commands & Queries](commands-and-queries.md) covers the messaging model.
 - [ASP.NET Core](aspnetcore.md) covers endpoint mapping and error responses.
 - [Unit of Work](unit-of-work.md) covers the transactional boundary in depth.
+- [Authentication](auth.md) covers the scaffolded account model and its flows.
+- [Sending Email](email.md) covers the email module, address validation and the development inbox.
