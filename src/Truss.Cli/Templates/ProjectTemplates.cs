@@ -98,6 +98,7 @@ namespace Truss.Cli.Templates
                 <PackageReference Include="Truss.AspNetCore" Version="__TRUSS_VERSION__" />
                 <PackageReference Include="Truss.Generators" Version="__TRUSS_VERSION__" PrivateAssets="all" />
                 <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.*" />
+                <PackageReference Include="Microsoft.OpenApi" Version="2.*" />
                 <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.*" PrivateAssets="all" />
                 <PackageReference Include="Scalar.AspNetCore" Version="2.*" />
               </ItemGroup>
@@ -117,6 +118,7 @@ namespace Truss.Cli.Templates
                 <PackageReference Include="Truss.AspNetCore" Version="__TRUSS_VERSION__" />
                 <PackageReference Include="Truss.Generators" Version="__TRUSS_VERSION__" PrivateAssets="all" />
                 <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.*" />
+                <PackageReference Include="Microsoft.OpenApi" Version="2.*" />
                 <PackageReference Include="Scalar.AspNetCore" Version="2.*" />
               </ItemGroup>
 

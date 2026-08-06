@@ -29,8 +29,8 @@ namespace Truss.Cli.Tests
             Assert.Equal(0, _workspace.Run("add", "jobs", "--project", root));
             Assert.Equal(0, _workspace.Run("add", "observability", "--dashboard", "aspire", "--project", root));
             Assert.Equal(0, _workspace.Run("add", "mapping", "--project", root));
-            Assert.Equal(0, _workspace.Run("add", "auth", "--project", root));
             Assert.Equal(0, _workspace.Run("add", "email", "--project", root));
+            Assert.Equal(0, _workspace.Run("add", "auth", "--project", root));
             Assert.Equal(0, _workspace.Run("add", "worker", "--project", root));
             Assert.Equal(0, _workspace.Run("generate", "command", "ArchiveProduct", "--context", "Catalog", "--project", root));
             Assert.Equal(0, _workspace.Run("doctor", "--project", root));
@@ -42,6 +42,7 @@ namespace Truss.Cli.Tests
             Assert.Equal(0, _workspace.Scaffold("IdShop", "sqlite", "--local-packages", _feed));
             var identityRoot = _workspace.Root("IdShop");
 
+            Assert.Equal(0, _workspace.Run("add", "email", "--project", identityRoot));
             Assert.Equal(0, _workspace.Run("add", "auth", "--provider", "identity", "--project", identityRoot));
 
             AssertBuildSucceeds(identityRoot, "IdShop");

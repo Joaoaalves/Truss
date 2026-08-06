@@ -370,9 +370,23 @@ namespace Truss.Cli.Templates
 
                     public string PasswordHash { get; private set; } = string.Empty;
 
+                    public bool EmailConfirmed { get; private set; }
+
+                    public bool TwoFactorEnabled { get; private set; }
+
                     public void ChangePassword(string passwordHash)
                     {
                         PasswordHash = passwordHash;
+                    }
+
+                    public void ConfirmEmail()
+                    {
+                        EmailConfirmed = true;
+                    }
+
+                    public void SetTwoFactorEnabled(bool enabled)
+                    {
+                        TwoFactorEnabled = enabled;
                     }
                 }
             }
@@ -563,7 +577,7 @@ namespace Truss.Cli.Templates
                     {
                         services.AddScoped<IUserRepository, EfUserRepository>();
                         services.AddScoped<IUserCredentialsStore, EfUserCredentialsStore>();
-                        services.AddScoped<IRefreshTokenStore, EfRefreshTokenStore>();
+                        services.AddScoped<IRefreshTokenStore, EfRefreshTokenStore>();__FLOW_REGISTRATIONS__
                         return services;
                     }
                 }
@@ -687,7 +701,7 @@ namespace Truss.Cli.Templates
                     {
                         services.AddScoped<IUserRepository, EfUserRepository>();
                         services.AddScoped<IUserCredentialsStore, IdentityUserCredentialsStore>();
-                        services.AddScoped<IRefreshTokenStore, EfRefreshTokenStore>();
+                        services.AddScoped<IRefreshTokenStore, EfRefreshTokenStore>();__FLOW_REGISTRATIONS__
 
                         services.AddIdentityCore<ApplicationUser>(options =>
                         {

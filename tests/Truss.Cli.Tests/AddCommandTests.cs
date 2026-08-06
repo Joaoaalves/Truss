@@ -188,6 +188,40 @@ namespace Truss.Cli.Tests
         }
 
         [Fact]
+        public void AddAuth_WithEmailModule_ScaffoldsAccountFlows()
+        {
+            var root = ScaffoldShop();
+
+            Assert.Equal(0, _workspace.Run("add", "email", "--project", root));
+            Assert.Equal(0, _workspace.Run("add", "auth", "--project", root));
+
+            Assert.True(_workspace.FileExists("Shop", "src", "Shop.Application", "Accounts", "IAccountSecurityStore.cs"));
+            Assert.True(_workspace.FileExists("Shop", "src", "Shop.Application", "Accounts", "RequestPasswordResetHandler.cs"));
+            Assert.True(_workspace.FileExists("Shop", "src", "Shop.Application", "Accounts", "VerifyTwoFactorHandler.cs"));
+            Assert.True(_workspace.FileExists("Shop", "src", "Shop.Infrastructure", "Accounts", "AccountTokenRecord.cs"));
+            Assert.True(_workspace.FileExists("Shop", "src", "Shop.Infrastructure", "Accounts", "EfAccountSecurityStore.cs"));
+
+            var user = _workspace.ReadFile("Shop", "src", "Shop.Domain", "Accounts", "User.cs");
+            Assert.DoesNotContain("EmailConfirmed", user);
+            Assert.DoesNotContain("TwoFactorEnabled", user);
+            Assert.DoesNotContain("hash", user, StringComparison.OrdinalIgnoreCase);
+
+            var credential = _workspace.ReadFile("Shop", "src", "Shop.Infrastructure", "Accounts", "UserCredential.cs");
+            Assert.Contains("EmailConfirmed", credential);
+            Assert.Contains("TwoFactorEnabled", credential);
+
+            var accountsModule = _workspace.ReadFile("Shop", "src", "Shop.Infrastructure", "AccountsModule.cs");
+            Assert.Contains("EfAccountTokenStore", accountsModule);
+            Assert.Contains("EfAccountSecurityStore", accountsModule);
+
+            var program = _workspace.ReadFile("Shop", "src", "Shop.Api", "Program.cs");
+            Assert.Contains("MapCommand<Login, LoginResult>", program);
+            Assert.Contains("/auth/password/request-reset", program);
+            Assert.Contains("/auth/login/2fa", program);
+            Assert.Contains("/auth/confirm-email", program);
+        }
+
+        [Fact]
         public void AddAuth_WithIdentityProvider_ScaffoldsIdentityBackedStores()
         {
             var root = ScaffoldShop();
