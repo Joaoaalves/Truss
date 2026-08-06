@@ -25,6 +25,8 @@ POST /auth/login     {"email": "joao@example.com", "password": "..."}      -> ac
 POST /auth/refresh   {"refreshToken": "..."}                               -> rotated tokens
 ```
 
+With the [email module](email.md) installed before auth, the scaffold also carries the account flows: password reset, email confirmation and two factor login by email. Install email first to get them.
+
 ---
 
 ## What the Package Owns
@@ -113,6 +115,34 @@ Choose it when you want Identity's ecosystem: its password hasher and upgrade pa
 
 ---
 
+## Account Flows
+
+When the email module is present at `truss add auth` time, four more endpoints come along, built on single-use tokens that are stored only as hashes, expire, and are consumed atomically with the command that uses them:
+
+```
+POST /auth/password/request-reset  {"email": "..."}                  -> always 204; a reset token arrives by email
+POST /auth/password/reset          {"token": "...", "newPassword": "..."}
+POST /auth/confirm-email           {"token": "..."}
+POST /auth/login/2fa               {"email": "...", "code": "123456"} -> access + refresh tokens
+```
+
+`Login` then returns a `LoginResult`: with two factor off, the tokens directly; with it on, `requiresTwoFactor: true` and a six digit code by email, verified at `/auth/login/2fa`. The reset request answers 204 for unknown addresses too, so the endpoint never confirms whether an account exists, and registration validates the address with the [deliverability validator](email.md) before anything is stored.
+
+Account security state stays out of the domain, by the same rule as the credentials: `EmailConfirmed` and `TwoFactorEnabled` live on the infrastructure account model (the `UserCredential` for the JWT provider; the `IdentityUser`, which carries both natively, for Identity) behind the scaffolded `IAccountSecurityStore`. Reading, confirming and toggling go through it:
+
+```csharp
+public interface IAccountSecurityStore
+{
+    Task<AccountSecurity> Get(UserId userId, CancellationToken cancellationToken = default);
+    Task ConfirmEmail(UserId userId, CancellationToken cancellationToken = default);
+    Task SetTwoFactorEnabled(UserId userId, bool enabled, CancellationToken cancellationToken = default);
+}
+```
+
+Exposing a "turn on two factor" surface is your call: an authenticated endpoint calling `SetTwoFactorEnabled` with the current user's id from the `sub` claim is a handful of lines in your own code. Every email the flows send goes through `IEmailSender`, so in development they land in the console log or the Mailpit inbox.
+
+---
+
 ## Roadmap
 
-External OpenID providers (Google, Microsoft, GitHub) and scaffolded password reset and email confirmation flows are planned. The scaffolded model is provider-independent: switching providers later means changing the mechanics, not your domain.
+External OpenID providers (Google, Microsoft, GitHub) are planned. The scaffolded model is provider-independent: switching providers later means changing the mechanics, not your domain.

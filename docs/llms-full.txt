@@ -1890,6 +1890,8 @@ POST /auth/login     {"email": "joao@example.com", "password": "..."}      -> ac
 POST /auth/refresh   {"refreshToken": "..."}                               -> rotated tokens
 ```
 
+With the [email module](email.md) installed before auth, the scaffold also carries the account flows: password reset, email confirmation and two factor login by email. Install email first to get them.
+
 ---
 
 ## What the Package Owns
@@ -1978,9 +1980,37 @@ Choose it when you want Identity's ecosystem: its password hasher and upgrade pa
 
 ---
 
+## Account Flows
+
+When the email module is present at `truss add auth` time, four more endpoints come along, built on single-use tokens that are stored only as hashes, expire, and are consumed atomically with the command that uses them:
+
+```
+POST /auth/password/request-reset  {"email": "..."}                  -> always 204; a reset token arrives by email
+POST /auth/password/reset          {"token": "...", "newPassword": "..."}
+POST /auth/confirm-email           {"token": "..."}
+POST /auth/login/2fa               {"email": "...", "code": "123456"} -> access + refresh tokens
+```
+
+`Login` then returns a `LoginResult`: with two factor off, the tokens directly; with it on, `requiresTwoFactor: true` and a six digit code by email, verified at `/auth/login/2fa`. The reset request answers 204 for unknown addresses too, so the endpoint never confirms whether an account exists, and registration validates the address with the [deliverability validator](email.md) before anything is stored.
+
+Account security state stays out of the domain, by the same rule as the credentials: `EmailConfirmed` and `TwoFactorEnabled` live on the infrastructure account model (the `UserCredential` for the JWT provider; the `IdentityUser`, which carries both natively, for Identity) behind the scaffolded `IAccountSecurityStore`. Reading, confirming and toggling go through it:
+
+```csharp
+public interface IAccountSecurityStore
+{
+    Task<AccountSecurity> Get(UserId userId, CancellationToken cancellationToken = default);
+    Task ConfirmEmail(UserId userId, CancellationToken cancellationToken = default);
+    Task SetTwoFactorEnabled(UserId userId, bool enabled, CancellationToken cancellationToken = default);
+}
+```
+
+Exposing a "turn on two factor" surface is your call: an authenticated endpoint calling `SetTwoFactorEnabled` with the current user's id from the `sub` claim is a handful of lines in your own code. Every email the flows send goes through `IEmailSender`, so in development they land in the console log or the Mailpit inbox.
+
+---
+
 ## Roadmap
 
-External OpenID providers (Google, Microsoft, GitHub) and scaffolded password reset and email confirmation flows are planned. The scaffolded model is provider-independent: switching providers later means changing the mechanics, not your domain.
+External OpenID providers (Google, Microsoft, GitHub) are planned. The scaffolded model is provider-independent: switching providers later means changing the mechanics, not your domain.
 
 ---
 
@@ -2358,7 +2388,7 @@ Source: https://joaoaalves.github.io/Truss/design-guidelines.md
 - Return ids or DTOs from handlers, never entities.
 - Never inject `IUnitOfWork` into application code. The pipeline owns the transaction.
 - Validate input shape with validators. Protect invariants with business rules. These are different concerns and different failure types.
-- Keep authentication state out of the domain. Password hashes, tokens and credentials are infrastructure persistence models behind application abstractions; an aggregate never carries a hash.
+- Keep authentication state out of the domain. Password hashes, tokens, credentials, email confirmation and two factor settings are infrastructure persistence models behind application abstractions; an aggregate never carries a hash or a login switch.
 
 ---
 
@@ -2418,15 +2448,16 @@ Truss is built module by module, each one opt-in. The framework never installs a
 - Worker template: truss add worker scaffolds a separate consumer process sharing the application layers, competing for messages and jobs with the API.
 - Error catalog: business rules carry a stable Code surfaced in 422 responses, overridable to survive renames.
 - Seeders: ITrussSeeder classes plant development data after the schema is ready; the sample ships one.
-- Email: IEmailSender for the application layer with SMTP and console providers, and Mailpit wired into development by truss add email.
+- Email: IEmailSender for the application layer with SMTP and console providers, Mailpit wired into development by truss add email, and address validation combining the RFC parser with a DNS deliverability answer.
+- Account flows: password reset, email confirmation and two factor login by email scaffolded with auth when the email module is present, on single-use hashed tokens consumed atomically.
 
 ---
 
 ## Next
 
-### Account flows over email
+### Auth providers
 
-Scaffolded password reset, email confirmation and two factor login by email, built on the email module and the same editable account model. External OpenID providers follow.
+External OpenID providers (Google, Microsoft, GitHub) over the same editable account model, and transactional email providers starting with Resend.
 
 ---
 
