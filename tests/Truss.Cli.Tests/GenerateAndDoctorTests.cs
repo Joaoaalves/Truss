@@ -58,6 +58,26 @@ namespace Truss.Cli.Tests
         }
 
         [Fact]
+        public void GeneratePagedQuery_CreatesRecordHandlerAndValidator()
+        {
+            var root = ScaffoldShop();
+
+            var exitCode = _workspace.Run("generate", "query", "ListProducts", "--context", "Catalog", "--result", "Guid", "--paged", "--project", root);
+
+            Assert.Equal(0, exitCode);
+
+            var query = _workspace.ReadFile("Shop", "src", "Shop.Application", "Catalog", "ListProducts.cs");
+            Assert.Contains("record ListProducts(int Page = 1, int Size = 20) : IQuery<PageResult<Guid>>", query);
+
+            var handler = _workspace.ReadFile("Shop", "src", "Shop.Application", "Catalog", "ListProductsHandler.cs");
+            Assert.Contains("IQueryHandler<ListProducts, PageResult<Guid>>", handler);
+            Assert.Contains("ToPageAsync", handler);
+
+            var validator = _workspace.ReadFile("Shop", "src", "Shop.Application", "Catalog", "ListProductsValidator.cs");
+            Assert.Contains("InclusiveBetween(1, 100)", validator);
+        }
+
+        [Fact]
         public void GenerateExistingFile_Fails()
         {
             var root = ScaffoldShop();

@@ -106,5 +106,46 @@ namespace Truss.Cli.Templates
                 }
             }
             """;
+
+        public const string QueryPaged = """
+            using Truss.Application;
+
+            namespace __NS_APPLICATION__
+            {
+                public sealed record __TYPE__(int Page = 1, int Size = 20) : IQuery<PageResult<__RESULT__>>;
+            }
+            """;
+
+        public const string QueryPagedHandler = """
+            using Truss.Application;
+
+            namespace __NS_APPLICATION__
+            {
+                public class __TYPE__Handler : IQueryHandler<__TYPE__, PageResult<__RESULT__>>
+                {
+                    public Task<PageResult<__RESULT__>> Handle(__TYPE__ query, CancellationToken cancellationToken)
+                    {
+                        // Order the source, then: .ToPageAsync(new PageRequest(query.Page, query.Size), cancellationToken)
+                        throw new NotImplementedException();
+                    }
+                }
+            }
+            """;
+
+        public const string QueryPagedValidator = """
+            using FluentValidation;
+
+            namespace __NS_APPLICATION__
+            {
+                public class __TYPE__Validator : AbstractValidator<__TYPE__>
+                {
+                    public __TYPE__Validator()
+                    {
+                        RuleFor(query => query.Page).GreaterThanOrEqualTo(1);
+                        RuleFor(query => query.Size).InclusiveBetween(1, 100);
+                    }
+                }
+            }
+            """;
     }
 }

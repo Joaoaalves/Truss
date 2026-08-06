@@ -47,12 +47,22 @@ namespace Truss.Cli
             ];
         }
 
-        public static IReadOnlyList<string> GenerateQuery(TrussManifest manifest, string root, string name, string? context, string result)
+        public static IReadOnlyList<string> GenerateQuery(TrussManifest manifest, string root, string name, string? context, string result, bool paged = false)
         {
             ValidateType(name);
 
             var ns = ApplicationNamespace(manifest, context);
             var directory = TargetDirectory(root, manifest.ApplicationProject, context);
+
+            if (paged)
+            {
+                return
+                [
+                    WriteFile(directory, $"{name}.cs", Render(GeneratorTemplates.QueryPaged, name, ns, result)),
+                    WriteFile(directory, $"{name}Handler.cs", Render(GeneratorTemplates.QueryPagedHandler, name, ns, result)),
+                    WriteFile(directory, $"{name}Validator.cs", Render(GeneratorTemplates.QueryPagedValidator, name, ns, result))
+                ];
+            }
 
             return
             [

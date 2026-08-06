@@ -88,11 +88,14 @@ namespace Truss.Cli.Commands
         {
             [CommandOption("--result <TYPE>")]
             public string Result { get; init; } = "string";
+
+            [CommandOption("--paged")]
+            public bool Paged { get; init; }
         }
 
         protected override IReadOnlyList<string> Generate(TrussManifest manifest, string root, Settings settings)
         {
-            return CodeGenerator.GenerateQuery(manifest, root, settings.Name, settings.Context, settings.Result);
+            return CodeGenerator.GenerateQuery(manifest, root, settings.Name, settings.Context, settings.Result, settings.Paged);
         }
     }
 }
