@@ -63,6 +63,11 @@ Truss is intentionally explicit, modular and dependency-minimal.
 | `Truss.Email.Abstractions` | Contracts for sending email from the application layer. | Application |
 | `Truss.Email` | SMTP sender through MailKit and a console sender for development. | API / Host |
 | `Truss.Email.Resend` | Delivery through the Resend API behind the same sender abstraction. | API / Host |
+| `Truss.Tenancy.Abstractions` | The ambient tenant context, readable anywhere. | Application |
+| `Truss.Tenancy.EntityFrameworkCore` | Row-level isolation: shadow column, query filter and automatic stamping. | Infrastructure |
+| `Truss.Tenancy.AspNetCore` | Tenant resolution from claims, headers or a custom strategy. | API / Host |
+| `Truss.Rbac` | Roles in code mapping to permissions, RequirePermission and claims enrichment. | API / Host |
+| `Truss.Rbac.EntityFrameworkCore` | Role assignments persisted in the application database. | Infrastructure |
 
 Each layer references only the packages it needs. See [Architecture](architecture.md) for the full picture.
 
@@ -457,6 +462,63 @@ Resend provider: delivery through the official API client behind the sender abst
 
 - `Truss.Email.Abstractions`
 - `Resend`
+
+---
+
+## Truss.Tenancy.Abstractions
+
+**Purpose:**
+The ambient tenant context of the current request.
+
+### Dependencies
+
+None.
+
+---
+
+## Truss.Tenancy.EntityFrameworkCore
+
+**Purpose:**
+Row-level tenant isolation: the tenant-owned marking, the shadow column with its filter, and the stamp on save.
+
+### Dependencies
+
+- `Truss.Tenancy.Abstractions`
+- `Microsoft.EntityFrameworkCore`
+
+---
+
+## Truss.Tenancy.AspNetCore
+
+**Purpose:**
+HTTP tenant resolution from claims, headers or a custom resolver.
+
+### Dependencies
+
+- `Truss.Tenancy.Abstractions`
+
+---
+
+## Truss.Rbac
+
+**Purpose:**
+Role-based access control over standard authorization: roles defined in code, on-demand permission policies and per-request role claims enrichment.
+
+### Dependencies
+
+None beyond the shared framework.
+
+---
+
+## Truss.Rbac.EntityFrameworkCore
+
+**Purpose:**
+Role assignments persisted in the application database.
+
+### Dependencies
+
+- `Truss.Rbac`
+- `Microsoft.EntityFrameworkCore.Relational`
 
 ---
 
@@ -2127,6 +2189,130 @@ The DNS check fails open on purpose: an unreachable resolver never blocks a regi
 
 ---
 
+Source: https://joaoaalves.github.io/Truss/tenancy.md
+
+# Multi-Tenancy
+
+`Truss.Tenancy` isolates tenant data at the row level with a clean domain: no entity carries a `TenantId`, no handler filters by hand, and forgetting a `Where` clause cannot leak another tenant's rows.
+
+```
+truss add tenancy
+```
+
+Three pieces land: the ambient tenant context, the HTTP resolution and the EF Core isolation, all opt-in and independent of every other module.
+
+---
+
+## Marking What Belongs to a Tenant
+
+The domain type stays untouched. The marking happens where persistence decisions already live, in the entity's configuration:
+
+```csharp
+public class ProjectConfiguration : IEntityTypeConfiguration<Project>
+{
+    public void Configure(EntityTypeBuilder<Project> builder)
+    {
+        builder.ToTable("Projects");
+        builder.IsTenantOwned();
+    }
+}
+```
+
+`ApplyTrussTenancy(this)`, which the CLI adds to `OnModelCreating`, gives every marked entity a shadow `TenantId` column with an index, a global query filter bound to the tenant of the current request, and an automatic stamp on insert. Unmarked entities are shared and completely unaffected.
+
+The semantics are strict on purpose:
+
+- Reads only ever see the current tenant's rows; a request without a tenant sees none.
+- Inserting tenant-owned data without an ambient tenant throws, loudly, instead of writing a row visible to nobody.
+- `IgnoreQueryFilters()` remains the explicit, visible escape hatch for administrative queries.
+
+---
+
+## Resolving the Tenant
+
+`app.UseTrussTenancy()` resolves the tenant into the ambient context on every request: the `tenant` claim of the authenticated user first, then the `X-Tenant-Id` header. Both are configurable, and a custom resolver replaces them entirely for strategies like subdomains:
+
+```csharp
+app.UseTrussTenancy(options =>
+    options.Resolver = context => ResolveFromSubdomain(context.Request.Host));
+```
+
+Register it after authentication so the claim is available. Handlers and services that need the tenant inject `ITenantContext`:
+
+```csharp
+public class ListProjectsHandler(AppDbContext context, ITenantContext tenant) : ...
+```
+
+Outside HTTP (workers, tests), set `TenantContextHolder.Current` explicitly; integration events and job arguments should carry the tenant as data when the work crosses that boundary.
+
+---
+
+## What It Is Not
+
+This is shared-database isolation, the shape that fits most applications and every free tier. Database-per-tenant, tenant-scoped roles and ambient propagation through transports are deliberate future work; the seams (ambient context, marked entities) are where they will plug in.
+
+---
+
+Source: https://joaoaalves.github.io/Truss/rbac.md
+
+# Role-Based Access Control
+
+`Truss.Rbac` builds on the standard ASP.NET Core authorization instead of replacing it: roles and their permissions are defined in code, endpoints require permissions with one chained call, and only the user-role assignments live in the database.
+
+```
+truss add rbac
+```
+
+---
+
+## Roles in Code, Assignments in Data
+
+Roles are part of the application's design, so they live where design lives, reviewed and versioned like any other change:
+
+```csharp
+builder.Services.AddTrussRbac(options =>
+{
+    options.AddRole("admin", "catalog.write", "orders.refund", "reports.read");
+    options.AddRole("support", "orders.read", "reports.read");
+});
+
+builder.Services.AddTrussRbacEntityFramework<AppDbContext>();
+```
+
+Which user holds which role is data, granted and revoked through `IRoleAssignments`:
+
+```csharp
+await roles.Assign(userId, "admin");
+```
+
+A [seeder](cli.md) granting the first admin in development is the natural starting point. Role definitions never touch the domain model, and the module works with or without every other Truss module, tenancy included.
+
+---
+
+## Protecting Endpoints
+
+```csharp
+app.MapCommand<RefundOrder>("/orders/refund").RequirePermission("orders.refund");
+```
+
+`RequirePermission` composes with `MapCommand`, `MapQuery` and any endpoint builder. Policies materialize on demand, so there is nothing to pre-register per permission. A caller without a granting role receives 403; an anonymous caller, 401.
+
+Handlers that need to check permissions imperatively read the user's claims as usual; the permission model stays in one place, the options.
+
+---
+
+## How Roles Reach the Request
+
+A claims transformation resolves the user's stored roles on each request from the `sub` claim, with a short cache (30 seconds by default). The consequences are deliberate:
+
+- Login handlers stay untouched and tokens stay lean; granting or revoking a role needs no re-login and applies within the cache window.
+- Any authentication that produces a `sub` or name identifier claim works: the scaffolded JWT auth, Identity, or an external provider.
+- Role claims already present in the token are honored too, so token-embedded roles work without the store.
+
+Configure the claim type and cache with `TrussRbacOptions`; tenant-scoped roles are planned for multi-tenant applications that need per-tenant grants.
+
+---
+
 Source: https://joaoaalves.github.io/Truss/testing.md
 
 # Integration Testing
@@ -2268,6 +2454,8 @@ Installs a module into an existing project: adds the package references to the c
 | `mapping` | | Compile-time DTO mappers, added to the application layer |
 | `auth` | `--provider jwt`, `identity` | Scaffolds the editable Accounts context and wires JWT authentication; the identity provider runs credentials through ASP.NET Core Identity; requires a database |
 | `email` | `--provider console`, `smtp`, `resend` | IEmailSender for the application layer; smtp brings Mailpit to the compose file, resend delivers through the API |
+| `tenancy` | | Row-level tenant isolation: ambient resolution, query filtering and stamping; requires a database |
+| `rbac` | | Roles in code, permissions on endpoints and assignments in the database; requires a database |
 | `worker` | | Scaffolds src/Name.Worker, a separate consumer process wired with the installed modules; requires messaging |
 
 ---
@@ -2480,6 +2668,8 @@ Truss is built module by module, each one opt-in. The framework never installs a
 - Email: IEmailSender for the application layer with SMTP and console providers, Mailpit wired into development by truss add email, and address validation combining the RFC parser with a DNS deliverability answer.
 - Account flows: password reset, email confirmation and two factor login by email scaffolded with auth when the email module is present, on single-use hashed tokens consumed atomically.
 - Resend provider: truss add email --provider resend delivers through the official API client behind the same sender abstraction.
+- Multi-tenancy: row-level isolation with a clean domain, ambient resolution and loud failure on unstamped writes.
+- RBAC: roles in code mapping to permissions, RequirePermission on any endpoint and assignments in the database, independent of tenancy.
 
 ---
 

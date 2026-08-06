@@ -55,6 +55,11 @@ Truss is intentionally explicit, modular and dependency-minimal.
 | `Truss.Email.Abstractions` | Contracts for sending email from the application layer. | Application |
 | `Truss.Email` | SMTP sender through MailKit and a console sender for development. | API / Host |
 | `Truss.Email.Resend` | Delivery through the Resend API behind the same sender abstraction. | API / Host |
+| `Truss.Tenancy.Abstractions` | The ambient tenant context, readable anywhere. | Application |
+| `Truss.Tenancy.EntityFrameworkCore` | Row-level isolation: shadow column, query filter and automatic stamping. | Infrastructure |
+| `Truss.Tenancy.AspNetCore` | Tenant resolution from claims, headers or a custom strategy. | API / Host |
+| `Truss.Rbac` | Roles in code mapping to permissions, RequirePermission and claims enrichment. | API / Host |
+| `Truss.Rbac.EntityFrameworkCore` | Role assignments persisted in the application database. | Infrastructure |
 
 Each layer references only the packages it needs. See [Architecture](architecture.md) for the full picture.
 

@@ -35,6 +35,12 @@
 * Email
     - [Sending Email](email.md)
 
+* Multi-Tenancy
+    - [Tenant Isolation](tenancy.md)
+
+* Authorization
+    - [RBAC](rbac.md)
+
 * Testing
     - [Integration Testing](testing.md)
 

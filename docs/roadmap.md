@@ -40,6 +40,8 @@ Truss is built module by module, each one opt-in. The framework never installs a
 - Email: IEmailSender for the application layer with SMTP and console providers, Mailpit wired into development by truss add email, and address validation combining the RFC parser with a DNS deliverability answer.
 - Account flows: password reset, email confirmation and two factor login by email scaffolded with auth when the email module is present, on single-use hashed tokens consumed atomically.
 - Resend provider: truss add email --provider resend delivers through the official API client behind the same sender abstraction.
+- Multi-tenancy: row-level isolation with a clean domain, ambient resolution and loud failure on unstamped writes.
+- RBAC: roles in code mapping to permissions, RequirePermission on any endpoint and assignments in the database, independent of tenancy.
 
 ---
 

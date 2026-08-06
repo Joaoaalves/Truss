@@ -187,6 +187,63 @@ Resend provider: delivery through the official API client behind the sender abst
 
 ---
 
+## Truss.Tenancy.Abstractions
+
+**Purpose:**
+The ambient tenant context of the current request.
+
+### Dependencies
+
+None.
+
+---
+
+## Truss.Tenancy.EntityFrameworkCore
+
+**Purpose:**
+Row-level tenant isolation: the tenant-owned marking, the shadow column with its filter, and the stamp on save.
+
+### Dependencies
+
+- `Truss.Tenancy.Abstractions`
+- `Microsoft.EntityFrameworkCore`
+
+---
+
+## Truss.Tenancy.AspNetCore
+
+**Purpose:**
+HTTP tenant resolution from claims, headers or a custom resolver.
+
+### Dependencies
+
+- `Truss.Tenancy.Abstractions`
+
+---
+
+## Truss.Rbac
+
+**Purpose:**
+Role-based access control over standard authorization: roles defined in code, on-demand permission policies and per-request role claims enrichment.
+
+### Dependencies
+
+None beyond the shared framework.
+
+---
+
+## Truss.Rbac.EntityFrameworkCore
+
+**Purpose:**
+Role assignments persisted in the application database.
+
+### Dependencies
+
+- `Truss.Rbac`
+- `Microsoft.EntityFrameworkCore.Relational`
+
+---
+
 ## Truss.Observability.OpenTelemetry
 
 **Purpose:**
