@@ -48,6 +48,7 @@ EF Core implementation of the unit of work, with domain event collection from tr
 
 - `Truss.Application`
 - `Microsoft.EntityFrameworkCore`
+- `Microsoft.Extensions.Diagnostics.HealthChecks`
 
 ---
 
@@ -94,6 +95,7 @@ Integration event runtime: versioned JSON serialization, outbox model and proces
 
 - `Truss.Messaging.Abstractions`
 - `Truss.Application.Abstractions`
+- `Microsoft.Extensions.Diagnostics.HealthChecks`
 - `Microsoft.Extensions.DependencyInjection.Abstractions`
 - `Microsoft.Extensions.Hosting.Abstractions`
 - `Microsoft.Extensions.Logging.Abstractions`
@@ -198,6 +200,7 @@ Job runtime: transactional enqueueing through the outbox, the executor with retr
 
 - `Truss.Jobs.Abstractions`
 - `Truss.Messaging`
+- `Microsoft.Extensions.Diagnostics.HealthChecks`
 - `Cronos`
 
 ---

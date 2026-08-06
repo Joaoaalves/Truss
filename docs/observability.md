@@ -106,3 +106,26 @@ The command references the OpenTelemetry bridge, registers `AddTrussOpenTelemetr
 Run `docker compose up`, start the application and the signals appear. Switching later is one command with a different choice; only the destination changes.
 
 For production, the same OTLP output feeds whatever the environment offers: a provisioned Grafana stack, a managed collector, or the single-container `grafana/otel-lgtm` for small deployments. Configure the destination per environment with `OTEL_EXPORTER_OTLP_ENDPOINT`; nothing in the application changes.
+
+---
+
+## Health Checks
+
+Truss plugs into the standard ASP.NET Core health checks; each module contributes a check over its own data:
+
+```csharp
+builder.Services.AddHealthChecks()
+    .AddTrussDatabase<AppDbContext>()
+    .AddTrussOutbox()
+    .AddTrussJobs();
+
+app.MapHealthChecks("/health");
+```
+
+| Check | Degraded when | Unhealthy when |
+|---|---|---|
+| `truss-database` | | The database does not answer a connection attempt |
+| `truss-outbox` | Dead-letters exist, or the oldest pending message is older than `MaxPendingAge` (5 minutes by default) | The store is unreachable |
+| `truss-jobs` | Permanently failed jobs wait for inspection | The store is unreachable |
+
+Each check carries its counters in the response data (pending, failed, queued, running), so a JSON response writer hands dashboards the numbers for free. There is no separate broker ping: a broker outage shows up as outbox lag, which the outbox check watches. Scaffolded projects map `/health` and register the database check from the start; `truss dev` prints the URL.
