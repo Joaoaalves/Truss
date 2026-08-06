@@ -39,6 +39,11 @@ jobs:
           --health-interval 10s
           --health-timeout 10s
           --health-retries 10
+      mailpit:
+        image: axllent/mailpit
+        ports:
+          - 10250:1025
+          - 10825:8025
     steps:
       - uses: actions/checkout@v4
         with:

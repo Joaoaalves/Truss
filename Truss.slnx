@@ -7,6 +7,8 @@
     <Project Path="src/Truss.Auth.Jwt/Truss.Auth.Jwt.csproj" />
     <Project Path="src/Truss.Cli/Truss.Cli.csproj" />
     <Project Path="src/Truss.Domain/Truss.Domain.csproj" />
+    <Project Path="src/Truss.Email.Abstractions/Truss.Email.Abstractions.csproj" />
+    <Project Path="src/Truss.Email/Truss.Email.csproj" />
     <Project Path="src/Truss.Generators/Truss.Generators.csproj" />
     <Project Path="src/Truss.Jobs.Abstractions/Truss.Jobs.Abstractions.csproj" />
     <Project Path="src/Truss.Jobs.AspNetCore/Truss.Jobs.AspNetCore.csproj" />
@@ -31,6 +33,7 @@
     <Project Path="tests/Truss.Auth.Jwt.Tests/Truss.Auth.Jwt.Tests.csproj" />
     <Project Path="tests/Truss.Cli.Tests/Truss.Cli.Tests.csproj" />
     <Project Path="tests/Truss.Domain.Tests/Truss.Domain.Tests.csproj" />
+    <Project Path="tests/Truss.Email.Tests/Truss.Email.Tests.csproj" />
     <Project Path="tests/Truss.Generators.Tests/Truss.Generators.Tests.csproj" />
     <Project Path="tests/Truss.Jobs.Tests/Truss.Jobs.Tests.csproj" />
     <Project Path="tests/Truss.Mapping.Tests/Truss.Mapping.Tests.csproj" />
