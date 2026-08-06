@@ -33,6 +33,7 @@ namespace Microsoft.Extensions.DependencyInjection
             services.TryAddSingleton(TimeProvider.System);
             services.TryAddSingleton<IPasswordHasher, Pbkdf2PasswordHasher>();
             services.TryAddSingleton<IJwtTokenService, JwtTokenService>();
+            services.TryAddSingleton<IOneTimeTokens, OneTimeTokenService>();
 
             services.AddSingleton<IConfigureOptions<JwtBearerOptions>, ConfigureJwtBearerOptions>();
 
