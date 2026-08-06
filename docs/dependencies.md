@@ -163,6 +163,21 @@ OTLP bridge: exports the Truss activity sources, meter and application logs thro
 
 ---
 
+## Truss.Testing
+
+**Purpose:**
+Integration test host: boots the pipeline, a throwaway sqlite database, the in-memory transport with the outbox and the job runtime, with helpers for sending requests, draining the outbox deterministically and awaiting jobs.
+
+### Dependencies
+
+- `Truss.Application`
+- `Truss.Persistence.EntityFrameworkCore`
+- `Truss.Messaging` and `Truss.Messaging.EntityFrameworkCore`
+- `Truss.Jobs` and `Truss.Jobs.EntityFrameworkCore`
+- `Microsoft.EntityFrameworkCore.Sqlite`
+
+---
+
 ## Truss.Jobs.Abstractions
 
 **Purpose:**

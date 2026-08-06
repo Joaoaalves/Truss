@@ -32,6 +32,9 @@
 * Auth
     - [Authentication](auth.md)
 
+* Testing
+    - [Integration Testing](testing.md)
+
 * Tooling
     - [The truss CLI](cli.md)
     - [Source Generators](generators.md)

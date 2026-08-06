@@ -92,7 +92,7 @@ Each message is handled in its own dependency injection scope. When a unit of wo
 | RabbitMQ | `Truss.Messaging.RabbitMq` | Available |
 | Redis | `Truss.Messaging.Redis` | Available |
 
-The in-memory transport is intended for development, tests and modular monoliths: delivery happens in-process, after the commit, with no broker to run.
+The in-memory transport is intended for development, tests and modular monoliths: delivery happens in-process, after the commit, with no broker to run. Delivery is still asynchronous; `InMemoryTransport.WaitForIdle` completes once every published message has been handled, which is what the [test host](testing.md) uses to make delivery deterministic.
 
 ### Postgres
 
