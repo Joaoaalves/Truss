@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Truss.Tenancy.EntityFrameworkCore\Truss.Tenancy.EntityFrameworkCore.csproj" />
+    <ProjectReference Include="..\..\src\Truss.Tenancy.AspNetCore\Truss.Tenancy.AspNetCore.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.TestHost" Version="10.*" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.*" />
+    <PackageReference Include="SQLitePCLRaw.bundle_e_sqlite3" Version="3.*" />
+  </ItemGroup>
+
+</Project>

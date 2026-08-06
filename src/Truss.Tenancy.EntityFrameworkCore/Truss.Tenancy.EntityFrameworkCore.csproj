@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <PackageId>Truss.Tenancy.EntityFrameworkCore</PackageId>
+    <Description>Row-level tenant isolation for EF Core: mark entities tenant-owned in their configurations and get the shadow column, the global query filter and the automatic stamp on save, with a clean domain.</Description>
+    <PackageTags>Tenancy;MultiTenant;EntityFrameworkCore;QueryFilter</PackageTags>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Truss.Tenancy.Abstractions\Truss.Tenancy.Abstractions.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="10.*" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.*" />
+  </ItemGroup>
+
+</Project>

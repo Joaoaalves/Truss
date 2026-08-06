@@ -26,6 +26,11 @@
     <Project Path="src/Truss.Observability.OpenTelemetry/Truss.Observability.OpenTelemetry.csproj" />
     <Project Path="src/Truss.Observability/Truss.Observability.csproj" />
     <Project Path="src/Truss.Persistence.EntityFrameworkCore/Truss.Persistence.EntityFrameworkCore.csproj" />
+    <Project Path="src/Truss.Rbac.EntityFrameworkCore/Truss.Rbac.EntityFrameworkCore.csproj" />
+    <Project Path="src/Truss.Rbac/Truss.Rbac.csproj" />
+    <Project Path="src/Truss.Tenancy.Abstractions/Truss.Tenancy.Abstractions.csproj" />
+    <Project Path="src/Truss.Tenancy.AspNetCore/Truss.Tenancy.AspNetCore.csproj" />
+    <Project Path="src/Truss.Tenancy.EntityFrameworkCore/Truss.Tenancy.EntityFrameworkCore.csproj" />
     <Project Path="src/Truss.Testing/Truss.Testing.csproj" />
   </Folder>
   <Folder Name="/tests/">
@@ -42,6 +47,8 @@
     <Project Path="tests/Truss.Messaging.Transports.Tests/Truss.Messaging.Transports.Tests.csproj" />
     <Project Path="tests/Truss.Observability.Tests/Truss.Observability.Tests.csproj" />
     <Project Path="tests/Truss.Persistence.EntityFrameworkCore.Tests/Truss.Persistence.EntityFrameworkCore.Tests.csproj" />
+    <Project Path="tests/Truss.Rbac.Tests/Truss.Rbac.Tests.csproj" />
+    <Project Path="tests/Truss.Tenancy.Tests/Truss.Tenancy.Tests.csproj" />
     <Project Path="tests/Truss.Testing.Tests/Truss.Testing.Tests.csproj" />
   </Folder>
 </Solution>
