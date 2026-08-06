@@ -37,5 +37,20 @@ namespace Truss.Messaging
         /// <param name="cancellationToken">The cancellation token.</param>
         /// <returns>The number of deleted messages.</returns>
         Task<int> DeleteProcessedBefore(DateTimeOffset threshold, CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Returns the outbox counters used by health checks and diagnostics.
+        /// </summary>
+        /// <param name="cancellationToken">The cancellation token.</param>
+        Task<OutboxStatistics> GetStatistics(CancellationToken cancellationToken = default);
     }
+
+    /// <summary>
+    /// The outbox counters: how many messages wait, how many were dead-lettered
+    /// and when the oldest waiting message was produced.
+    /// </summary>
+    /// <param name="PendingCount">The number of messages waiting for publication.</param>
+    /// <param name="FailedCount">The number of dead-lettered messages.</param>
+    /// <param name="OldestPendingOccurredOn">When the oldest waiting message was produced, when any.</param>
+    public sealed record OutboxStatistics(int PendingCount, int FailedCount, DateTimeOffset? OldestPendingOccurredOn);
 }

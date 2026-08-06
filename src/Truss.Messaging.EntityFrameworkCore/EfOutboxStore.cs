@@ -46,5 +46,16 @@ namespace Truss.Messaging.EntityFrameworkCore
                 .Where(message => message.Status == OutboxMessageStatus.Processed && message.ProcessedOn < threshold)
                 .ExecuteDeleteAsync(cancellationToken);
         }
+
+        /// <inheritdoc />
+        public async Task<OutboxStatistics> GetStatistics(CancellationToken cancellationToken = default)
+        {
+            var pending = _context.Set<OutboxMessage>().Where(message => message.Status == OutboxMessageStatus.Pending);
+
+            return new OutboxStatistics(
+                await pending.CountAsync(cancellationToken),
+                await _context.Set<OutboxMessage>().CountAsync(message => message.Status == OutboxMessageStatus.Failed, cancellationToken),
+                await pending.MinAsync(message => (DateTimeOffset?)message.OccurredOn, cancellationToken));
+        }
     }
 }

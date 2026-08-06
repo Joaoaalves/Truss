@@ -45,6 +45,17 @@ namespace Truss.Jobs
         }
 
         /// <inheritdoc />
+        public Task<JobStatistics> GetStatistics(CancellationToken cancellationToken = default)
+        {
+            var records = _records.Values.ToList();
+
+            return Task.FromResult(new JobStatistics(
+                records.Count(record => record.Status is JobStatus.Queued or JobStatus.Scheduled),
+                records.Count(record => record.Status == JobStatus.Running),
+                records.Count(record => record.Status == JobStatus.Failed)));
+        }
+
+        /// <inheritdoc />
         public Task<int> DeleteFinishedBefore(DateTimeOffset threshold, CancellationToken cancellationToken = default)
         {
             var finished = _records.Values

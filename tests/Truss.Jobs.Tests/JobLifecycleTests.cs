@@ -112,6 +112,26 @@ namespace Truss.Jobs.Tests
         }
 
         [Fact]
+        public async Task Statistics_AndHealthCheck_ReportFailedJobs()
+        {
+            await using var host = new JobsTestHost();
+
+            var jobId = await Enqueue<FailingJob, FailArgs>(host, new FailArgs("boom"));
+            await host.WaitForStatus(jobId, JobStatus.Failed);
+
+            using var scope = host.Provider.CreateScope();
+            var store = scope.ServiceProvider.GetRequiredService<IJobStore>();
+
+            var statistics = await store.GetStatistics();
+            Assert.Equal(1, statistics.FailedCount);
+
+            var check = new JobsHealthCheck(store);
+            var result = await check.CheckHealthAsync(new Microsoft.Extensions.Diagnostics.HealthChecks.HealthCheckContext());
+
+            Assert.Equal(Microsoft.Extensions.Diagnostics.HealthChecks.HealthStatus.Degraded, result.Status);
+        }
+
+        [Fact]
         public async Task SchedulerLock_GrantsOneOwner_AndHandsOverAfterExpiry()
         {
             await using var host = new JobsTestHost(startHostedServices: false);

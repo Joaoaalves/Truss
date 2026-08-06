@@ -63,10 +63,24 @@ namespace Truss.Messaging.Tests
             var itemCreated = Assert.IsType<ItemCreated>(handled);
             Assert.Equal(itemId, itemCreated.ItemId);
 
-            using var verification = _provider.CreateScope();
-            var context = verification.ServiceProvider.GetRequiredService<MessagingDbContext>();
-            var message = await context.Set<OutboxMessage>().SingleAsync();
-            Assert.Equal(OutboxMessageStatus.Processed, message.Status);
+            // The handler can observe the event before the processor persists the
+            // processed status; wait for the status instead of asserting instantly.
+            var status = OutboxMessageStatus.Pending;
+            var statusDeadline = DateTime.UtcNow.AddSeconds(10);
+
+            while (DateTime.UtcNow < statusDeadline)
+            {
+                using var verification = _provider.CreateScope();
+                var context = verification.ServiceProvider.GetRequiredService<MessagingDbContext>();
+                status = (await context.Set<OutboxMessage>().SingleAsync()).Status;
+
+                if (status == OutboxMessageStatus.Processed)
+                    break;
+
+                await Task.Delay(25);
+            }
+
+            Assert.Equal(OutboxMessageStatus.Processed, status);
         }
 
         public async Task DisposeAsync()

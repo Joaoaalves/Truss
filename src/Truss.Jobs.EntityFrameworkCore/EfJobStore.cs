@@ -53,5 +53,19 @@ namespace Truss.Jobs.EntityFrameworkCore
                     && record.CompletedOn < threshold)
                 .ExecuteDeleteAsync(cancellationToken);
         }
+
+        /// <inheritdoc />
+        public async Task<JobStatistics> GetStatistics(CancellationToken cancellationToken = default)
+        {
+            var counts = await _context.Set<JobRecord>()
+                .GroupBy(record => record.Status)
+                .Select(group => new { Status = group.Key, Count = group.Count() })
+                .ToDictionaryAsync(entry => entry.Status, entry => entry.Count, cancellationToken);
+
+            return new JobStatistics(
+                counts.GetValueOrDefault(JobStatus.Queued) + counts.GetValueOrDefault(JobStatus.Scheduled),
+                counts.GetValueOrDefault(JobStatus.Running),
+                counts.GetValueOrDefault(JobStatus.Failed));
+        }
     }
 }

@@ -167,6 +167,40 @@ namespace Truss.Messaging.Tests
         }
 
         [Fact]
+        public async Task Statistics_AndHealthCheck_ReflectTheOutboxState()
+        {
+            await SendAsync(new CreateItemCommand(Guid.NewGuid()));
+
+            using (var scope = _provider.CreateScope())
+            {
+                var statistics = await scope.ServiceProvider.GetRequiredService<IOutboxStore>().GetStatistics();
+                Assert.Equal(1, statistics.PendingCount);
+                Assert.Equal(0, statistics.FailedCount);
+                Assert.NotNull(statistics.OldestPendingOccurredOn);
+            }
+
+            _transport.Fail = true;
+            var processor = _provider.GetRequiredService<OutboxProcessor>();
+            await processor.ProcessPendingAsync();
+            await Task.Delay(20);
+            await processor.ProcessPendingAsync();
+
+            using (var scope = _provider.CreateScope())
+            {
+                var store = scope.ServiceProvider.GetRequiredService<IOutboxStore>();
+
+                var statistics = await store.GetStatistics();
+                Assert.Equal(0, statistics.PendingCount);
+                Assert.Equal(1, statistics.FailedCount);
+
+                var check = new OutboxHealthCheck(store, TimeProvider.System, new TrussOutboxHealthOptions());
+                var result = await check.CheckHealthAsync(new Microsoft.Extensions.Diagnostics.HealthChecks.HealthCheckContext());
+
+                Assert.Equal(Microsoft.Extensions.Diagnostics.HealthChecks.HealthStatus.Degraded, result.Status);
+            }
+        }
+
+        [Fact]
         public async Task Processor_DeadLettersMessage_AfterMaxAttempts()
         {
             await SendAsync(new CreateItemCommand(Guid.NewGuid()));

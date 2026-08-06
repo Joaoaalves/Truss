@@ -44,5 +44,19 @@ namespace Truss.Jobs
         /// <param name="cancellationToken">The cancellation token.</param>
         /// <returns>The number of deleted jobs.</returns>
         Task<int> DeleteFinishedBefore(DateTimeOffset threshold, CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Returns the job counters used by health checks and diagnostics.
+        /// </summary>
+        /// <param name="cancellationToken">The cancellation token.</param>
+        Task<JobStatistics> GetStatistics(CancellationToken cancellationToken = default);
     }
+
+    /// <summary>
+    /// The job counters per lifecycle stage.
+    /// </summary>
+    /// <param name="QueuedCount">The number of jobs waiting for a worker, scheduled ones included.</param>
+    /// <param name="RunningCount">The number of jobs executing right now.</param>
+    /// <param name="FailedCount">The number of permanently failed jobs.</param>
+    public sealed record JobStatistics(int QueuedCount, int RunningCount, int FailedCount);
 }
