@@ -19,8 +19,13 @@ namespace Truss.Cli
 
             urls.Add(new DevUrl("API", applicationUrl));
 
-            if (HasOpenApi(manifest, root))
+            var program = ReadProgram(manifest, root);
+
+            if (program.Contains("MapScalarApiReference"))
                 urls.Add(new DevUrl("Scalar", $"{applicationUrl.TrimEnd('/')}/scalar"));
+
+            if (program.Contains("MapHealthChecks"))
+                urls.Add(new DevUrl("Health", $"{applicationUrl.TrimEnd('/')}/health"));
 
             if (manifest.Modules.Contains("jobs"))
                 urls.Add(new DevUrl("Jobs", $"{applicationUrl.TrimEnd('/')}/truss/jobs/{{id}}"));
@@ -72,10 +77,10 @@ namespace Truss.Cli
             return null;
         }
 
-        private static bool HasOpenApi(TrussManifest manifest, string root)
+        private static string ReadProgram(TrussManifest manifest, string root)
         {
             var program = Path.Combine(root, manifest.ApiProject, "Program.cs");
-            return File.Exists(program) && File.ReadAllText(program).Contains("MapScalarApiReference");
+            return File.Exists(program) ? File.ReadAllText(program) : string.Empty;
         }
     }
 }

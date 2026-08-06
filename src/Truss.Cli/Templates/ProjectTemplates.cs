@@ -182,6 +182,7 @@ namespace Truss.Cli.Templates
 
             builder.Services.AddTrussEntityFramework<AppDbContext>();
             builder.Services.AddOpenApi();
+            builder.Services.AddHealthChecks().AddTrussDatabase<AppDbContext>();
 
             var app = builder.Build();
 
@@ -194,6 +195,7 @@ namespace Truss.Cli.Templates
                 app.MapScalarApiReference();
             }
 
+            app.MapHealthChecks("/health");
             app.MapGet("/", () => "__NAME__ is running.");
 
             app.Run();
@@ -211,6 +213,7 @@ namespace Truss.Cli.Templates
             });
 
             builder.Services.AddOpenApi();
+            builder.Services.AddHealthChecks();
 
             var app = builder.Build();
 
@@ -220,6 +223,7 @@ namespace Truss.Cli.Templates
                 app.MapScalarApiReference();
             }
 
+            app.MapHealthChecks("/health");
             app.MapGet("/", () => "__NAME__ is running.");
 
             app.Run();

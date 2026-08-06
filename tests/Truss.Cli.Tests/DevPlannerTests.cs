@@ -24,6 +24,7 @@ namespace Truss.Cli.Tests
             Assert.EndsWith(Path.Combine("src", "Shop.Api"), plan.ApiProjectPath);
             Assert.Contains(plan.Urls, url => url.Label == "API" && url.Url == "http://localhost:5000");
             Assert.Contains(plan.Urls, url => url.Label == "Scalar" && url.Url == "http://localhost:5000/scalar");
+            Assert.Contains(plan.Urls, url => url.Label == "Health" && url.Url == "http://localhost:5000/health");
             Assert.DoesNotContain(plan.Urls, url => url.Label == "Dashboard");
         }
 
@@ -54,6 +55,8 @@ namespace Truss.Cli.Tests
             var program = _workspace.ReadFile("Shop", "src", "Shop.Api", "Program.cs");
             Assert.Contains("AddOpenApi", program);
             Assert.Contains("MapScalarApiReference", program);
+            Assert.Contains("AddHealthChecks().AddTrussDatabase<AppDbContext>()", program);
+            Assert.Contains("app.MapHealthChecks(\"/health\");", program);
 
             var apiCsproj = _workspace.ReadFile("Shop", "src", "Shop.Api", "Shop.Api.csproj");
             Assert.Contains("Scalar.AspNetCore", apiCsproj);
