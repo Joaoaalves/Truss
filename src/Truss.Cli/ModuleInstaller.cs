@@ -2,7 +2,7 @@ namespace Truss.Cli
 {
     internal static class ModuleInstaller
     {
-        public static readonly string[] Modules = ["email", "messaging", "jobs", "observability", "mapping", "auth", "worker"];
+        public static readonly string[] Modules = ["email", "messaging", "jobs", "observability", "mapping", "auth", "rbac", "tenancy", "worker"];
 
         public static readonly string[] Transports = ["inmemory", "postgres", "rabbitmq", "redis"];
 
@@ -45,6 +45,8 @@ namespace Truss.Cli
                 "auth" => InstallAuth(transport, manifest, root, log),
                 "worker" => WorkerScaffolder.Install(manifest, root, log),
                 "email" => InstallEmail(transport, manifest, root, log),
+                "tenancy" => InstallTenancy(manifest, root, log),
+                "rbac" => InstallRbac(manifest, root, log),
                 _ => InstallObservability(transport, manifest, root, log)
             };
 
@@ -192,6 +194,69 @@ namespace Truss.Cli
             return result;
         }
 
+
+
+        private static int InstallTenancy(TrussManifest manifest, string root, Action<string> log)
+        {
+            if (!manifest.UsesEntityFramework)
+            {
+                log("The tenancy module isolates rows in the database and requires one. Scaffold the project with --database, or add persistence first.");
+                return 1;
+            }
+
+            var version = manifest.TrussVersion;
+
+            CsprojEditor.AddPackageReference(CsprojPath(root, manifest.ApplicationProject), "Truss.Tenancy.Abstractions", version);
+            CsprojEditor.AddPackageReference(CsprojPath(root, manifest.InfrastructureProject), "Truss.Tenancy.EntityFrameworkCore", version);
+            CsprojEditor.AddPackageReference(CsprojPath(root, manifest.ApiProject), "Truss.Tenancy.AspNetCore", version);
+
+            InsertServices(root, manifest, "builder.Services.AddTrussTenancy<AppDbContext>();", log);
+
+            var program = ProgramPath(root, manifest);
+
+            if (!SourceEditor.InsertAfter(program, "app.UseAuthorization();", "app.UseTrussTenancy();")
+                && !SourceEditor.InsertAfter(program, "var app = builder.Build();", "app.UseTrussTenancy();"))
+            {
+                log("Could not update Program.cs automatically. Add after authentication: app.UseTrussTenancy();");
+            }
+
+            InsertModelConfiguration(root, manifest, "modelBuilder.ApplyTrussTenancy(this);", log);
+
+            log("Mark tenant-owned entities in their configurations with builder.IsTenantOwned(); the domain types stay untouched.");
+            log("Requests resolve the tenant from the \"tenant\" claim or the X-Tenant-Id header; customize with UseTrussTenancy(options => ...).");
+
+            return 0;
+        }
+
+        private static int InstallRbac(TrussManifest manifest, string root, Action<string> log)
+        {
+            if (!manifest.UsesEntityFramework)
+            {
+                log("The rbac module stores role assignments in the database and requires one. Scaffold the project with --database, or add persistence first.");
+                return 1;
+            }
+
+            var version = manifest.TrussVersion;
+
+            CsprojEditor.AddPackageReference(CsprojPath(root, manifest.ApiProject), "Truss.Rbac", version);
+            CsprojEditor.AddPackageReference(CsprojPath(root, manifest.InfrastructureProject), "Truss.Rbac.EntityFrameworkCore", version);
+
+            var registration = """
+                builder.Services.AddTrussRbac(options =>
+                {
+                    options.AddRole("admin", "admin.access");
+                });
+
+                builder.Services.AddTrussRbacEntityFramework<AppDbContext>();
+                """;
+
+            InsertServices(root, manifest, registration, log);
+            InsertModelConfiguration(root, manifest, "modelBuilder.ApplyTrussRbac();", log);
+
+            log("Define your roles and permissions in AddTrussRbac, protect endpoints with .RequirePermission(\"...\"), and grant roles through IRoleAssignments (a seeder works well).");
+
+            return 0;
+        }
 
         private static int InstallEmail(string? provider, TrussManifest manifest, string root, Action<string> log)
         {

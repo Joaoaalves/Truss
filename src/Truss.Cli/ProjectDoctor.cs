@@ -35,6 +35,8 @@ namespace Truss.Cli
                     "mapping" => "Truss.Mapping",
                     "auth" => "Truss.Auth.Jwt",
                     "email" => "Truss.Email",
+                    "tenancy" => "Truss.Tenancy.EntityFrameworkCore",
+                    "rbac" => "Truss.Rbac",
                     _ => "Truss.Observability"
                 };
 

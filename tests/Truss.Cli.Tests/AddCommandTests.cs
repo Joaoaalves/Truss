@@ -367,6 +367,65 @@ namespace Truss.Cli.Tests
         }
 
         [Fact]
+        public void AddTenancy_WiresIsolationWithoutTouchingTheDomain()
+        {
+            var root = ScaffoldShop();
+
+            Assert.Equal(0, _workspace.Run("add", "tenancy", "--project", root));
+
+            var program = _workspace.ReadFile("Shop", "src", "Shop.Api", "Program.cs");
+            Assert.Contains("AddTrussTenancy<AppDbContext>", program);
+            Assert.Contains("app.UseTrussTenancy();", program);
+
+            var dbContext = _workspace.ReadFile("Shop", "src", "Shop.Infrastructure", "AppDbContext.cs");
+            Assert.Contains("ApplyTrussTenancy(this)", dbContext);
+
+            var product = _workspace.ReadFile("Shop", "src", "Shop.Domain", "Catalog", "Product.cs");
+            Assert.DoesNotContain("Tenant", product);
+
+            var manifest = TrussManifest.Load(root);
+            Assert.Contains("tenancy", manifest!.Modules);
+
+            Assert.Equal(0, _workspace.Run("doctor", "--project", root));
+        }
+
+        [Fact]
+        public void AddRbac_WiresRolesAndPermissions()
+        {
+            var root = ScaffoldShop();
+
+            Assert.Equal(0, _workspace.Run("add", "rbac", "--project", root));
+
+            var program = _workspace.ReadFile("Shop", "src", "Shop.Api", "Program.cs");
+            Assert.Contains("AddTrussRbac", program);
+            Assert.Contains("AddTrussRbacEntityFramework<AppDbContext>", program);
+
+            var dbContext = _workspace.ReadFile("Shop", "src", "Shop.Infrastructure", "AppDbContext.cs");
+            Assert.Contains("ApplyTrussRbac()", dbContext);
+
+            var manifest = TrussManifest.Load(root);
+            Assert.Contains("rbac", manifest!.Modules);
+
+            Assert.Equal(0, _workspace.Run("doctor", "--project", root));
+        }
+
+        [Fact]
+        public void TenancyAndRbac_AreIndependent()
+        {
+            Assert.Equal(0, _workspace.Scaffold("Solo", "sqlite"));
+            var root = _workspace.Root("Solo");
+
+            Assert.Equal(0, _workspace.Run("add", "rbac", "--project", root));
+
+            var program = _workspace.ReadFile("Solo", "src", "Solo.Api", "Program.cs");
+            Assert.Contains("AddTrussRbac", program);
+            Assert.DoesNotContain("AddTrussTenancy", program);
+
+            var apiCsproj = _workspace.ReadFile("Solo", "src", "Solo.Api", "Solo.Api.csproj");
+            Assert.DoesNotContain("Truss.Tenancy", apiCsproj);
+        }
+
+        [Fact]
         public void AddSameModuleTwice_IsIdempotent()
         {
             var root = ScaffoldShop();

@@ -133,6 +133,14 @@ namespace Truss.Cli
                         block.AppendLine($"- Auth ({authProvider ?? "jwt"} provider): endpoints /auth/register, /auth/login and /auth/refresh. The Accounts context is editable project code; extend the User aggregate freely but keep credentials out of it. Protect endpoints with .RequireAuthorization(); the sub claim carries the user id.");
                         break;
 
+                    case "tenancy":
+                        block.AppendLine("- Tenancy: requests resolve a tenant (claim \"tenant\" or X-Tenant-Id header) into an ambient context; entities marked IsTenantOwned in their EF configurations are filtered and stamped by it automatically. Domain types never carry a TenantId. Inject ITenantContext to read the current tenant.");
+                        break;
+
+                    case "rbac":
+                        block.AppendLine("- RBAC: roles and their permissions are defined in code inside AddTrussRbac; protect endpoints with .RequirePermission(\"...\"). User role assignments live in the database through IRoleAssignments; role claims are resolved per request with a short cache.");
+                        break;
+
                     case "worker":
                         block.AppendLine($"- Worker: src/{manifest.Name}.Worker is a separate consumer process sharing the application and infrastructure layers; it competes for messages and jobs with the API. New modules installed later must be wired into its Program.cs by hand.");
                         break;
