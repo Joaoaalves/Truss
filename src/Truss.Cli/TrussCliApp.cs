@@ -40,6 +40,16 @@ namespace Truss.Cli
                 config.AddCommand<DevCommand>("dev")
                     .WithDescription("Start the local dependencies and run the API with hot reload.");
 
+                config.AddBranch("db", db =>
+                {
+                    db.SetDescription("Manage the database schema through EF Core migrations.");
+                    db.AddCommand<DbAddCommand>("add")
+                        .WithDescription("Add a migration capturing the current model changes.")
+                        .WithExample("db", "add", "InitialCreate");
+                    db.AddCommand<DbMigrateCommand>("migrate")
+                        .WithDescription("Apply pending migrations to the database.");
+                });
+
                 config.AddCommand<DoctorCommand>("doctor")
                     .WithDescription("Verify that the project matches its manifest.");
             });

@@ -54,6 +54,7 @@ namespace Truss.Cli
                 Write(root, Path.Combine(manifest.InfrastructureProject, "AppDbContext.cs"), options.Sample ? ProjectTemplates.AppDbContextSample : ProjectTemplates.AppDbContextEmpty, manifest);
                 Write(root, Path.Combine(manifest.ApiProject, $"{options.Name}.Api.csproj"), ProjectTemplates.ApiCsprojWithInfrastructure, manifest);
                 Write(root, Path.Combine(manifest.ApiProject, "appsettings.json"), ProjectTemplates.AppSettings, manifest);
+                Write(root, Path.Combine(".config", "dotnet-tools.json"), ProjectTemplates.ToolsManifest, manifest);
             }
             else
             {

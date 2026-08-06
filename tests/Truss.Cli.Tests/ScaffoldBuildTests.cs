@@ -35,12 +35,44 @@ namespace Truss.Cli.Tests
 
             AssertBuildSucceeds(root);
 
+            RunMigrations(root);
+
             Assert.Equal(0, _workspace.Scaffold("IdShop", "sqlite", "--local-packages", _feed));
             var identityRoot = _workspace.Root("IdShop");
 
             Assert.Equal(0, _workspace.Run("add", "auth", "--provider", "identity", "--project", identityRoot));
 
             AssertBuildSucceeds(identityRoot, "IdShop");
+        }
+
+        private void RunMigrations(string root)
+        {
+            // The db commands spawn dotnet processes from the test process, so the
+            // isolation the scaffold builds get through RunProcess is applied here
+            // through ambient environment variables instead. DOTNET_CLI_HOME must
+            // rotate together with NUGET_PACKAGES: the sdk's tool resolver cache in
+            // the cli home records where a local tool's package lives, and a stale
+            // entry pointing into a deleted temp cache makes dotnet ef fail right
+            // after a successful dotnet tool restore.
+            Environment.SetEnvironmentVariable("NUGET_PACKAGES", _packagesCache);
+            Environment.SetEnvironmentVariable("DOTNET_CLI_HOME", Path.Combine(_workspace.Directory, "cli-home"));
+            Environment.SetEnvironmentVariable("MSBUILDDISABLENODEREUSE", "1");
+
+            try
+            {
+                Assert.Equal(0, _workspace.Run("db", "add", "InitialCreate", "--project", root));
+
+                var migrations = Path.Combine(root, "src", "Shop.Infrastructure", "Migrations");
+                Assert.True(Directory.Exists(migrations) && Directory.EnumerateFiles(migrations).Any(file => file.Contains("InitialCreate")));
+
+                Assert.Equal(0, _workspace.Run("db", "migrate", "--project", root));
+            }
+            finally
+            {
+                Environment.SetEnvironmentVariable("NUGET_PACKAGES", null);
+                Environment.SetEnvironmentVariable("DOTNET_CLI_HOME", null);
+                Environment.SetEnvironmentVariable("MSBUILDDISABLENODEREUSE", null);
+            }
         }
 
         private void PackFramework()

@@ -63,6 +63,31 @@ namespace Truss.Cli.Tests
             Assert.Contains("Microsoft.AspNetCore.OpenApi", apiCsproj);
         }
 
+        [Fact]
+        public void ScaffoldWithDatabase_PreparesMigrations()
+        {
+            Assert.Equal(0, _workspace.Scaffold("Shop", "sqlite"));
+
+            var manifest = _workspace.ReadFile("Shop", ".config", "dotnet-tools.json");
+            Assert.Contains("dotnet-ef", manifest);
+
+            var program = _workspace.ReadFile("Shop", "src", "Shop.Api", "Program.cs");
+            Assert.Contains("GetMigrations().Any()", program);
+            Assert.Contains("database.Migrate();", program);
+
+            var apiCsproj = _workspace.ReadFile("Shop", "src", "Shop.Api", "Shop.Api.csproj");
+            Assert.Contains("Microsoft.EntityFrameworkCore.Design", apiCsproj);
+        }
+
+        [Fact]
+        public void ScaffoldWithoutDatabase_HasNoMigrationTooling()
+        {
+            Assert.Equal(0, _workspace.Scaffold("Tool", "none"));
+
+            Assert.False(_workspace.FileExists("Tool", ".config", "dotnet-tools.json"));
+            Assert.Equal(1, _workspace.Run("db", "migrate", "--project", _workspace.Root("Tool")));
+        }
+
         public void Dispose() => _workspace.Dispose();
     }
 }

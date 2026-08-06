@@ -98,6 +98,7 @@ namespace Truss.Cli.Templates
                 <PackageReference Include="Truss.AspNetCore" Version="__TRUSS_VERSION__" />
                 <PackageReference Include="Truss.Generators" Version="__TRUSS_VERSION__" PrivateAssets="all" />
                 <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.*" />
+                <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.*" PrivateAssets="all" />
                 <PackageReference Include="Scalar.AspNetCore" Version="2.*" />
               </ItemGroup>
 
@@ -189,7 +190,12 @@ namespace Truss.Cli.Templates
             if (app.Environment.IsDevelopment())
             {
                 using var scope = app.Services.CreateScope();
-                scope.ServiceProvider.GetRequiredService<AppDbContext>().Database.EnsureCreated();
+                var database = scope.ServiceProvider.GetRequiredService<AppDbContext>().Database;
+
+                if (database.GetMigrations().Any())
+                    database.Migrate();
+                else
+                    database.EnsureCreated();
 
                 app.MapOpenApi();
                 app.MapScalarApiReference();
@@ -254,6 +260,22 @@ namespace Truss.Cli.Templates
                 }
               },
               "AllowedHosts": "*"
+            }
+            """;
+
+        public const string ToolsManifest = """
+            {
+              "version": 1,
+              "isRoot": true,
+              "tools": {
+                "dotnet-ef": {
+                  "version": "10.0.10",
+                  "commands": [
+                    "dotnet-ef"
+                  ],
+                  "rollForward": true
+                }
+              }
             }
             """;
 
