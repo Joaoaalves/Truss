@@ -77,9 +77,12 @@ Both mappings attach a filter that converts Truss exceptions into RFC 7807 respo
   "title": "A business rule was violated.",
   "status": 422,
   "detail": "An order must contain at least one item.",
-  "rule": "OrderMustHaveItemsRule"
+  "rule": "OrderMustHaveItemsRule",
+  "code": "OrderMustHaveItemsRule"
 }
 ```
+
+`code` is the stable contract for clients that branch on specific errors. It defaults to the rule's type name; override `Code` on the rule to pin a wire value (for example `"orders.no-items"`) that survives renames. `rule` stays the raw type name for diagnostics.
 
 Any other exception propagates unchanged and is handled by your regular exception middleware.
 

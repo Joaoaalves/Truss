@@ -35,6 +35,8 @@ Truss is built module by module, each one opt-in. The framework never installs a
 - Pagination: PageRequest and PageResult contracts, ToPageAsync over any queryable, query string binding through MapQuery and a --paged flag on the query generator.
 - Idempotent commands: the Idempotency-Key header replays stored responses instead of re-executing, with the record committed in the same transaction as the command.
 - Worker template: truss add worker scaffolds a separate consumer process sharing the application layers, competing for messages and jobs with the API.
+- Error catalog: business rules carry a stable Code surfaced in 422 responses, overridable to survive renames.
+- Seeders: ITrussSeeder classes plant development data after the schema is ready; the sample ships one.
 
 ---
 

@@ -111,6 +111,12 @@ CheckRule(new OrderMustHaveItemsRule(_items));
 
 When a rule is broken, a `BusinessRuleValidationException` is thrown carrying the rule instance and its message.
 
+Every rule also has a `Code`, the stable machine-readable identifier API clients receive in 422 responses. It defaults to the type name; override it when clients depend on the value and the type might be renamed:
+
+```csharp
+public string Code => "orders.no-items";
+```
+
 > Business rules protect domain invariants. Input validation belongs to the [validation pipeline](pipeline.md). By the time a command reaches the domain, its shape is already valid.
 
 ---

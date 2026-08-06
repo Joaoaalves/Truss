@@ -39,7 +39,9 @@ MyShop/
     MyShop.Api/              composition root with Truss.AspNetCore and Truss.Generators
 ```
 
-Unless `--empty` is passed, a sample `Catalog` bounded context shows the full pattern in working code: a `Product` aggregate with a typed id, a business rule and a domain event; `CreateProduct` and `GetProductById` with handlers, validator and repository; the EF configuration converting the typed id; and the endpoints mapped with `MapCommand` and `MapQuery`. Delete the folders when you are done reading them.
+Unless `--empty` is passed, a sample `Catalog` bounded context shows the full pattern in working code: a `Product` aggregate with a typed id, a business rule and a domain event; `CreateProduct` and `GetProductById` with handlers, validator and repository; the EF configuration converting the typed id; a `CatalogSeeder` planting development data; and the endpoints mapped with `MapCommand` and `MapQuery`. Delete the folders when you are done reading them.
+
+Development data comes from seeders: classes implementing `ITrussSeeder`, registered with `AddTrussSeeder<T>()` and executed by `app.Services.RunTrussSeeders()`, which the scaffolded Program calls in development right after the schema is ready. Seeders run in registration order and should check before inserting, so restarting the application never duplicates data.
 
 ```
 cd MyShop
