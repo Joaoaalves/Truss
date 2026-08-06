@@ -43,5 +43,27 @@ namespace Microsoft.Extensions.DependencyInjection
 
             return services;
         }
+
+        /// <summary>
+        /// Registers the address validator: RFC syntax through MimeKit plus a DNS
+        /// check that the domain accepts mail. Inject IEmailAddressValidator into
+        /// validators or handlers that gate on real addresses.
+        /// </summary>
+        /// <param name="services">The service collection.</param>
+        /// <param name="configure">Optional configuration of the validation.</param>
+        /// <returns>The updated <see cref="IServiceCollection"/>.</returns>
+        public static IServiceCollection AddTrussEmailValidation(
+            this IServiceCollection services,
+            Action<TrussEmailValidationOptions>? configure = null)
+        {
+            services.AddOptions<TrussEmailValidationOptions>();
+
+            if (configure is not null)
+                services.Configure(configure);
+
+            services.AddSingleton<IEmailAddressValidator, EmailAddressValidator>();
+
+            return services;
+        }
     }
 }
