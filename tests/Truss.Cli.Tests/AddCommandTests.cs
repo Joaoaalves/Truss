@@ -240,6 +240,7 @@ namespace Truss.Cli.Tests
 
             var program = _workspace.ReadFile("Shop", "src", "Shop.Api", "Program.cs");
             Assert.Contains("AddTrussConsoleEmail", program);
+            Assert.Contains("AddTrussEmailValidation", program);
 
             var manifest = TrussManifest.Load(root);
             Assert.Equal("console", manifest!.Settings["email.provider"]);

@@ -208,7 +208,7 @@ namespace Truss.Cli
             CsprojEditor.AddPackageReference(CsprojPath(root, manifest.ApplicationProject), "Truss.Email.Abstractions", version);
             CsprojEditor.AddPackageReference(CsprojPath(root, manifest.ApiProject), "Truss.Email", version);
 
-            InsertServices(root, manifest, EmailRegistration(provider), log);
+            InsertServices(root, manifest, EmailRegistration(provider) + Environment.NewLine + "builder.Services.AddTrussEmailValidation(options => builder.Configuration.GetSection(\"Truss:Email:Validation\").Bind(options));", log);
             manifest.Settings["email.provider"] = provider;
 
             if (provider == "smtp")

@@ -127,6 +127,7 @@ namespace Truss.Cli
                 manifest.Settings.TryGetValue("email.provider", out var emailProvider);
                 program.AppendLine();
                 program.AppendLine(ModuleInstaller.EmailRegistration(emailProvider ?? "console"));
+                program.AppendLine("builder.Services.AddTrussEmailValidation(options => builder.Configuration.GetSection(\"Truss:Email:Validation\").Bind(options));");
             }
 
             if (manifest.UsesEntityFramework)
