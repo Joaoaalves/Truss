@@ -36,7 +36,7 @@ namespace Truss.Cli.Commands
 
             var option = module switch
             {
-                "auth" => settings.Provider,
+                "auth" or "email" => settings.Provider,
                 "observability" => settings.Dashboard,
                 _ => settings.Transport
             };

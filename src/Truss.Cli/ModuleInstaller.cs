@@ -2,7 +2,7 @@ namespace Truss.Cli
 {
     internal static class ModuleInstaller
     {
-        public static readonly string[] Modules = ["messaging", "jobs", "observability", "mapping", "auth", "worker"];
+        public static readonly string[] Modules = ["email", "messaging", "jobs", "observability", "mapping", "auth", "worker"];
 
         public static readonly string[] Transports = ["inmemory", "postgres", "rabbitmq", "redis"];
 
@@ -44,6 +44,7 @@ namespace Truss.Cli
                 "mapping" => InstallMapping(manifest, root),
                 "auth" => InstallAuth(transport, manifest, root, log),
                 "worker" => WorkerScaffolder.Install(manifest, root, log),
+                "email" => InstallEmail(transport, manifest, root, log),
                 _ => InstallObservability(transport, manifest, root, log)
             };
 
@@ -190,6 +191,52 @@ namespace Truss.Cli
 
             return result;
         }
+
+
+        private static int InstallEmail(string? provider, TrussManifest manifest, string root, Action<string> log)
+        {
+            provider ??= "console";
+
+            if (provider is not ("console" or "smtp"))
+            {
+                log($"Unknown email provider '{provider}'. Available providers: console, smtp.");
+                return 1;
+            }
+
+            var version = manifest.TrussVersion;
+
+            CsprojEditor.AddPackageReference(CsprojPath(root, manifest.ApplicationProject), "Truss.Email.Abstractions", version);
+            CsprojEditor.AddPackageReference(CsprojPath(root, manifest.ApiProject), "Truss.Email", version);
+
+            InsertServices(root, manifest, EmailRegistration(provider), log);
+            manifest.Settings["email.provider"] = provider;
+
+            if (provider == "smtp")
+            {
+                AppSettingsEditor.SetSection(root, manifest, "Truss:Email:Smtp", new Dictionary<string, object>
+                {
+                    ["Host"] = "localhost",
+                    ["Port"] = 1025,
+                    ["From"] = $"noreply@{manifest.Name.ToLowerInvariant()}.dev",
+                    ["UseStartTls"] = false
+                }, log);
+
+                log("Development SMTP points at Mailpit (docker compose up starts it; UI at http://localhost:8025).");
+                log("Override per environment with Truss__Email__Smtp__* variables.");
+            }
+            else
+            {
+                log("Emails print to the console log in this mode; switch later with truss add email --provider smtp.");
+            }
+
+            return 0;
+        }
+
+        internal static string EmailRegistration(string provider) => provider switch
+        {
+            "smtp" => "builder.Services.AddTrussSmtpEmail(options => builder.Configuration.GetSection(\"Truss:Email:Smtp\").Bind(options));",
+            _ => "builder.Services.AddTrussConsoleEmail();"
+        };
 
         private static int InstallMapping(TrussManifest manifest, string root)
         {

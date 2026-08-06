@@ -226,6 +226,49 @@ namespace Truss.Cli.Tests
         }
 
         [Fact]
+        public void AddEmail_PrintsToTheConsoleByDefault()
+        {
+            var root = ScaffoldShop();
+
+            Assert.Equal(0, _workspace.Run("add", "email", "--project", root));
+
+            var applicationCsproj = _workspace.ReadFile("Shop", "src", "Shop.Application", "Shop.Application.csproj");
+            Assert.Contains("Truss.Email.Abstractions", applicationCsproj);
+
+            var apiCsproj = _workspace.ReadFile("Shop", "src", "Shop.Api", "Shop.Api.csproj");
+            Assert.Contains("Include=\"Truss.Email\"", apiCsproj);
+
+            var program = _workspace.ReadFile("Shop", "src", "Shop.Api", "Program.cs");
+            Assert.Contains("AddTrussConsoleEmail", program);
+
+            var manifest = TrussManifest.Load(root);
+            Assert.Equal("console", manifest!.Settings["email.provider"]);
+        }
+
+        [Fact]
+        public void AddEmail_Smtp_WiresMailpitForDevelopment()
+        {
+            Assert.Equal(0, _workspace.Scaffold("Shop", "sqlite", "--docker"));
+            var root = _workspace.Root("Shop");
+
+            Assert.Equal(0, _workspace.Run("add", "email", "--provider", "smtp", "--project", root));
+
+            var program = _workspace.ReadFile("Shop", "src", "Shop.Api", "Program.cs");
+            Assert.Contains("AddTrussSmtpEmail", program);
+
+            var appsettings = _workspace.ReadFile("Shop", "src", "Shop.Api", "appsettings.json");
+            Assert.Contains("\"Smtp\"", appsettings);
+            Assert.Contains("1025", appsettings);
+
+            var compose = _workspace.ReadFile("Shop", "docker-compose.yml");
+            Assert.Contains("axllent/mailpit", compose);
+
+            var manifest = TrussManifest.Load(root);
+            var plan = DevPlanner.Build(manifest!, root);
+            Assert.Contains(plan.Urls, url => url.Label == "Mailpit" && url.Url == "http://localhost:8025");
+        }
+
+        [Fact]
         public void AddWorker_ScaffoldsAConsumerProcess()
         {
             var root = ScaffoldShop();

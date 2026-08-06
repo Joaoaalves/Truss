@@ -66,6 +66,17 @@ namespace Truss.Cli
                     """);
             }
 
+            if (manifest.Settings.TryGetValue("email.provider", out var emailProvider) && emailProvider == "smtp")
+            {
+                services.AppendLine("""
+                      mailpit:
+                        image: axllent/mailpit
+                        ports:
+                          - "1025:1025"
+                          - "8025:8025"
+                    """);
+            }
+
             manifest.Settings.TryGetValue("observability.dashboard", out var dashboard);
 
             switch (dashboard)

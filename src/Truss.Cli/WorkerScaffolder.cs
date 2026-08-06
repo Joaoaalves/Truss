@@ -47,6 +47,13 @@ namespace Truss.Cli
                        <ProjectReference Include="..\{manifest.Name}.Application\{manifest.Name}.Application.csproj" />
                    """;
 
+            var emailReference = manifest.Modules.Contains("email")
+                ? $"""
+
+                       <PackageReference Include="Truss.Email" Version="{manifest.TrussVersion}" />
+                   """
+                : string.Empty;
+
             return $"""
                 <Project Sdk="Microsoft.NET.Sdk.Worker">
 
@@ -57,7 +64,7 @@ namespace Truss.Cli
                   <ItemGroup>
                     <PackageReference Include="Microsoft.Extensions.Hosting" Version="10.*" />
                     <PackageReference Include="Truss.Application" Version="{manifest.TrussVersion}" />
-                    <PackageReference Include="Truss.Generators" Version="{manifest.TrussVersion}" PrivateAssets="all" />
+                    <PackageReference Include="Truss.Generators" Version="{manifest.TrussVersion}" PrivateAssets="all" />{emailReference}
                   </ItemGroup>
 
                 </Project>
@@ -115,6 +122,13 @@ namespace Truss.Cli
             program.AppendLine();
             program.AppendLine(ModuleInstaller.TransportRegistration(transport ?? "inmemory"));
 
+            if (manifest.Modules.Contains("email"))
+            {
+                manifest.Settings.TryGetValue("email.provider", out var emailProvider);
+                program.AppendLine();
+                program.AppendLine(ModuleInstaller.EmailRegistration(emailProvider ?? "console"));
+            }
+
             if (manifest.UsesEntityFramework)
             {
                 program.AppendLine();
@@ -159,11 +173,29 @@ namespace Truss.Cli
                     """;
             }
 
+            manifest.Settings.TryGetValue("email.provider", out var emailProvider);
+
+            var emailSection = emailProvider == "smtp"
+                ? $$"""
+
+                      "Truss": {
+                        "Email": {
+                          "Smtp": {
+                            "Host": "localhost",
+                            "Port": 1025,
+                            "From": "noreply@{{manifest.Name.ToLowerInvariant()}}.dev",
+                            "UseStartTls": false
+                          }
+                        }
+                      },
+                    """
+                : string.Empty;
+
             return $$"""
                 {
                   "ConnectionStrings": {
                     "Default": "{{ConnectionString(manifest)}}"
-                  },
+                  },{{emailSection}}
                   "Logging": {
                     "LogLevel": {
                       "Default": "Information",

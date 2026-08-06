@@ -105,6 +105,7 @@ namespace Truss.Cli
             manifest.Settings.TryGetValue("messaging.transport", out var transport);
             manifest.Settings.TryGetValue("observability.dashboard", out var dashboard);
             manifest.Settings.TryGetValue("auth.provider", out var authProvider);
+            manifest.Settings.TryGetValue("email.provider", out var emailProvider);
 
             foreach (var module in manifest.Modules)
             {
@@ -134,6 +135,12 @@ namespace Truss.Cli
 
                     case "worker":
                         block.AppendLine($"- Worker: src/{manifest.Name}.Worker is a separate consumer process sharing the application and infrastructure layers; it competes for messages and jobs with the API. New modules installed later must be wired into its Program.cs by hand.");
+                        break;
+
+                    case "email":
+                        block.AppendLine(emailProvider == "smtp"
+                            ? "- Email: inject IEmailSender in handlers; delivery goes over SMTP (Mailpit at http://localhost:8025 in development). Send from integration event handlers or jobs so delivery inherits retry."
+                            : "- Email: inject IEmailSender in handlers; messages print to the console log in development. Send from integration event handlers or jobs so delivery inherits retry.");
                         break;
                 }
             }

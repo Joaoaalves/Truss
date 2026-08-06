@@ -48,6 +48,9 @@ namespace Truss.Cli
             if (manifest.Settings.TryGetValue("messaging.transport", out var transport) && transport == "rabbitmq")
                 urls.Add(new DevUrl("RabbitMQ", "http://localhost:15672"));
 
+            if (manifest.Settings.TryGetValue("email.provider", out var emailProvider) && emailProvider == "smtp")
+                urls.Add(new DevUrl("Mailpit", "http://localhost:8025"));
+
             var runCompose = manifest.Docker && File.Exists(Path.Combine(root, "docker-compose.yml"));
 
             return new DevPlan(runCompose, Path.Combine(root, manifest.ApiProject), urls);
