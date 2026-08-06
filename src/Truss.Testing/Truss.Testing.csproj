@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <PackageId>Truss.Testing</PackageId>
+    <Description>Integration test host for Truss applications: the full pipeline, a throwaway sqlite database, the in-memory transport and the job runtime wired in one call, with helpers to send requests and await jobs.</Description>
+    <PackageTags>Testing;Integration;DDD;CQRS;TestHost</PackageTags>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Truss.Application\Truss.Application.csproj" />
+    <ProjectReference Include="..\Truss.Persistence.EntityFrameworkCore\Truss.Persistence.EntityFrameworkCore.csproj" />
+    <ProjectReference Include="..\Truss.Messaging\Truss.Messaging.csproj" />
+    <ProjectReference Include="..\Truss.Messaging.EntityFrameworkCore\Truss.Messaging.EntityFrameworkCore.csproj" />
+    <ProjectReference Include="..\Truss.Jobs\Truss.Jobs.csproj" />
+    <ProjectReference Include="..\Truss.Jobs.EntityFrameworkCore\Truss.Jobs.EntityFrameworkCore.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.*" />
+    <PackageReference Include="SQLitePCLRaw.bundle_e_sqlite3" Version="3.0.5" />
+  </ItemGroup>
+
+</Project>
