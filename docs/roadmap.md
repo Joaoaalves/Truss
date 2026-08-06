@@ -34,6 +34,7 @@ Truss is built module by module, each one opt-in. The framework never installs a
 - Migrations: truss db add and truss db migrate wrap dotnet-ef through a scaffolded tool manifest, and development startup applies pending migrations automatically once migrations exist.
 - Pagination: PageRequest and PageResult contracts, ToPageAsync over any queryable, query string binding through MapQuery and a --paged flag on the query generator.
 - Idempotent commands: the Idempotency-Key header replays stored responses instead of re-executing, with the record committed in the same transaction as the command.
+- Worker template: truss add worker scaffolds a separate consumer process sharing the application layers, competing for messages and jobs with the API.
 
 ---
 

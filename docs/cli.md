@@ -66,6 +66,7 @@ Installs a module into an existing project: adds the package references to the c
 | `observability` | `--dashboard aspire`, `grafana`, `seq` | Logging, tracing and correlation; the dashboard option wires OTLP export and the compose service |
 | `mapping` | | Compile-time DTO mappers, added to the application layer |
 | `auth` | `--provider jwt`, `identity` | Scaffolds the editable Accounts context and wires JWT authentication; the identity provider runs credentials through ASP.NET Core Identity; requires a database |
+| `worker` | | Scaffolds src/Name.Worker, a separate consumer process wired with the installed modules; requires messaging |
 
 ---
 

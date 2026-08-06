@@ -135,6 +135,10 @@ Multiple application instances consuming the same queue compete for messages, wh
 
 Every broker transport hosts a consumer by default. Set `EnableConsumer = false` on services that only publish.
 
+### Scaling consumption out
+
+`truss add worker` scaffolds a separate consumer process sharing the application and infrastructure layers. With a durable transport, the worker and the API compete for messages and jobs, so consumption scales by running more workers; the scheduler locks keep scheduled and recurring jobs firing exactly once across all of them. A common production shape is the API with `EnableConsumer = false` and any number of workers doing the consuming.
+
 ---
 
 ## Registration

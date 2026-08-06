@@ -1428,6 +1428,10 @@ Multiple application instances consuming the same queue compete for messages, wh
 
 Every broker transport hosts a consumer by default. Set `EnableConsumer = false` on services that only publish.
 
+### Scaling consumption out
+
+`truss add worker` scaffolds a separate consumer process sharing the application and infrastructure layers. With a durable transport, the worker and the API compete for messages and jobs, so consumption scales by running more workers; the scheduler locks keep scheduled and recurring jobs firing exactly once across all of them. A common production shape is the API with `EnableConsumer = false` and any number of workers doing the consuming.
+
 ---
 
 ## Registration
@@ -2083,6 +2087,7 @@ Installs a module into an existing project: adds the package references to the c
 | `observability` | `--dashboard aspire`, `grafana`, `seq` | Logging, tracing and correlation; the dashboard option wires OTLP export and the compose service |
 | `mapping` | | Compile-time DTO mappers, added to the application layer |
 | `auth` | `--provider jwt`, `identity` | Scaffolds the editable Accounts context and wires JWT authentication; the identity provider runs credentials through ASP.NET Core Identity; requires a database |
+| `worker` | | Scaffolds src/Name.Worker, a separate consumer process wired with the installed modules; requires messaging |
 
 ---
 
@@ -2288,6 +2293,7 @@ Truss is built module by module, each one opt-in. The framework never installs a
 - Migrations: truss db add and truss db migrate wrap dotnet-ef through a scaffolded tool manifest, and development startup applies pending migrations automatically once migrations exist.
 - Pagination: PageRequest and PageResult contracts, ToPageAsync over any queryable, query string binding through MapQuery and a --paged flag on the query generator.
 - Idempotent commands: the Idempotency-Key header replays stored responses instead of re-executing, with the record committed in the same transaction as the command.
+- Worker template: truss add worker scaffolds a separate consumer process sharing the application layers, competing for messages and jobs with the API.
 
 ---
 
