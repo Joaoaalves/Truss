@@ -88,7 +88,20 @@ Generates building blocks inside the layer projects, following the folder-per-co
 truss dev
 ```
 
-The development loop in one command: starts the compose dependencies when the project has them (`docker compose up -d --wait`), prints the URLs that matter (API, Scalar, jobs, dashboard, RabbitMQ management, depending on what is installed) and runs the API through `dotnet watch` with hot reload until Ctrl+C. `--no-docker` skips the compose step.
+The development loop in one command: starts the compose dependencies when the project has them (`docker compose up -d --wait`), prints the URLs that matter (API, Scalar, health, jobs, dashboard, RabbitMQ management, depending on what is installed) and runs the API through `dotnet watch` with hot reload until Ctrl+C. `--no-docker` skips the compose step.
+
+---
+
+## truss db
+
+```
+truss db add InitialCreate
+truss db migrate
+```
+
+EF Core migrations without remembering the project layout: `db add` captures the current model changes into a migration in the infrastructure project, and `db migrate` applies pending migrations to the database. Both restore `dotnet-ef` from the tool manifest the scaffold carries (`.config/dotnet-tools.json`) and pass the right `--project` and `--startup-project` for you.
+
+In development the scaffolded startup applies pending migrations automatically once the first migration exists; before that, it falls back to `EnsureCreated`, so the day-one experience stays untouched. In production, run `truss db migrate` (or `dotnet ef database update`) as a deploy step; the application never migrates on its own outside development.
 
 ---
 

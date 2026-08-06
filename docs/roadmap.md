@@ -30,6 +30,8 @@ Truss is built module by module, each one opt-in. The framework never installs a
 - Identity provider: truss add auth --provider identity runs the credential mechanics through ASP.NET Core Identity over the same clean domain model.
 - Truss.Testing: an integration test host booting the pipeline, a throwaway database, the in-memory transport and the job runtime in one call.
 - truss dev: docker dependencies, the URLs that matter and the API under hot reload in one command; scaffolds now serve an interactive API reference at /scalar in development.
+- Health checks: each module reports its own health through the standard ASP.NET Core checks, with counters in the response data; scaffolds map /health from the start.
+- Migrations: truss db add and truss db migrate wrap dotnet-ef through a scaffolded tool manifest, and development startup applies pending migrations automatically once migrations exist.
 
 ---
 
