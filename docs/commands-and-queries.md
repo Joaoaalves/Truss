@@ -100,6 +100,29 @@ public class ListProductsHandler(AppDbContext context) : IQueryHandler<ListProdu
 
 ---
 
+## Idempotent Commands
+
+A client that times out and retries a `POST` should not create the order twice. Truss makes commands idempotent per client-supplied key with three registrations:
+
+```csharp
+builder.Services.AddTrussIdempotency<AppDbContext>();   // after AddTrussEntityFramework
+
+app.UseTrussIdempotency();                              // reads the Idempotency-Key header
+
+modelBuilder.ApplyTrussIdempotency();                   // in OnModelCreating
+```
+
+When a request carries an `Idempotency-Key` header, the pipeline checks the store before the handler: a known key returns the stored response without executing anything; a new key executes normally and the response record commits **in the same transaction as the command**. That atomicity is the point: a command can never apply twice, and a failed command leaves no record, so the retry genuinely runs.
+
+Semantics worth knowing:
+
+- The key is scoped per command type; reusing a key on a different command never replays a foreign response.
+- Two concurrent requests racing the same key resolve at the database: one commit wins, the other rolls back entirely and surfaces an error; that client's retry replays the winner's response.
+- Requests without the header are untouched, and queries ignore the key.
+- Stored responses expire after 24 hours by default (`Truss__Idempotency__RetentionPeriod`), swept in the background.
+
+---
+
 ## Dispatching
 
 `IDispatcher` is the single entry point for commands and queries:

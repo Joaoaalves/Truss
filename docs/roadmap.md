@@ -33,6 +33,7 @@ Truss is built module by module, each one opt-in. The framework never installs a
 - Health checks: each module reports its own health through the standard ASP.NET Core checks, with counters in the response data; scaffolds map /health from the start.
 - Migrations: truss db add and truss db migrate wrap dotnet-ef through a scaffolded tool manifest, and development startup applies pending migrations automatically once migrations exist.
 - Pagination: PageRequest and PageResult contracts, ToPageAsync over any queryable, query string binding through MapQuery and a --paged flag on the query generator.
+- Idempotent commands: the Idempotency-Key header replays stored responses instead of re-executing, with the record committed in the same transaction as the command.
 
 ---
 
