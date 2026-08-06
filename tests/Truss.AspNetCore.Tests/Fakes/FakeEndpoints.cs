@@ -55,6 +55,8 @@ namespace Truss.AspNetCore.Tests.Fakes
         public bool IsBroken() => true;
 
         public string Message => "The item is locked.";
+
+        public string Code => "catalog.item-locked";
     }
 
     public sealed record BreakRuleCommand : ICommand;

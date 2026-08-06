@@ -125,6 +125,7 @@ namespace Truss.AspNetCore.Tests
             Assert.Equal("A business rule was violated.", problem.GetProperty("title").GetString());
             Assert.Equal("The item is locked.", problem.GetProperty("detail").GetString());
             Assert.Equal(nameof(AlwaysBrokenRule), problem.GetProperty("rule").GetString());
+            Assert.Equal("catalog.item-locked", problem.GetProperty("code").GetString());
         }
 
         [Fact]

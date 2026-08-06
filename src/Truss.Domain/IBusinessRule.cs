@@ -16,5 +16,12 @@ namespace Truss.Domain
         /// Gets the validation message describing why the rule is broken.
         /// </summary>
         string Message { get; }
+
+        /// <summary>
+        /// Gets the stable machine-readable code of the rule, surfaced to API
+        /// clients in error responses. Defaults to the type name; override it to
+        /// keep the wire contract stable when the type is renamed.
+        /// </summary>
+        string Code => GetType().Name;
     }
 }

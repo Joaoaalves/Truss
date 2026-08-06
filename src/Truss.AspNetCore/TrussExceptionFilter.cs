@@ -30,7 +30,8 @@ namespace Truss.AspNetCore
                     statusCode: StatusCodes.Status422UnprocessableEntity,
                     extensions: new Dictionary<string, object?>
                     {
-                        ["rule"] = exception.BrokenRule.GetType().Name
+                        ["rule"] = exception.BrokenRule.GetType().Name,
+                        ["code"] = exception.BrokenRule.Code
                     });
             }
         }
