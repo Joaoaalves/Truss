@@ -188,6 +188,36 @@ namespace Truss.Cli.Tests
         }
 
         [Fact]
+        public void AddAuth_WithIdentityProvider_ScaffoldsIdentityBackedStores()
+        {
+            var root = ScaffoldShop();
+
+            Assert.Equal(0, _workspace.Run("add", "auth", "--provider", "identity", "--project", root));
+
+            Assert.True(_workspace.FileExists("Shop", "src", "Shop.Infrastructure", "Accounts", "ApplicationUser.cs"));
+            Assert.True(_workspace.FileExists("Shop", "src", "Shop.Infrastructure", "Accounts", "IdentityModelConfiguration.cs"));
+            Assert.True(_workspace.FileExists("Shop", "src", "Shop.Infrastructure", "Accounts", "IdentityUserCredentialsStore.cs"));
+            Assert.False(_workspace.FileExists("Shop", "src", "Shop.Infrastructure", "Accounts", "UserCredential.cs"));
+
+            var user = _workspace.ReadFile("Shop", "src", "Shop.Domain", "Accounts", "User.cs");
+            Assert.DoesNotContain("hash", user, StringComparison.OrdinalIgnoreCase);
+            Assert.DoesNotContain("Identity", user);
+
+            var infrastructureCsproj = _workspace.ReadFile("Shop", "src", "Shop.Infrastructure", "Shop.Infrastructure.csproj");
+            Assert.Contains("Microsoft.AspNetCore.Identity.EntityFrameworkCore", infrastructureCsproj);
+
+            var accountsModule = _workspace.ReadFile("Shop", "src", "Shop.Infrastructure", "AccountsModule.cs");
+            Assert.Contains("AddIdentityCore<ApplicationUser>", accountsModule);
+            Assert.Contains("IdentityUserCredentialsStore", accountsModule);
+
+            var program = _workspace.ReadFile("Shop", "src", "Shop.Api", "Program.cs");
+            Assert.Contains("AddTrussJwtAuth", program);
+
+            var manifest = TrussManifest.Load(root);
+            Assert.Equal("identity", manifest!.Settings["auth.provider"]);
+        }
+
+        [Fact]
         public void AddAuth_RequiresDatabase()
         {
             Assert.Equal(0, _workspace.Scaffold("Tool", "none"));

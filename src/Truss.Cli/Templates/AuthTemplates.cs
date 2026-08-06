@@ -102,9 +102,9 @@ namespace Truss.Cli.Templates
             {
                 public interface IUserCredentialsStore
                 {
-                    Task SetPassword(UserId userId, string passwordHash, CancellationToken cancellationToken = default);
+                    Task SetPassword(UserId userId, string password, CancellationToken cancellationToken = default);
 
-                    Task<string?> GetPasswordHash(UserId userId, CancellationToken cancellationToken = default);
+                    Task<bool> VerifyPassword(UserId userId, string password, CancellationToken cancellationToken = default);
                 }
             }
             """;
@@ -146,15 +146,13 @@ namespace Truss.Cli.Templates
         public const string RegisterUserHandler = """
             using __NAME__.Domain.Accounts;
             using Truss.Application;
-            using Truss.Auth;
             using Truss.Domain;
 
             namespace __NAME__.Application.Accounts
             {
                 public class RegisterUserHandler(
                     IUserRepository users,
-                    IUserCredentialsStore credentials,
-                    IPasswordHasher passwordHasher) : ICommandHandler<RegisterUser, Guid>
+                    IUserCredentialsStore credentials) : ICommandHandler<RegisterUser, Guid>
                 {
                     public async Task<Guid> Handle(RegisterUser command, CancellationToken cancellationToken)
                     {
@@ -168,7 +166,7 @@ namespace Truss.Cli.Templates
                         var user = User.Register(command.Email, command.Name);
                         users.Add(user);
 
-                        await credentials.SetPassword(user.Id, passwordHasher.Hash(command.Password), cancellationToken);
+                        await credentials.SetPassword(user.Id, command.Password, cancellationToken);
 
                         return user.Id.Value;
                     }
@@ -215,17 +213,16 @@ namespace Truss.Cli.Templates
                     IUserRepository users,
                     IUserCredentialsStore credentials,
                     IRefreshTokenStore refreshTokens,
-                    IPasswordHasher passwordHasher,
                     IJwtTokenService tokens) : ICommandHandler<Login, AuthTokensDto>
                 {
                     public async Task<AuthTokensDto> Handle(Login command, CancellationToken cancellationToken)
                     {
                         var user = await users.GetByEmail(command.Email.ToLowerInvariant(), cancellationToken);
-                        var passwordHash = user is null
-                            ? null
-                            : await credentials.GetPasswordHash(user.Id, cancellationToken);
 
-                        if (user is null || passwordHash is null || !passwordHasher.Verify(command.Password, passwordHash))
+                        var validPassword = user is not null
+                            && await credentials.VerifyPassword(user.Id, command.Password, cancellationToken);
+
+                        if (user is null || !validPassword)
                             throw new BusinessRuleValidationException(new InvalidCredentials());
 
                         var refresh = tokens.CreateRefreshToken();
@@ -493,13 +490,15 @@ namespace Truss.Cli.Templates
         public const string EfUserCredentialsStore = """
             using __NAME__.Application.Accounts;
             using __NAME__.Domain.Accounts;
+            using Truss.Auth;
 
             namespace __NAME__.Infrastructure.Accounts
             {
-                public class EfUserCredentialsStore(AppDbContext context) : IUserCredentialsStore
+                public class EfUserCredentialsStore(AppDbContext context, IPasswordHasher passwordHasher) : IUserCredentialsStore
                 {
-                    public async Task SetPassword(UserId userId, string passwordHash, CancellationToken cancellationToken = default)
+                    public async Task SetPassword(UserId userId, string password, CancellationToken cancellationToken = default)
                     {
+                        var passwordHash = passwordHasher.Hash(password);
                         var existing = await context.Set<UserCredential>().FindAsync([userId.Value], cancellationToken);
 
                         if (existing is null)
@@ -508,10 +507,10 @@ namespace Truss.Cli.Templates
                             existing.ChangePassword(passwordHash);
                     }
 
-                    public async Task<string?> GetPasswordHash(UserId userId, CancellationToken cancellationToken = default)
+                    public async Task<bool> VerifyPassword(UserId userId, string password, CancellationToken cancellationToken = default)
                     {
                         var credential = await context.Set<UserCredential>().FindAsync([userId.Value], cancellationToken);
-                        return credential?.PasswordHash;
+                        return credential is not null && passwordHasher.Verify(password, credential.PasswordHash);
                     }
                 }
             }
@@ -565,6 +564,141 @@ namespace Truss.Cli.Templates
                         services.AddScoped<IUserRepository, EfUserRepository>();
                         services.AddScoped<IUserCredentialsStore, EfUserCredentialsStore>();
                         services.AddScoped<IRefreshTokenStore, EfRefreshTokenStore>();
+                        return services;
+                    }
+                }
+            }
+            """;
+
+        public const string ApplicationUser = """
+            using Microsoft.AspNetCore.Identity;
+
+            namespace __NAME__.Infrastructure.Accounts
+            {
+                public class ApplicationUser : IdentityUser<Guid>
+                {
+                }
+            }
+            """;
+
+        public const string IdentityModelConfiguration = """
+            using Microsoft.AspNetCore.Identity;
+            using Microsoft.EntityFrameworkCore;
+            using Microsoft.EntityFrameworkCore.Metadata.Builders;
+
+            namespace __NAME__.Infrastructure.Accounts
+            {
+                public class ApplicationUserConfiguration : IEntityTypeConfiguration<ApplicationUser>
+                {
+                    public void Configure(EntityTypeBuilder<ApplicationUser> builder)
+                    {
+                        builder.ToTable("AspNetUsers");
+                        builder.HasKey(user => user.Id);
+
+                        builder.HasIndex(user => user.NormalizedUserName).IsUnique();
+                        builder.HasIndex(user => user.NormalizedEmail);
+
+                        builder.Property(user => user.UserName).HasMaxLength(256);
+                        builder.Property(user => user.NormalizedUserName).HasMaxLength(256);
+                        builder.Property(user => user.Email).HasMaxLength(256);
+                        builder.Property(user => user.NormalizedEmail).HasMaxLength(256);
+                        builder.Property(user => user.ConcurrencyStamp).IsConcurrencyToken();
+                    }
+                }
+
+                public class IdentityUserClaimConfiguration : IEntityTypeConfiguration<IdentityUserClaim<Guid>>
+                {
+                    public void Configure(EntityTypeBuilder<IdentityUserClaim<Guid>> builder)
+                    {
+                        builder.ToTable("AspNetUserClaims");
+                        builder.HasKey(claim => claim.Id);
+                    }
+                }
+
+                public class IdentityUserLoginConfiguration : IEntityTypeConfiguration<IdentityUserLogin<Guid>>
+                {
+                    public void Configure(EntityTypeBuilder<IdentityUserLogin<Guid>> builder)
+                    {
+                        builder.ToTable("AspNetUserLogins");
+                        builder.HasKey(login => new { login.LoginProvider, login.ProviderKey });
+                    }
+                }
+
+                public class IdentityUserTokenConfiguration : IEntityTypeConfiguration<IdentityUserToken<Guid>>
+                {
+                    public void Configure(EntityTypeBuilder<IdentityUserToken<Guid>> builder)
+                    {
+                        builder.ToTable("AspNetUserTokens");
+                        builder.HasKey(token => new { token.UserId, token.LoginProvider, token.Name });
+                    }
+                }
+            }
+            """;
+
+        public const string IdentityUserCredentialsStore = """
+            using __NAME__.Application.Accounts;
+            using __NAME__.Domain.Accounts;
+            using Microsoft.AspNetCore.Identity;
+
+            namespace __NAME__.Infrastructure.Accounts
+            {
+                public class IdentityUserCredentialsStore(UserManager<ApplicationUser> userManager) : IUserCredentialsStore
+                {
+                    public async Task SetPassword(UserId userId, string password, CancellationToken cancellationToken = default)
+                    {
+                        var user = await userManager.FindByIdAsync(userId.Value.ToString());
+
+                        if (user is null)
+                        {
+                            user = new ApplicationUser { Id = userId.Value, UserName = userId.Value.ToString() };
+                            EnsureSucceeded(await userManager.CreateAsync(user, password));
+                            return;
+                        }
+
+                        EnsureSucceeded(await userManager.RemovePasswordAsync(user));
+                        EnsureSucceeded(await userManager.AddPasswordAsync(user, password));
+                    }
+
+                    public async Task<bool> VerifyPassword(UserId userId, string password, CancellationToken cancellationToken = default)
+                    {
+                        var user = await userManager.FindByIdAsync(userId.Value.ToString());
+                        return user is not null && await userManager.CheckPasswordAsync(user, password);
+                    }
+
+                    private static void EnsureSucceeded(IdentityResult result)
+                    {
+                        if (!result.Succeeded)
+                            throw new InvalidOperationException(string.Join("; ", result.Errors.Select(error => error.Description)));
+                    }
+                }
+            }
+            """;
+
+        public const string AccountsModuleIdentity = """
+            using __NAME__.Application.Accounts;
+            using __NAME__.Infrastructure.Accounts;
+            using Microsoft.Extensions.DependencyInjection;
+
+            namespace __NAME__.Infrastructure
+            {
+                public static class AccountsModule
+                {
+                    public static IServiceCollection AddAccountsInfrastructure(this IServiceCollection services)
+                    {
+                        services.AddScoped<IUserRepository, EfUserRepository>();
+                        services.AddScoped<IUserCredentialsStore, IdentityUserCredentialsStore>();
+                        services.AddScoped<IRefreshTokenStore, EfRefreshTokenStore>();
+
+                        services.AddIdentityCore<ApplicationUser>(options =>
+                        {
+                            options.Password.RequiredLength = 8;
+                            options.Password.RequireDigit = false;
+                            options.Password.RequireLowercase = false;
+                            options.Password.RequireUppercase = false;
+                            options.Password.RequireNonAlphanumeric = false;
+                        })
+                        .AddEntityFrameworkStores<AppDbContext>();
+
                         return services;
                     }
                 }

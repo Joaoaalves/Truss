@@ -26,6 +26,7 @@ namespace Truss.Cli
                         return dashboardResult;
 
                     ComposeGenerator.Write(manifest, root);
+                    AgentsGenerator.Write(manifest, root);
                     manifest.Save(root);
 
                     log($"The {transport} dashboard was wired. Run docker compose up to start it.");
@@ -50,6 +51,7 @@ namespace Truss.Cli
 
             manifest.Modules.Add(module);
             ComposeGenerator.Write(manifest, root);
+            AgentsGenerator.Write(manifest, root);
             manifest.Save(root);
 
             log($"The {module} module was installed. Run truss doctor to verify the project.");
@@ -168,18 +170,21 @@ namespace Truss.Cli
         {
             provider ??= "jwt";
 
-            if (provider != "jwt")
+            if (provider is not ("jwt" or "identity"))
             {
-                log($"Unknown auth provider '{provider}'. Available now: jwt. Identity integration is on the roadmap.");
+                log($"Unknown auth provider '{provider}'. Available providers: jwt, identity.");
                 return 1;
             }
 
-            var result = AuthScaffolder.Install(manifest, root, log);
+            var result = AuthScaffolder.Install(provider, manifest, root, log);
 
             if (result == 0)
             {
                 log("The Accounts context was scaffolded into your projects. It is your code: edit the User entity and the commands freely.");
                 log("A development signing key was written to appsettings.json; override it per environment with Truss__Auth__Jwt__SigningKey.");
+
+                if (provider == "identity")
+                    log("Credential mechanics run through ASP.NET Core Identity's UserManager; tune the password policy in AccountsModule.cs.");
             }
 
             return result;

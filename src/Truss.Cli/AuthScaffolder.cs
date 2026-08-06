@@ -7,7 +7,7 @@ namespace Truss.Cli
 {
     internal static class AuthScaffolder
     {
-        public static int Install(TrussManifest manifest, string root, Action<string> log)
+        public static int Install(string provider, TrussManifest manifest, string root, Action<string> log)
         {
             if (!manifest.UsesEntityFramework)
             {
@@ -26,15 +26,21 @@ namespace Truss.Cli
             CsprojEditor.AddPackageReference(
                 CsprojPath(root, manifest.ApiProject), "Truss.Auth.Jwt", manifest.TrussVersion);
 
-            WriteScaffold(manifest, root);
+            if (provider == "identity")
+            {
+                CsprojEditor.AddPackageReference(
+                    CsprojPath(root, manifest.InfrastructureProject), "Microsoft.AspNetCore.Identity.EntityFrameworkCore", "10.*");
+            }
+
+            WriteScaffold(provider, manifest, root);
             WireProgram(manifest, root, log);
             WriteJwtSettings(manifest, root);
 
-            manifest.Settings["auth.provider"] = "jwt";
+            manifest.Settings["auth.provider"] = provider;
             return 0;
         }
 
-        private static void WriteScaffold(TrussManifest manifest, string root)
+        private static void WriteScaffold(string provider, TrussManifest manifest, string root)
         {
             var domain = Path.Combine(manifest.DomainProject, "Accounts");
             var application = Path.Combine(manifest.ApplicationProject, "Accounts");
@@ -61,14 +67,25 @@ namespace Truss.Cli
             Write(root, Path.Combine(application, "RefreshValidator.cs"), AuthTemplates.RefreshValidator, manifest);
 
             Write(root, Path.Combine(infrastructure, "UserConfiguration.cs"), AuthTemplates.UserConfiguration, manifest);
-            Write(root, Path.Combine(infrastructure, "UserCredential.cs"), AuthTemplates.UserCredential, manifest);
-            Write(root, Path.Combine(infrastructure, "UserCredentialConfiguration.cs"), AuthTemplates.UserCredentialConfiguration, manifest);
             Write(root, Path.Combine(infrastructure, "RefreshTokenRecord.cs"), AuthTemplates.RefreshTokenRecord, manifest);
             Write(root, Path.Combine(infrastructure, "RefreshTokenConfiguration.cs"), AuthTemplates.RefreshTokenConfiguration, manifest);
             Write(root, Path.Combine(infrastructure, "EfUserRepository.cs"), AuthTemplates.EfUserRepository, manifest);
-            Write(root, Path.Combine(infrastructure, "EfUserCredentialsStore.cs"), AuthTemplates.EfUserCredentialsStore, manifest);
             Write(root, Path.Combine(infrastructure, "EfRefreshTokenStore.cs"), AuthTemplates.EfRefreshTokenStore, manifest);
-            Write(root, Path.Combine(manifest.InfrastructureProject, "AccountsModule.cs"), AuthTemplates.AccountsModule, manifest);
+
+            if (provider == "identity")
+            {
+                Write(root, Path.Combine(infrastructure, "ApplicationUser.cs"), AuthTemplates.ApplicationUser, manifest);
+                Write(root, Path.Combine(infrastructure, "IdentityModelConfiguration.cs"), AuthTemplates.IdentityModelConfiguration, manifest);
+                Write(root, Path.Combine(infrastructure, "IdentityUserCredentialsStore.cs"), AuthTemplates.IdentityUserCredentialsStore, manifest);
+                Write(root, Path.Combine(manifest.InfrastructureProject, "AccountsModule.cs"), AuthTemplates.AccountsModuleIdentity, manifest);
+            }
+            else
+            {
+                Write(root, Path.Combine(infrastructure, "UserCredential.cs"), AuthTemplates.UserCredential, manifest);
+                Write(root, Path.Combine(infrastructure, "UserCredentialConfiguration.cs"), AuthTemplates.UserCredentialConfiguration, manifest);
+                Write(root, Path.Combine(infrastructure, "EfUserCredentialsStore.cs"), AuthTemplates.EfUserCredentialsStore, manifest);
+                Write(root, Path.Combine(manifest.InfrastructureProject, "AccountsModule.cs"), AuthTemplates.AccountsModule, manifest);
+            }
         }
 
         private static void WireProgram(TrussManifest manifest, string root, Action<string> log)

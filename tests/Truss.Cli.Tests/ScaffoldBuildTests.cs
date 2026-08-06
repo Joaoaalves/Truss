@@ -34,6 +34,13 @@ namespace Truss.Cli.Tests
             Assert.Equal(0, _workspace.Run("doctor", "--project", root));
 
             AssertBuildSucceeds(root);
+
+            Assert.Equal(0, _workspace.Scaffold("IdShop", "sqlite", "--local-packages", _feed));
+            var identityRoot = _workspace.Root("IdShop");
+
+            Assert.Equal(0, _workspace.Run("add", "auth", "--provider", "identity", "--project", identityRoot));
+
+            AssertBuildSucceeds(identityRoot, "IdShop");
         }
 
         private void PackFramework()
@@ -44,9 +51,9 @@ namespace Truss.Cli.Tests
             Assert.True(result.ExitCode == 0, $"dotnet pack failed:{Environment.NewLine}{result.Output}");
         }
 
-        private void AssertBuildSucceeds(string root)
+        private void AssertBuildSucceeds(string root, string name = "Shop")
         {
-            var result = RunProcess(root, "dotnet", "build Shop.slnx -c Release --nologo", isolateNuGetCache: true);
+            var result = RunProcess(root, "dotnet", $"build {name}.slnx -c Release --nologo", isolateNuGetCache: true);
 
             Assert.True(result.ExitCode == 0, $"Scaffolded project failed to build:{Environment.NewLine}{result.Output}");
         }
