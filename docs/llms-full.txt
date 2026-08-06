@@ -1806,10 +1806,12 @@ Password hashes and refresh tokens live in the infrastructure layer as persisten
 ```csharp
 public interface IUserCredentialsStore
 {
-    Task SetPassword(UserId userId, string passwordHash, CancellationToken cancellationToken = default);
-    Task<string?> GetPasswordHash(UserId userId, CancellationToken cancellationToken = default);
+    Task SetPassword(UserId userId, string password, CancellationToken cancellationToken = default);
+    Task<bool> VerifyPassword(UserId userId, string password, CancellationToken cancellationToken = default);
 }
 ```
+
+The abstraction takes plain passwords and answers yes or no; hashing happens inside the store implementation, so no hash ever crosses the application layer and the provider can be swapped without touching a handler.
 
 Add fields, rules and events to the aggregate like in any other; the EF configurations sit next to your others. The handlers are ordinary command handlers composing the domain, the stores and the package services:
 
@@ -1818,7 +1820,6 @@ public class LoginHandler(
     IUserRepository users,
     IUserCredentialsStore credentials,
     IRefreshTokenStore refreshTokens,
-    IPasswordHasher passwordHasher,
     IJwtTokenService tokens) : ICommandHandler<Login, AuthTokensDto>
 ```
 
@@ -1838,9 +1839,21 @@ Handlers read the current identity through `ClaimsPrincipal` in endpoints, or fl
 
 ---
 
+## The Identity Provider
+
+```
+truss add auth --provider identity
+```
+
+Same endpoints, same domain, same JWT issuance; the credential mechanics run through ASP.NET Core Identity instead of the Truss hasher. The scaffold generates an `ApplicationUser` (an `IdentityUser<Guid>` keyed by the same id as your `User` aggregate), the EF configurations for the Identity tables and an `IUserCredentialsStore` backed by `UserManager`, wired with `AddIdentityCore` in the scaffolded `AccountsModule`.
+
+Choose it when you want Identity's ecosystem: its password hasher and upgrade path, password policies (tuned in `AccountsModule.cs`, aligned by default with the scaffolded validator), and a direct road to lockout, password reset and external login providers via `UserManager`. The domain `User` stays exactly as clean as with the JWT provider; only infrastructure changes.
+
+---
+
 ## Roadmap
 
-ASP.NET Core Identity integration (`--provider identity`) and external OpenID providers are planned. The scaffolded model is provider-independent: switching providers later means changing the mechanics, not your domain.
+External OpenID providers (Google, Microsoft, GitHub) and scaffolded password reset and email confirmation flows are planned. The scaffolded model is provider-independent: switching providers later means changing the mechanics, not your domain.
 
 ---
 
@@ -1913,7 +1926,7 @@ Installs a module into an existing project: adds the package references to the c
 | `jobs` | | Requires messaging |
 | `observability` | `--dashboard aspire`, `grafana`, `seq` | Logging, tracing and correlation; the dashboard option wires OTLP export and the compose service |
 | `mapping` | | Compile-time DTO mappers, added to the application layer |
-| `auth` | `--provider jwt` | Scaffolds the editable Accounts context and wires JWT authentication; requires a database |
+| `auth` | `--provider jwt`, `identity` | Scaffolds the editable Accounts context and wires JWT authentication; the identity provider runs credentials through ASP.NET Core Identity; requires a database |
 
 ---
 
@@ -1937,6 +1950,14 @@ truss doctor
 ```
 
 Compares the manifest with the actual state of the project: solution and projects present, module packages referenced, compose file in place. Prints one line per check and fails with a non-zero exit code when something is missing.
+
+---
+
+## AGENTS.md
+
+Every scaffolded project carries an `AGENTS.md` at the root: the guidance file coding agents read before touching the code. It describes the layout, the architecture rules that gate every change, the CLI workflow and each installed module with its usage pattern, and it points at the machine-readable docs (`llms.txt`).
+
+The truss-owned section lives between `<!-- truss:begin -->` and `<!-- truss:end -->` markers and is regenerated whenever `truss add` changes the project, so it always reflects the modules actually installed. Everything outside the markers is yours: add team conventions freely and they survive regeneration. Deleting the markers opts the file out of regeneration entirely.
 
 ---
 
@@ -2079,6 +2100,8 @@ Truss is built module by module, each one opt-in. The framework never installs a
 - RabbitMQ transport and outbox retention: processed messages are cleaned up after a configurable period.
 - Jobs hardening: exponential retry backoff, cancellation of queued and running jobs, retention of finished records, and lease-based scheduler locking so every instance can keep the schedulers enabled.
 - Dashboards: the OpenTelemetry bridge package and one-command wiring of the Aspire dashboard, Grafana or Seq through the CLI, with the compose service and the development environment configured.
+- AGENTS.md: every scaffolded project carries agent guidance regenerated from the manifest, with user content preserved outside the managed markers.
+- Identity provider: truss add auth --provider identity runs the credential mechanics through ASP.NET Core Identity over the same clean domain model.
 
 ---
 
@@ -2086,7 +2109,7 @@ Truss is built module by module, each one opt-in. The framework never installs a
 
 ### Auth providers
 
-ASP.NET Core Identity integration and external OpenID providers over the same scaffolded, editable account model.
+External OpenID providers (Google, Microsoft, GitHub) and scaffolded password reset and email confirmation flows over the same editable account model.
 
 ---
 
@@ -2094,7 +2117,7 @@ ASP.NET Core Identity integration and external OpenID providers over the same sc
 
 | Module | Purpose |
 |---|---|
-| Auth providers | ASP.NET Core Identity integration and external OpenID providers |
+| Auth providers | External OpenID providers and scaffolded account flows |
 
 ---
 

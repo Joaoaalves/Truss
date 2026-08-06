@@ -26,6 +26,8 @@ Truss is built module by module, each one opt-in. The framework never installs a
 - RabbitMQ transport and outbox retention: processed messages are cleaned up after a configurable period.
 - Jobs hardening: exponential retry backoff, cancellation of queued and running jobs, retention of finished records, and lease-based scheduler locking so every instance can keep the schedulers enabled.
 - Dashboards: the OpenTelemetry bridge package and one-command wiring of the Aspire dashboard, Grafana or Seq through the CLI, with the compose service and the development environment configured.
+- AGENTS.md: every scaffolded project carries agent guidance regenerated from the manifest, with user content preserved outside the managed markers.
+- Identity provider: truss add auth --provider identity runs the credential mechanics through ASP.NET Core Identity over the same clean domain model.
 
 ---
 
@@ -33,7 +35,7 @@ Truss is built module by module, each one opt-in. The framework never installs a
 
 ### Auth providers
 
-ASP.NET Core Identity integration and external OpenID providers over the same scaffolded, editable account model.
+External OpenID providers (Google, Microsoft, GitHub) and scaffolded password reset and email confirmation flows over the same editable account model.
 
 ---
 
@@ -41,7 +43,7 @@ ASP.NET Core Identity integration and external OpenID providers over the same sc
 
 | Module | Purpose |
 |---|---|
-| Auth providers | ASP.NET Core Identity integration and external OpenID providers |
+| Auth providers | External OpenID providers and scaffolded account flows |
 
 ---
 

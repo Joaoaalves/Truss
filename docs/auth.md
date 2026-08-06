@@ -68,10 +68,12 @@ Password hashes and refresh tokens live in the infrastructure layer as persisten
 ```csharp
 public interface IUserCredentialsStore
 {
-    Task SetPassword(UserId userId, string passwordHash, CancellationToken cancellationToken = default);
-    Task<string?> GetPasswordHash(UserId userId, CancellationToken cancellationToken = default);
+    Task SetPassword(UserId userId, string password, CancellationToken cancellationToken = default);
+    Task<bool> VerifyPassword(UserId userId, string password, CancellationToken cancellationToken = default);
 }
 ```
+
+The abstraction takes plain passwords and answers yes or no; hashing happens inside the store implementation, so no hash ever crosses the application layer and the provider can be swapped without touching a handler.
 
 Add fields, rules and events to the aggregate like in any other; the EF configurations sit next to your others. The handlers are ordinary command handlers composing the domain, the stores and the package services:
 
@@ -80,7 +82,6 @@ public class LoginHandler(
     IUserRepository users,
     IUserCredentialsStore credentials,
     IRefreshTokenStore refreshTokens,
-    IPasswordHasher passwordHasher,
     IJwtTokenService tokens) : ICommandHandler<Login, AuthTokensDto>
 ```
 
@@ -100,6 +101,18 @@ Handlers read the current identity through `ClaimsPrincipal` in endpoints, or fl
 
 ---
 
+## The Identity Provider
+
+```
+truss add auth --provider identity
+```
+
+Same endpoints, same domain, same JWT issuance; the credential mechanics run through ASP.NET Core Identity instead of the Truss hasher. The scaffold generates an `ApplicationUser` (an `IdentityUser<Guid>` keyed by the same id as your `User` aggregate), the EF configurations for the Identity tables and an `IUserCredentialsStore` backed by `UserManager`, wired with `AddIdentityCore` in the scaffolded `AccountsModule`.
+
+Choose it when you want Identity's ecosystem: its password hasher and upgrade path, password policies (tuned in `AccountsModule.cs`, aligned by default with the scaffolded validator), and a direct road to lockout, password reset and external login providers via `UserManager`. The domain `User` stays exactly as clean as with the JWT provider; only infrastructure changes.
+
+---
+
 ## Roadmap
 
-ASP.NET Core Identity integration (`--provider identity`) and external OpenID providers are planned. The scaffolded model is provider-independent: switching providers later means changing the mechanics, not your domain.
+External OpenID providers (Google, Microsoft, GitHub) and scaffolded password reset and email confirmation flows are planned. The scaffolded model is provider-independent: switching providers later means changing the mechanics, not your domain.

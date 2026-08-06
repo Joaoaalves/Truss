@@ -65,7 +65,7 @@ Installs a module into an existing project: adds the package references to the c
 | `jobs` | | Requires messaging |
 | `observability` | `--dashboard aspire`, `grafana`, `seq` | Logging, tracing and correlation; the dashboard option wires OTLP export and the compose service |
 | `mapping` | | Compile-time DTO mappers, added to the application layer |
-| `auth` | `--provider jwt` | Scaffolds the editable Accounts context and wires JWT authentication; requires a database |
+| `auth` | `--provider jwt`, `identity` | Scaffolds the editable Accounts context and wires JWT authentication; the identity provider runs credentials through ASP.NET Core Identity; requires a database |
 
 ---
 
@@ -89,6 +89,14 @@ truss doctor
 ```
 
 Compares the manifest with the actual state of the project: solution and projects present, module packages referenced, compose file in place. Prints one line per check and fails with a non-zero exit code when something is missing.
+
+---
+
+## AGENTS.md
+
+Every scaffolded project carries an `AGENTS.md` at the root: the guidance file coding agents read before touching the code. It describes the layout, the architecture rules that gate every change, the CLI workflow and each installed module with its usage pattern, and it points at the machine-readable docs (`llms.txt`).
+
+The truss-owned section lives between `<!-- truss:begin -->` and `<!-- truss:end -->` markers and is regenerated whenever `truss add` changes the project, so it always reflects the modules actually installed. Everything outside the markers is yours: add team conventions freely and they survive regeneration. Deleting the markers opts the file out of regeneration entirely.
 
 ---
 
