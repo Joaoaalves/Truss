@@ -37,6 +37,9 @@ namespace Truss.Cli
                     generate.AddCommand<GenerateQueryCommand>("query");
                 });
 
+                config.AddCommand<DevCommand>("dev")
+                    .WithDescription("Start the local dependencies and run the API with hot reload.");
+
                 config.AddCommand<DoctorCommand>("doctor")
                     .WithDescription("Verify that the project matches its manifest.");
             });

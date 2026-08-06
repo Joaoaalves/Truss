@@ -67,6 +67,7 @@ namespace Truss.Cli
                 - New aggregate: truss generate aggregate <Name> --context <Context>
                 - New command or query: truss generate command|query <Name> --context <Context> (record, handler and validator; map it in Program.cs)
                 - Install a module: truss add messaging|jobs|observability|mapping|auth
+                - Run locally: truss dev (starts docker dependencies and watches the API with hot reload)
                 - Verify wiring after structural changes: truss doctor
                 - Build and test: dotnet build and dotnet test on {name}.slnx.
                 """);

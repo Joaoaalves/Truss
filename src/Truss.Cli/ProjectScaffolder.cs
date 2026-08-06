@@ -139,6 +139,9 @@ namespace Truss.Cli
                 .Replace("__NAME__", manifest.Name)
                 .Replace("__TRUSS_VERSION__", manifest.TrussVersion)
                 .Replace("__EF_PROVIDER_PACKAGE__", ProviderPackage(manifest.Database))
+                .Replace("__SQLITE_NATIVE_REFERENCE__", manifest.Database == "sqlite"
+                    ? $"{Environment.NewLine}    <PackageReference Include=\"SQLitePCLRaw.bundle_e_sqlite3\" Version=\"3.*\" />"
+                    : string.Empty)
                 .Replace("__EF_PROVIDER_METHOD__", ProviderMethod(manifest.Database))
                 .Replace("__CONNECTION_STRING__", ConnectionString(manifest));
         }

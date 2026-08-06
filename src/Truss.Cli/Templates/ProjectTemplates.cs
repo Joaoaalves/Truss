@@ -79,7 +79,7 @@ namespace Truss.Cli.Templates
 
               <ItemGroup>
                 <PackageReference Include="Truss.Persistence.EntityFrameworkCore" Version="__TRUSS_VERSION__" />
-                <PackageReference Include="__EF_PROVIDER_PACKAGE__" Version="10.*" />
+                <PackageReference Include="__EF_PROVIDER_PACKAGE__" Version="10.*" />__SQLITE_NATIVE_REFERENCE__
               </ItemGroup>
 
             </Project>
@@ -97,6 +97,8 @@ namespace Truss.Cli.Templates
                 <PackageReference Include="Truss.Application" Version="__TRUSS_VERSION__" />
                 <PackageReference Include="Truss.AspNetCore" Version="__TRUSS_VERSION__" />
                 <PackageReference Include="Truss.Generators" Version="__TRUSS_VERSION__" PrivateAssets="all" />
+                <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.*" />
+                <PackageReference Include="Scalar.AspNetCore" Version="2.*" />
               </ItemGroup>
 
             </Project>
@@ -113,6 +115,8 @@ namespace Truss.Cli.Templates
                 <PackageReference Include="Truss.Application" Version="__TRUSS_VERSION__" />
                 <PackageReference Include="Truss.AspNetCore" Version="__TRUSS_VERSION__" />
                 <PackageReference Include="Truss.Generators" Version="__TRUSS_VERSION__" PrivateAssets="all" />
+                <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.*" />
+                <PackageReference Include="Scalar.AspNetCore" Version="2.*" />
               </ItemGroup>
 
             </Project>
@@ -164,6 +168,7 @@ namespace Truss.Cli.Templates
             using __NAME__.Application;
             using __NAME__.Infrastructure;
             using Microsoft.EntityFrameworkCore;
+            using Scalar.AspNetCore;
 
             var builder = WebApplication.CreateBuilder(args);
 
@@ -176,6 +181,7 @@ namespace Truss.Cli.Templates
             });
 
             builder.Services.AddTrussEntityFramework<AppDbContext>();
+            builder.Services.AddOpenApi();
 
             var app = builder.Build();
 
@@ -183,6 +189,9 @@ namespace Truss.Cli.Templates
             {
                 using var scope = app.Services.CreateScope();
                 scope.ServiceProvider.GetRequiredService<AppDbContext>().Database.EnsureCreated();
+
+                app.MapOpenApi();
+                app.MapScalarApiReference();
             }
 
             app.MapGet("/", () => "__NAME__ is running.");
@@ -192,6 +201,7 @@ namespace Truss.Cli.Templates
 
         public const string ProgramWithoutInfrastructure = """
             using __NAME__.Application;
+            using Scalar.AspNetCore;
 
             var builder = WebApplication.CreateBuilder(args);
 
@@ -200,7 +210,15 @@ namespace Truss.Cli.Templates
                 options.AddAssembly<ApplicationAssemblyMarker>();
             });
 
+            builder.Services.AddOpenApi();
+
             var app = builder.Build();
+
+            if (app.Environment.IsDevelopment())
+            {
+                app.MapOpenApi();
+                app.MapScalarApiReference();
+            }
 
             app.MapGet("/", () => "__NAME__ is running.");
 
