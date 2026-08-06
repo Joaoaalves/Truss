@@ -24,6 +24,10 @@ namespace Truss.Messaging
                 {
                     logger.LogError(exception, "Failed to handle integration event {Name} v{Version} ({MessageId}).", envelope.Name, envelope.Version, envelope.MessageId);
                 }
+                finally
+                {
+                    transport.MarkDelivered();
+                }
             }
         }
     }
