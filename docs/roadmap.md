@@ -28,6 +28,8 @@ Truss is built module by module, each one opt-in. The framework never installs a
 - Dashboards: the OpenTelemetry bridge package and one-command wiring of the Aspire dashboard, Grafana or Seq through the CLI, with the compose service and the development environment configured.
 - AGENTS.md: every scaffolded project carries agent guidance regenerated from the manifest, with user content preserved outside the managed markers.
 - Identity provider: truss add auth --provider identity runs the credential mechanics through ASP.NET Core Identity over the same clean domain model.
+- Truss.Testing: an integration test host booting the pipeline, a throwaway database, the in-memory transport and the job runtime in one call.
+- truss dev: docker dependencies, the URLs that matter and the API under hot reload in one command; scaffolds now serve an interactive API reference at /scalar in development.
 
 ---
 

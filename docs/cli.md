@@ -82,6 +82,16 @@ Generates building blocks inside the layer projects, following the folder-per-co
 
 ---
 
+## truss dev
+
+```
+truss dev
+```
+
+The development loop in one command: starts the compose dependencies when the project has them (`docker compose up -d --wait`), prints the URLs that matter (API, Scalar, jobs, dashboard, RabbitMQ management, depending on what is installed) and runs the API through `dotnet watch` with hot reload until Ctrl+C. `--no-docker` skips the compose step.
+
+---
+
 ## truss doctor
 
 ```

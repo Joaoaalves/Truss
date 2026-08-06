@@ -5,9 +5,11 @@ The fastest start is the [truss CLI](cli.md): one command scaffolds a complete C
 ```
 dotnet tool install -g Truss.Cli
 truss new MyShop --database postgres --docker
+cd MyShop
+truss dev
 ```
 
-The rest of this page describes the manual configuration, which is also what the scaffolded code contains. All packages are on [nuget.org](https://www.nuget.org/packages?q=Truss.).
+`truss dev` starts the docker dependencies, prints the URLs that matter and runs the API with hot reload; the scaffold serves an interactive API reference at `/scalar` in development. The rest of this page describes the manual configuration, which is also what the scaffolded code contains. All packages are on [nuget.org](https://www.nuget.org/packages?q=Truss.).
 
 ---
 
