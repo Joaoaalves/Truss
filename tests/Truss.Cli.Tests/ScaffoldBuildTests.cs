@@ -42,7 +42,7 @@ namespace Truss.Cli.Tests
             Assert.Equal(0, _workspace.Scaffold("IdShop", "sqlite", "--local-packages", _feed));
             var identityRoot = _workspace.Root("IdShop");
 
-            Assert.Equal(0, _workspace.Run("add", "email", "--project", identityRoot));
+            Assert.Equal(0, _workspace.Run("add", "email", "--provider", "resend", "--project", identityRoot));
             Assert.Equal(0, _workspace.Run("add", "auth", "--provider", "identity", "--project", identityRoot));
 
             AssertBuildSucceeds(identityRoot, "IdShop");

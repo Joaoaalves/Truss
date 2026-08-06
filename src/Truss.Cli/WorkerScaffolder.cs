@@ -47,12 +47,22 @@ namespace Truss.Cli
                        <ProjectReference Include="..\{manifest.Name}.Application\{manifest.Name}.Application.csproj" />
                    """;
 
+            manifest.Settings.TryGetValue("email.provider", out var workerEmailProvider);
+
             var emailReference = manifest.Modules.Contains("email")
                 ? $"""
 
                        <PackageReference Include="Truss.Email" Version="{manifest.TrussVersion}" />
                    """
                 : string.Empty;
+
+            if (workerEmailProvider == "resend")
+            {
+                emailReference += $"""
+
+                        <PackageReference Include="Truss.Email.Resend" Version="{manifest.TrussVersion}" />
+                    """;
+            }
 
             return $"""
                 <Project Sdk="Microsoft.NET.Sdk.Worker">

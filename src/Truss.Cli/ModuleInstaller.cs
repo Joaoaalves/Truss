@@ -197,9 +197,9 @@ namespace Truss.Cli
         {
             provider ??= "console";
 
-            if (provider is not ("console" or "smtp"))
+            if (provider is not ("console" or "smtp" or "resend"))
             {
-                log($"Unknown email provider '{provider}'. Available providers: console, smtp.");
+                log($"Unknown email provider '{provider}'. Available providers: console, smtp, resend.");
                 return 1;
             }
 
@@ -207,6 +207,9 @@ namespace Truss.Cli
 
             CsprojEditor.AddPackageReference(CsprojPath(root, manifest.ApplicationProject), "Truss.Email.Abstractions", version);
             CsprojEditor.AddPackageReference(CsprojPath(root, manifest.ApiProject), "Truss.Email", version);
+
+            if (provider == "resend")
+                CsprojEditor.AddPackageReference(CsprojPath(root, manifest.ApiProject), "Truss.Email.Resend", version);
 
             InsertServices(root, manifest, EmailRegistration(provider) + Environment.NewLine + "builder.Services.AddTrussEmailValidation(options => builder.Configuration.GetSection(\"Truss:Email:Validation\").Bind(options));", log);
             manifest.Settings["email.provider"] = provider;
@@ -224,9 +227,19 @@ namespace Truss.Cli
                 log("Development SMTP points at Mailpit (docker compose up starts it; UI at http://localhost:8025).");
                 log("Override per environment with Truss__Email__Smtp__* variables.");
             }
+            else if (provider == "resend")
+            {
+                AppSettingsEditor.SetSection(root, manifest, "Truss:Email:Resend", new Dictionary<string, object>
+                {
+                    ["From"] = $"noreply@{manifest.Name.ToLowerInvariant()}.dev"
+                }, log);
+
+                log("Set the API key per environment with Truss__Email__Resend__ApiKey; it never goes into appsettings.json.");
+                log("The From domain must be verified in the Resend dashboard.");
+            }
             else
             {
-                log("Emails print to the console log in this mode; switch later with truss add email --provider smtp.");
+                log("Emails print to the console log in this mode; switch later with truss add email --provider smtp or --provider resend.");
             }
 
             return 0;
@@ -235,6 +248,7 @@ namespace Truss.Cli
         internal static string EmailRegistration(string provider) => provider switch
         {
             "smtp" => "builder.Services.AddTrussSmtpEmail(options => builder.Configuration.GetSection(\"Truss:Email:Smtp\").Bind(options));",
+            "resend" => "builder.Services.AddTrussResendEmail(options => builder.Configuration.GetSection(\"Truss:Email:Resend\").Bind(options));",
             _ => "builder.Services.AddTrussConsoleEmail();"
         };
 

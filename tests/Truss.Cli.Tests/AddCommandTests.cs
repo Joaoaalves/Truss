@@ -304,6 +304,37 @@ namespace Truss.Cli.Tests
         }
 
         [Fact]
+        public void AddEmail_Resend_WiresTheApiSender()
+        {
+            var root = ScaffoldShop();
+
+            Assert.Equal(0, _workspace.Run("add", "email", "--provider", "resend", "--project", root));
+
+            var apiCsproj = _workspace.ReadFile("Shop", "src", "Shop.Api", "Shop.Api.csproj");
+            Assert.Contains("Truss.Email.Resend", apiCsproj);
+
+            var program = _workspace.ReadFile("Shop", "src", "Shop.Api", "Program.cs");
+            Assert.Contains("AddTrussResendEmail", program);
+            Assert.Contains("AddTrussEmailValidation", program);
+
+            var appsettings = _workspace.ReadFile("Shop", "src", "Shop.Api", "appsettings.json");
+            Assert.Contains("\"Resend\"", appsettings);
+            Assert.DoesNotContain("ApiKey", appsettings);
+
+            var manifest = TrussManifest.Load(root);
+            Assert.Equal("resend", manifest!.Settings["email.provider"]);
+
+            Assert.Equal(0, _workspace.Run("add", "messaging", "--project", root));
+            Assert.Equal(0, _workspace.Run("add", "worker", "--project", root));
+
+            var workerCsproj = _workspace.ReadFile("Shop", "src", "Shop.Worker", "Shop.Worker.csproj");
+            Assert.Contains("Truss.Email.Resend", workerCsproj);
+
+            var workerProgram = _workspace.ReadFile("Shop", "src", "Shop.Worker", "Program.cs");
+            Assert.Contains("AddTrussResendEmail", workerProgram);
+        }
+
+        [Fact]
         public void AddWorker_ScaffoldsAConsumerProcess()
         {
             var root = ScaffoldShop();

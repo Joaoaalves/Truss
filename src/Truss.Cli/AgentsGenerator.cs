@@ -138,7 +138,9 @@ namespace Truss.Cli
                         break;
 
                     case "email":
-                        block.AppendLine(emailProvider == "smtp"
+                        block.AppendLine(emailProvider == "resend"
+                            ? "- Email: inject IEmailSender in handlers; delivery goes through the Resend API (set Truss__Email__Resend__ApiKey per environment). Send from integration event handlers or jobs so delivery inherits retry. IEmailAddressValidator validates real deliverability (syntax + DNS) for validators that gate on it."
+                            : emailProvider == "smtp"
                             ? "- Email: inject IEmailSender in handlers; delivery goes over SMTP (Mailpit at http://localhost:8025 in development). Send from integration event handlers or jobs so delivery inherits retry. IEmailAddressValidator validates real deliverability (syntax + DNS) for validators that gate on it."
                             : "- Email: inject IEmailSender in handlers; messages print to the console log in development. Send from integration event handlers or jobs so delivery inherits retry. IEmailAddressValidator validates real deliverability (syntax + DNS) for validators that gate on it.");
                         break;
