@@ -57,6 +57,24 @@ namespace Truss.AspNetCore.Tests
         }
 
         [Fact]
+        public async Task UseTrussIdempotency_ReadsTheHeaderIntoTheAmbientHolder()
+        {
+            var (app, client) = await StartAppAsync(app =>
+            {
+                app.UseTrussIdempotency();
+                app.MapGet("/key", () => IdempotencyKeyHolder.Current ?? "none");
+            });
+            await using var _ = app;
+
+            var request = new HttpRequestMessage(HttpMethod.Get, "/key");
+            request.Headers.Add("Idempotency-Key", "abc-123");
+            var response = await client.SendAsync(request);
+
+            Assert.Equal("abc-123", await response.Content.ReadAsStringAsync());
+            Assert.Equal("none", await client.GetStringAsync("/key"));
+        }
+
+        [Fact]
         public async Task MapCommand_WithoutResult_ReturnsNoContent()
         {
             var (app, client) = await StartAppAsync(app => app.MapCommand<ArchiveCommand>("/archive"));
