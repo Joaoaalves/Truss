@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <PackageId>Truss.Email.Resend</PackageId>
+    <Description>Resend provider for Truss email: delivery through the official Resend API client, configured from options or environment variables, behind the same sender abstraction.</Description>
+    <PackageTags>Email;Resend;Sender;Transactional</PackageTags>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Truss.Email.Abstractions\Truss.Email.Abstractions.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Truss.Email.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.*" />
+    <PackageReference Include="Microsoft.Extensions.Http" Version="10.*" />
+    <PackageReference Include="Microsoft.Extensions.Options" Version="10.*" />
+    <PackageReference Include="Resend" Version="0.8.0" />
+  </ItemGroup>
+
+</Project>

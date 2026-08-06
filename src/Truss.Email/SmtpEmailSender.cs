@@ -47,7 +47,7 @@ namespace Truss.Email
                 cancellationToken);
 
             if (!string.IsNullOrEmpty(_options.UserName))
-                await client.AuthenticateAsync(_options.UserName, _options.Password, cancellationToken);
+                await client.AuthenticateAsync(_options.UserName, _options.Password ?? string.Empty, cancellationToken);
 
             await client.SendAsync(mime, cancellationToken);
             await client.DisconnectAsync(quit: true, cancellationToken);

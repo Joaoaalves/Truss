@@ -8,6 +8,7 @@
     <Project Path="src/Truss.Cli/Truss.Cli.csproj" />
     <Project Path="src/Truss.Domain/Truss.Domain.csproj" />
     <Project Path="src/Truss.Email.Abstractions/Truss.Email.Abstractions.csproj" />
+    <Project Path="src/Truss.Email.Resend/Truss.Email.Resend.csproj" />
     <Project Path="src/Truss.Email/Truss.Email.csproj" />
     <Project Path="src/Truss.Generators/Truss.Generators.csproj" />
     <Project Path="src/Truss.Jobs.Abstractions/Truss.Jobs.Abstractions.csproj" />
