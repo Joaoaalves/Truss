@@ -165,12 +165,13 @@ None.
 ## Truss.Email
 
 **Purpose:**
-Email senders: SMTP through MailKit bound from options or environment variables, and a console sender for development.
+Email senders and address validation: SMTP through MailKit, a console sender for development, and a validator combining RFC syntax with a DNS deliverability check.
 
 ### Dependencies
 
 - `Truss.Email.Abstractions`
 - `MailKit`
+- `DnsClient`
 
 ---
 

@@ -52,4 +52,28 @@ Truss__Email__Smtp__UseStartTls=true
 
 Any SMTP provider works, which keeps the free-first principle: a transactional provider's SMTP endpoint, a self-hosted relay, or the company server. Keep the password out of source control; bind it from the environment.
 
-`EmailMessage` carries the recipient, the subject and an HTML body with an optional plain text alternative. A custom `IEmailSender` implementation swaps the mechanism (a provider API, a fake for tests) without touching a handler.
+`EmailMessage` carries the recipient, the subject and an HTML body with an optional plain text alternative. A custom `IEmailSender` implementation swaps the mechanism (a provider API, a fake for tests) without touching a handler. Provider packages for transactional APIs (Resend first) are planned; any of them slots behind the same abstraction.
+
+---
+
+## Validating Addresses
+
+A regex cannot tell you an address can receive mail. `IEmailAddressValidator`, registered by `truss add email`, validates with real machinery, all free and local:
+
+- **Syntax** through MimeKit's RFC parser, the same one that will later send the message, rejecting display-name forms, missing domains and malformed locals.
+- **Deliverability** through DNS: the domain must have an MX record or the address record fallback of RFC 5321. A domain that resolves to nothing rejects with a clear reason.
+
+```csharp
+public class RegisterUserValidator : AbstractValidator<RegisterUser>
+{
+    public RegisterUserValidator(IEmailAddressValidator emails)
+    {
+        RuleFor(command => command.Email)
+            .NotEmpty()
+            .MustAsync(async (email, ct) => (await emails.Validate(email, ct)).IsValid)
+            .WithMessage("The email address cannot receive mail.");
+    }
+}
+```
+
+The DNS check fails open on purpose: an unreachable resolver never blocks a registration; only a conclusive "this domain accepts no mail" answer rejects. Disable it with `Truss__Email__Validation__VerifyMailServer=false` for fully offline environments.
