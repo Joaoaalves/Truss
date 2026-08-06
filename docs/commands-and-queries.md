@@ -77,6 +77,27 @@ public class GetUserByIdHandler(AppDbContext context) : IQueryHandler<GetUserByI
 
 Queries do not create a unit of work and never trigger a commit. Reading is free of transactional overhead.
 
+### Pagination
+
+Paged queries follow one convention: `Page` and `Size` properties on the query, `PageResult<T>` as the result. The properties bind straight from the query string through `MapQuery`, and the EF package pages any queryable in one call:
+
+```csharp
+public sealed record ListProducts(int Page = 1, int Size = 20) : IQuery<PageResult<ProductDto>>;
+
+public class ListProductsHandler(AppDbContext context) : IQueryHandler<ListProducts, PageResult<ProductDto>>
+{
+    public Task<PageResult<ProductDto>> Handle(ListProducts query, CancellationToken cancellationToken)
+    {
+        return context.Products
+            .OrderBy(p => p.Name)
+            .Select(p => new ProductDto(p.Id.Value, p.Name))
+            .ToPageAsync(new PageRequest(query.Page, query.Size), cancellationToken);
+    }
+}
+```
+
+`GET /products?page=2&size=20` returns the items plus `totalCount`, `totalPages`, `hasPreviousPage` and `hasNextPage`, everything a client pager needs. Order the query before paging; an unordered skip has no stable meaning. Limits are the validator's job, and `truss generate query --paged` scaffolds the whole convention: the record, the handler pointing at `ToPageAsync` and a validator capping the size.
+
 ---
 
 ## Dispatching

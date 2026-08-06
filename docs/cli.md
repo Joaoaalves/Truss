@@ -76,6 +76,7 @@ truss generate context Sales
 truss generate aggregate Order --context Sales
 truss generate command PlaceOrder --context Sales
 truss generate query GetOrderById --context Sales --result OrderDto
+truss generate query ListOrders --context Sales --result OrderDto --paged
 ```
 
 Generates building blocks inside the layer projects, following the folder-per-context layout: `Domain/Sales`, `Application/Sales`. Aggregates come with their typed id and creation event; commands come with handler and validator; queries with handler. Existing files are never overwritten.
