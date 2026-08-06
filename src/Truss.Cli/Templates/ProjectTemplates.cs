@@ -197,6 +197,8 @@ namespace Truss.Cli.Templates
                 else
                     database.EnsureCreated();
 
+                await app.Services.RunTrussSeeders();
+
                 app.MapOpenApi();
                 app.MapScalarApiReference();
             }

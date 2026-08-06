@@ -25,6 +25,9 @@ namespace Truss.Cli.Tests
             var program = _workspace.ReadFile("Shop", "src", "Shop.Api", "Program.cs");
             Assert.Contains("UseNpgsql", program);
             Assert.Contains("app.MapCommand<CreateProduct, Guid>", program);
+            Assert.Contains("RunTrussSeeders", program);
+
+            Assert.True(_workspace.FileExists("Shop", "src", "Shop.Infrastructure", "Catalog", "CatalogSeeder.cs"));
 
             var compose = _workspace.ReadFile("Shop", "docker-compose.yml");
             Assert.Contains("postgres:16-alpine", compose);

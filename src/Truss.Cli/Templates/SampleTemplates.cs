@@ -201,6 +201,29 @@ namespace Truss.Cli.Templates
             }
             """;
 
+        public const string CatalogSeeder = """
+            using __NAME__.Domain.Catalog;
+            using Microsoft.EntityFrameworkCore;
+            using Truss.Persistence.EntityFrameworkCore;
+
+            namespace __NAME__.Infrastructure.Catalog
+            {
+                public class CatalogSeeder(AppDbContext context) : ITrussSeeder
+                {
+                    public async Task Seed(CancellationToken cancellationToken = default)
+                    {
+                        if (await context.Products.AnyAsync(cancellationToken))
+                            return;
+
+                        context.Products.Add(Product.Create("Beam", 10m));
+                        context.Products.Add(Product.Create("Column", 25m));
+
+                        await context.SaveChangesAsync(cancellationToken);
+                    }
+                }
+            }
+            """;
+
         public const string InfrastructureModule = """
             using __NAME__.Application.Catalog;
             using __NAME__.Infrastructure.Catalog;
@@ -213,6 +236,7 @@ namespace Truss.Cli.Templates
                     public static IServiceCollection AddInfrastructure(this IServiceCollection services)
                     {
                         services.AddScoped<IProductRepository, EfProductRepository>();
+                        services.AddTrussSeeder<CatalogSeeder>();
                         return services;
                     }
                 }

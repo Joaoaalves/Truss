@@ -124,6 +124,7 @@ namespace Truss.Cli
 
             Write(root, Path.Combine(infrastructure, "ProductConfiguration.cs"), SampleTemplates.ProductConfiguration, manifest);
             Write(root, Path.Combine(infrastructure, "EfProductRepository.cs"), SampleTemplates.EfProductRepository, manifest);
+            Write(root, Path.Combine(infrastructure, "CatalogSeeder.cs"), SampleTemplates.CatalogSeeder, manifest);
             Write(root, Path.Combine(manifest.InfrastructureProject, "InfrastructureModule.cs"), SampleTemplates.InfrastructureModule, manifest);
         }
 
