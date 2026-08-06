@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Truss.Rbac\Truss.Rbac.csproj" />
+    <ProjectReference Include="..\..\src\Truss.Rbac.EntityFrameworkCore\Truss.Rbac.EntityFrameworkCore.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.TestHost" Version="10.*" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.*" />
+    <PackageReference Include="SQLitePCLRaw.bundle_e_sqlite3" Version="3.*" />
+  </ItemGroup>
+
+</Project>

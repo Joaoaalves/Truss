@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <PackageId>Truss.Rbac</PackageId>
+    <Description>Role-based access control over the standard ASP.NET Core authorization: roles defined in code mapping to permissions, RequirePermission on any endpoint, and role claims resolved per request from a pluggable store.</Description>
+    <PackageTags>Rbac;Authorization;Permissions;Roles</PackageTags>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+</Project>

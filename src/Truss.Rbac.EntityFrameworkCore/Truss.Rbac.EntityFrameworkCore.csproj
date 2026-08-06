@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <PackageId>Truss.Rbac.EntityFrameworkCore</PackageId>
+    <Description>Role assignments persisted in the application database: one table, the store implementation and one registration.</Description>
+    <PackageTags>Rbac;Authorization;Roles;EntityFrameworkCore</PackageTags>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Truss.Rbac\Truss.Rbac.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="10.*" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" Version="10.*" />
+  </ItemGroup>
+
+</Project>
