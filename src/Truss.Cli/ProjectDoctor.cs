@@ -22,6 +22,12 @@ namespace Truss.Cli
 
             foreach (var module in manifest.Modules)
             {
+                if (module == "worker")
+                {
+                    Check(ProjectExists(root, Path.Combine("src", $"{manifest.Name}.Worker")), "worker project", log, ref problems);
+                    continue;
+                }
+
                 var package = module switch
                 {
                     "messaging" => "Truss.Messaging",

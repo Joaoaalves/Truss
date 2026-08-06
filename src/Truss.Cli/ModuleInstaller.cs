@@ -2,7 +2,7 @@ namespace Truss.Cli
 {
     internal static class ModuleInstaller
     {
-        public static readonly string[] Modules = ["messaging", "jobs", "observability", "mapping", "auth"];
+        public static readonly string[] Modules = ["messaging", "jobs", "observability", "mapping", "auth", "worker"];
 
         public static readonly string[] Transports = ["inmemory", "postgres", "rabbitmq", "redis"];
 
@@ -43,6 +43,7 @@ namespace Truss.Cli
                 "jobs" => InstallJobs(manifest, root, log),
                 "mapping" => InstallMapping(manifest, root),
                 "auth" => InstallAuth(transport, manifest, root, log),
+                "worker" => WorkerScaffolder.Install(manifest, root, log),
                 _ => InstallObservability(transport, manifest, root, log)
             };
 
@@ -106,7 +107,7 @@ namespace Truss.Cli
             return 0;
         }
 
-        private static string TransportRegistration(string transport) => transport switch
+        internal static string TransportRegistration(string transport) => transport switch
         {
             "postgres" => """
                 builder.Services.AddTrussPostgresTransport(options =>

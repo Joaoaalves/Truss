@@ -131,6 +131,10 @@ namespace Truss.Cli
                     case "auth":
                         block.AppendLine($"- Auth ({authProvider ?? "jwt"} provider): endpoints /auth/register, /auth/login and /auth/refresh. The Accounts context is editable project code; extend the User aggregate freely but keep credentials out of it. Protect endpoints with .RequireAuthorization(); the sub claim carries the user id.");
                         break;
+
+                    case "worker":
+                        block.AppendLine($"- Worker: src/{manifest.Name}.Worker is a separate consumer process sharing the application and infrastructure layers; it competes for messages and jobs with the API. New modules installed later must be wired into its Program.cs by hand.");
+                        break;
                 }
             }
         }

@@ -226,6 +226,38 @@ namespace Truss.Cli.Tests
         }
 
         [Fact]
+        public void AddWorker_ScaffoldsAConsumerProcess()
+        {
+            var root = ScaffoldShop();
+
+            Assert.Equal(1, _workspace.Run("add", "worker", "--project", root));
+
+            Assert.Equal(0, _workspace.Run("add", "messaging", "--transport", "redis", "--project", root));
+            Assert.Equal(0, _workspace.Run("add", "jobs", "--project", root));
+            Assert.Equal(0, _workspace.Run("add", "worker", "--project", root));
+
+            var csproj = _workspace.ReadFile("Shop", "src", "Shop.Worker", "Shop.Worker.csproj");
+            Assert.Contains("Microsoft.NET.Sdk.Worker", csproj);
+            Assert.Contains("Shop.Infrastructure.csproj", csproj);
+
+            var program = _workspace.ReadFile("Shop", "src", "Shop.Worker", "Program.cs");
+            Assert.Contains("Host.CreateApplicationBuilder", program);
+            Assert.Contains("AddTrussMessaging", program);
+            Assert.Contains("AddTrussRedisTransport", program);
+            Assert.Contains("AddTrussOutbox<AppDbContext>", program);
+            Assert.Contains("AddTrussJobs", program);
+            Assert.DoesNotContain("WebApplication", program);
+
+            var solution = _workspace.ReadFile("Shop", "Shop.slnx");
+            Assert.Contains("Shop.Worker.csproj", solution);
+
+            var manifest = TrussManifest.Load(root);
+            Assert.Contains("worker", manifest!.Modules);
+
+            Assert.Equal(0, _workspace.Run("doctor", "--project", root));
+        }
+
+        [Fact]
         public void AddSameModuleTwice_IsIdempotent()
         {
             var root = ScaffoldShop();
