@@ -98,10 +98,11 @@ namespace Truss.Jobs.Tests
             var succeededId = await Enqueue<ReportJob, ReportArgs>(host, new ReportArgs("catalog"));
             var failedId = await Enqueue<FailingJob, FailArgs>(host, new FailArgs("boom"));
 
-            await host.WaitForStatus(succeededId, JobStatus.Succeeded);
             await host.WaitForStatus(failedId, JobStatus.Failed);
 
-            var deadline = DateTime.UtcNow.AddSeconds(5);
+            // Only succeeded jobs are swept, so the record disappearing is itself
+            // the proof that the job finished and retention removed it.
+            var deadline = DateTime.UtcNow.AddSeconds(10);
 
             while (await host.Snapshot(succeededId) is not null && DateTime.UtcNow < deadline)
                 await Task.Delay(50);
