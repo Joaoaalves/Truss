@@ -73,6 +73,7 @@ namespace Truss.Cli
             }
 
             ComposeGenerator.Write(manifest, root);
+            AgentsGenerator.Write(manifest, root);
             manifest.Save(root);
 
             return root;
