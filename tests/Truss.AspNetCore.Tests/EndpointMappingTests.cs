@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Truss.Application;
 using Truss.AspNetCore.Tests.Fakes;
 using Xunit;
 
@@ -37,6 +38,22 @@ namespace Truss.AspNetCore.Tests
 
             Assert.Equal(HttpStatusCode.OK, response.StatusCode);
             Assert.Equal("pong:abc", await response.Content.ReadFromJsonAsync<string>());
+        }
+
+        [Fact]
+        public async Task MapQuery_BindsPagingFromTheQueryString()
+        {
+            var (app, client) = await StartAppAsync(app => app.MapQuery<ListNumbersQuery, PageResult<int>>("/numbers"));
+            await using var _ = app;
+
+            var page = await client.GetFromJsonAsync<PageResult<int>>("/numbers?page=2&size=2");
+
+            Assert.NotNull(page);
+            Assert.Equal([3, 4], page.Items);
+            Assert.Equal(2, page.Page);
+            Assert.Equal(5, page.TotalCount);
+            Assert.Equal(3, page.TotalPages);
+            Assert.True(page.HasNextPage);
         }
 
         [Fact]

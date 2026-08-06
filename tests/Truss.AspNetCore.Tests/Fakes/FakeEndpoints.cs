@@ -86,4 +86,18 @@ namespace Truss.AspNetCore.Tests.Fakes
             return Task.FromResult(request.Id);
         }
     }
+
+    public sealed record ListNumbersQuery(int Page = 1, int Size = 2) : IQuery<PageResult<int>>;
+
+    public class ListNumbersQueryHandler : IQueryHandler<ListNumbersQuery, PageResult<int>>
+    {
+        public Task<PageResult<int>> Handle(ListNumbersQuery request, CancellationToken cancellationToken)
+        {
+            var numbers = Enumerable.Range(1, 5).ToList();
+            var page = new PageRequest(request.Page, request.Size);
+            var items = numbers.Skip(page.Skip).Take(page.Size).ToList();
+
+            return Task.FromResult(new PageResult<int>(items, page.Page, page.Size, numbers.Count));
+        }
+    }
 }
