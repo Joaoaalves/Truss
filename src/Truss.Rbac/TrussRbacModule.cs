@@ -34,6 +34,7 @@ namespace Microsoft.Extensions.DependencyInjection
 
             services.Replace(ServiceDescriptor.Singleton<IAuthorizationPolicyProvider, PermissionPolicyProvider>());
             services.AddSingleton<IAuthorizationHandler, PermissionHandler>();
+            services.TryAddSingleton<IRoleScope, NullRoleScope>();
             services.AddScoped<IClaimsTransformation, RoleClaimsTransformation>();
 
             return services;

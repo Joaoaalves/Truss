@@ -8,6 +8,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Truss.Rbac\Truss.Rbac.csproj" />
+    <ProjectReference Include="..\Truss.Tenancy.Abstractions\Truss.Tenancy.Abstractions.csproj" />
   </ItemGroup>
 
   <ItemGroup>

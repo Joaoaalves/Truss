@@ -13,6 +13,7 @@ namespace Truss.Rbac
     /// </summary>
     public sealed class RoleClaimsTransformation(
         IEnumerable<IRoleAssignments> assignments,
+        IRoleScope scope,
         IMemoryCache cache,
         IOptions<TrussRbacOptions> options) : IClaimsTransformation
     {
@@ -30,7 +31,7 @@ namespace Truss.Rbac
             if (!Guid.TryParse(subject, out var userId))
                 return principal;
 
-            var roles = await cache.GetOrCreateAsync($"truss:rbac:roles:{userId}", async entry =>
+            var roles = await cache.GetOrCreateAsync($"truss:rbac:roles:{userId}:{scope.CurrentScopeId}", async entry =>
             {
                 entry.AbsoluteExpirationRelativeToNow = _options.RoleCacheDuration;
                 return await _assignments.RolesOf(userId);

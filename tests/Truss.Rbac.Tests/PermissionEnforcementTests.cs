@@ -41,14 +41,14 @@ namespace Truss.Rbac.Tests
             return Task.FromResult<IReadOnlyList<string>>(Roles.GetValueOrDefault(userId, []));
         }
 
-        public Task Assign(Guid userId, string role, CancellationToken cancellationToken = default)
+        public Task Assign(Guid userId, string role, Guid? scopeId = null, CancellationToken cancellationToken = default)
         {
             Roles.TryAdd(userId, []);
             Roles[userId].Add(role);
             return Task.CompletedTask;
         }
 
-        public Task Revoke(Guid userId, string role, CancellationToken cancellationToken = default)
+        public Task Revoke(Guid userId, string role, Guid? scopeId = null, CancellationToken cancellationToken = default)
         {
             Roles.GetValueOrDefault(userId)?.Remove(role);
             return Task.CompletedTask;
