@@ -27,10 +27,13 @@ namespace Microsoft.Extensions.DependencyInjection
         {
             services.TryAddSingleton<ITenantContext, AmbientTenantContext>();
             services.TryAddSingleton<TenantStampInterceptor>();
+            services.TryAddSingleton(provider =>
+                new TenantConnectionInterceptor(provider.GetService<ITenantConnectionStrings>()));
 
             services.AddSingleton<IDbContextOptionsConfiguration<TDbContext>>(
                 provider => new TenancyInterceptorConfiguration<TDbContext>(
-                    provider.GetRequiredService<TenantStampInterceptor>()));
+                    provider.GetRequiredService<TenantStampInterceptor>(),
+                    provider.GetRequiredService<TenantConnectionInterceptor>()));
 
             return services;
         }
@@ -39,13 +42,15 @@ namespace Microsoft.Extensions.DependencyInjection
 
 namespace Truss.Tenancy.EntityFrameworkCore
 {
-    internal sealed class TenancyInterceptorConfiguration<TDbContext>(TenantStampInterceptor interceptor)
+    internal sealed class TenancyInterceptorConfiguration<TDbContext>(
+        TenantStampInterceptor stampInterceptor,
+        TenantConnectionInterceptor connectionInterceptor)
         : IDbContextOptionsConfiguration<TDbContext>
         where TDbContext : DbContext
     {
         public void Configure(IServiceProvider serviceProvider, DbContextOptionsBuilder optionsBuilder)
         {
-            optionsBuilder.AddInterceptors(interceptor);
+            optionsBuilder.AddInterceptors(stampInterceptor, connectionInterceptor);
         }
     }
 }
