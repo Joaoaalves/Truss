@@ -42,6 +42,9 @@ Truss is built module by module, each one opt-in. The framework never installs a
 - Resend provider: truss add email --provider resend delivers through the official API client behind the same sender abstraction.
 - Multi-tenancy: row-level isolation with a clean domain, ambient resolution and loud failure on unstamped writes.
 - RBAC: roles in code mapping to permissions, RequirePermission on any endpoint and assignments in the database, independent of tenancy.
+- truss update: every Truss package pointed at the CLI's version in one command.
+- Database per tenant: one registered mapping routes each tenant to its own database, coexisting with the shared default.
+- Tenant-scoped grants: role assignments that apply inside one tenant, resolved against the ambient tenant automatically.
 
 ---
 

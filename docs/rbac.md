@@ -52,4 +52,17 @@ A claims transformation resolves the user's stored roles on each request from th
 - Any authentication that produces a `sub` or name identifier claim works: the scaffolded JWT auth, Identity, or an external provider.
 - Role claims already present in the token are honored too, so token-embedded roles work without the store.
 
-Configure the claim type and cache with `TrussRbacOptions`; tenant-scoped roles are planned for multi-tenant applications that need per-tenant grants.
+Configure the claim type and cache with `TrussRbacOptions`.
+
+---
+
+## Tenant-Scoped Grants
+
+In multi-tenant applications, a grant can apply inside one tenant only:
+
+```csharp
+await roles.Assign(userId, "admin");             // global: every tenant
+await roles.Assign(userId, "admin", tenantId);   // only inside that tenant
+```
+
+With tenancy installed, resolution binds to the ambient tenant automatically: a user sees their global roles everywhere and their scoped roles only inside the granting tenant. Without tenancy, every assignment behaves globally and nothing changes; the modules stay independent.

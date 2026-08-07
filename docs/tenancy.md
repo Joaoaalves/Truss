@@ -54,6 +54,15 @@ Outside HTTP (workers, tests), set `TenantContextHolder.Current` explicitly; int
 
 ---
 
-## What It Is Not
+## Database per Tenant
 
-This is shared-database isolation, the shape that fits most applications and every free tier. Database-per-tenant, tenant-scoped roles and ambient propagation through transports are deliberate future work; the seams (ambient context, marked entities) are where they will plug in.
+Row-level isolation in one shared database is the default and fits most applications. When a tenant needs its own database, register one mapping and nothing else changes:
+
+```csharp
+builder.Services.AddSingleton<ITenantConnectionStrings>(
+    new MyTenantDirectory());   // ConnectionStringFor(tenantId) -> connection string or null
+```
+
+Every connection the context opens is pointed at the current tenant's database first, on the ADO connection itself, so it works with any relational provider. Tenants without a mapping stay on the default connection: shared and dedicated databases coexist, which is how plans usually tier. Run `truss db migrate` once per tenant database as a deploy step.
+
+Ambient propagation through message transports remains explicit by design: integration events and job arguments carry the tenant as data when work crosses that boundary.

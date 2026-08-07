@@ -2247,9 +2247,18 @@ Outside HTTP (workers, tests), set `TenantContextHolder.Current` explicitly; int
 
 ---
 
-## What It Is Not
+## Database per Tenant
 
-This is shared-database isolation, the shape that fits most applications and every free tier. Database-per-tenant, tenant-scoped roles and ambient propagation through transports are deliberate future work; the seams (ambient context, marked entities) are where they will plug in.
+Row-level isolation in one shared database is the default and fits most applications. When a tenant needs its own database, register one mapping and nothing else changes:
+
+```csharp
+builder.Services.AddSingleton<ITenantConnectionStrings>(
+    new MyTenantDirectory());   // ConnectionStringFor(tenantId) -> connection string or null
+```
+
+Every connection the context opens is pointed at the current tenant's database first, on the ADO connection itself, so it works with any relational provider. Tenants without a mapping stay on the default connection: shared and dedicated databases coexist, which is how plans usually tier. Run `truss db migrate` once per tenant database as a deploy step.
+
+Ambient propagation through message transports remains explicit by design: integration events and job arguments carry the tenant as data when work crosses that boundary.
 
 ---
 
@@ -2309,7 +2318,20 @@ A claims transformation resolves the user's stored roles on each request from th
 - Any authentication that produces a `sub` or name identifier claim works: the scaffolded JWT auth, Identity, or an external provider.
 - Role claims already present in the token are honored too, so token-embedded roles work without the store.
 
-Configure the claim type and cache with `TrussRbacOptions`; tenant-scoped roles are planned for multi-tenant applications that need per-tenant grants.
+Configure the claim type and cache with `TrussRbacOptions`.
+
+---
+
+## Tenant-Scoped Grants
+
+In multi-tenant applications, a grant can apply inside one tenant only:
+
+```csharp
+await roles.Assign(userId, "admin");             // global: every tenant
+await roles.Assign(userId, "admin", tenantId);   // only inside that tenant
+```
+
+With tenancy installed, resolution binds to the ambient tenant automatically: a user sees their global roles everywhere and their scoped roles only inside the granting tenant. Without tenancy, every assignment behaves globally and nothing changes; the modules stay independent.
 
 ---
 
@@ -2497,6 +2519,16 @@ In development the scaffolded startup applies pending migrations automatically o
 
 ---
 
+## truss update
+
+```
+truss update
+```
+
+Points every `Truss.*` package reference in the project at the CLI's own version and records it in the manifest. Update the CLI first (`dotnet tool update -g Truss.Cli`), run `truss update`, build, and review the release notes for behavior changes.
+
+---
+
 ## truss doctor
 
 ```
@@ -2670,6 +2702,9 @@ Truss is built module by module, each one opt-in. The framework never installs a
 - Resend provider: truss add email --provider resend delivers through the official API client behind the same sender abstraction.
 - Multi-tenancy: row-level isolation with a clean domain, ambient resolution and loud failure on unstamped writes.
 - RBAC: roles in code mapping to permissions, RequirePermission on any endpoint and assignments in the database, independent of tenancy.
+- truss update: every Truss package pointed at the CLI's version in one command.
+- Database per tenant: one registered mapping routes each tenant to its own database, coexisting with the shared default.
+- Tenant-scoped grants: role assignments that apply inside one tenant, resolved against the ambient tenant automatically.
 
 ---
 

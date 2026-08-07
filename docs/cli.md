@@ -112,6 +112,16 @@ In development the scaffolded startup applies pending migrations automatically o
 
 ---
 
+## truss update
+
+```
+truss update
+```
+
+Points every `Truss.*` package reference in the project at the CLI's own version and records it in the manifest. Update the CLI first (`dotnet tool update -g Truss.Cli`), run `truss update`, build, and review the release notes for behavior changes.
+
+---
+
 ## truss doctor
 
 ```
