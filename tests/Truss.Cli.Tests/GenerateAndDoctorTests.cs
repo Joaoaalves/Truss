@@ -87,6 +87,25 @@ namespace Truss.Cli.Tests
         }
 
         [Fact]
+        public void Update_PointsEveryTrussPackageAtTheCliVersion()
+        {
+            var root = ScaffoldShop();
+            var current = TrussVersionInfo.Current();
+
+            var csproj = Path.Combine(root, "src", "Shop.Domain", "Shop.Domain.csproj");
+            File.WriteAllText(csproj, File.ReadAllText(csproj).Replace(current, "0.0.1"));
+
+            Assert.Equal(0, _workspace.Run("update", "--project", root));
+
+            var updated = _workspace.ReadFile("Shop", "src", "Shop.Domain", "Shop.Domain.csproj");
+            Assert.DoesNotContain("0.0.1", updated);
+            Assert.Contains($"Version=\"{current}\"", updated);
+
+            var manifest = TrussManifest.Load(root);
+            Assert.Equal(current, manifest!.TrussVersion);
+        }
+
+        [Fact]
         public void Doctor_PassesOnFreshScaffold_AndFailsAfterDamage()
         {
             var root = ScaffoldShop();

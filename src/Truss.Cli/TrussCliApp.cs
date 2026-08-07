@@ -50,6 +50,9 @@ namespace Truss.Cli
                         .WithDescription("Apply pending migrations to the database.");
                 });
 
+                config.AddCommand<UpdateCommand>("update")
+                    .WithDescription("Point every Truss package at this CLI's version.");
+
                 config.AddCommand<DoctorCommand>("doctor")
                     .WithDescription("Verify that the project matches its manifest.");
             });
