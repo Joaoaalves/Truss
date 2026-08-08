@@ -20,7 +20,7 @@ namespace Truss.Cli.Tests
         {
             PackFramework();
 
-            Assert.Equal(0, _workspace.Scaffold("Shop", "sqlite", "--local-packages", _feed));
+            Assert.Equal(0, _workspace.Scaffold("Shop", "sqlite", "--sample", "--local-packages", _feed));
             var root = _workspace.Root("Shop");
 
             AssertBuildSucceeds(root);
@@ -37,6 +37,12 @@ namespace Truss.Cli.Tests
             Assert.Equal(0, _workspace.Run("add", "rbac", "--project", root));
             Assert.Equal(0, _workspace.Run("add", "worker", "--project", root));
             Assert.Equal(0, _workspace.Run("generate", "command", "ArchiveProduct", "--context", "Catalog", "--project", root));
+
+            // A generated slice must unwind completely: the project has to build
+            // after its context is removed.
+            Assert.Equal(0, _workspace.Run("generate", "aggregate", "Coupon", "--context", "Promo", "--crud", "--project", root));
+            Assert.Equal(0, _workspace.Run("remove", "context", "Promo", "--project", root));
+
             Assert.Equal(0, _workspace.Run("doctor", "--project", root));
 
             AssertBuildSucceeds(root);

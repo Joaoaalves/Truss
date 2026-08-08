@@ -16,8 +16,8 @@ namespace Truss.Cli.Commands
             [CommandOption("--docker")]
             public bool Docker { get; init; }
 
-            [CommandOption("--empty")]
-            public bool Empty { get; init; }
+            [CommandOption("--sample")]
+            public bool Sample { get; init; }
 
             [CommandOption("--output <PATH>")]
             public string? Output { get; init; }
@@ -61,10 +61,13 @@ namespace Truss.Cli.Commands
             var docker = settings.Docker || (interactive && !settings.Docker && database is "postgres" or "sqlserver"
                 && AnsiConsole.Prompt(new ConfirmationPrompt("Generate docker-compose.yml for the database?")));
 
-            var sample = !settings.Empty && database != "none";
+            var sample = settings.Sample && database != "none";
 
-            if (!settings.Empty && database == "none")
-                Console.WriteLine("No database selected; scaffolding without the sample bounded context.");
+            if (settings.Sample && database == "none")
+                Console.WriteLine("The sample bounded context needs a database; scaffolding without it.");
+
+            if (!settings.Sample && interactive && database != "none")
+                sample = AnsiConsole.Prompt(new ConfirmationPrompt("Include the sample Catalog bounded context (working example code)?") { DefaultValue = false });
 
             try
             {

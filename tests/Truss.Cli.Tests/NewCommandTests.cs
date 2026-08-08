@@ -7,9 +7,9 @@ namespace Truss.Cli.Tests
         private readonly CliTestWorkspace _workspace = new();
 
         [Fact]
-        public void New_WithDatabase_ScaffoldsFullSolution()
+        public void New_WithSample_ScaffoldsFullSolutionWithTheCatalog()
         {
-            var exitCode = _workspace.Scaffold("Shop", "postgres", "--docker");
+            var exitCode = _workspace.Scaffold("Shop", "postgres", "--docker", "--sample");
 
             Assert.Equal(0, exitCode);
             Assert.True(_workspace.FileExists("Shop", "truss.json"));
@@ -36,6 +36,23 @@ namespace Truss.Cli.Tests
             Assert.NotNull(manifest);
             Assert.Equal("postgres", manifest.Database);
             Assert.True(manifest.Sample);
+        }
+
+        [Fact]
+        public void New_ByDefault_ScaffoldsClean()
+        {
+            var exitCode = _workspace.Scaffold("Shop", "postgres");
+
+            Assert.Equal(0, exitCode);
+            Assert.False(_workspace.FileExists("Shop", "src", "Shop.Domain", "Catalog", "Product.cs"));
+            Assert.False(_workspace.FileExists("Shop", "src", "Shop.Infrastructure", "InfrastructureModule.cs"));
+
+            var program = _workspace.ReadFile("Shop", "src", "Shop.Api", "Program.cs");
+            Assert.DoesNotContain("CreateProduct", program);
+            Assert.DoesNotContain("AddInfrastructure", program);
+
+            var manifest = TrussManifest.Load(_workspace.Root("Shop"));
+            Assert.False(manifest!.Sample);
         }
 
         [Fact]

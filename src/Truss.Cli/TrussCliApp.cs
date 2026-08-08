@@ -38,6 +38,14 @@ namespace Truss.Cli
                     generate.AddCommand<GenerateQueryCommand>("query");
                 });
 
+                config.AddBranch("remove", remove =>
+                {
+                    remove.SetDescription("Remove generated building blocks from the project.");
+                    remove.AddCommand<RemoveContextCommand>("context")
+                        .WithDescription("Delete a bounded context's folders and clean its wiring.")
+                        .WithExample("remove", "context", "Catalog");
+                });
+
                 config.AddCommand<DevCommand>("dev")
                     .WithDescription("Start the local dependencies and run the API with hot reload.");
 

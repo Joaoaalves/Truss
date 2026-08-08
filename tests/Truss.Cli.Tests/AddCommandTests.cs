@@ -8,7 +8,7 @@ namespace Truss.Cli.Tests
 
         private string ScaffoldShop()
         {
-            Assert.Equal(0, _workspace.Scaffold("Shop", "sqlite"));
+            Assert.Equal(0, _workspace.Scaffold("Shop", "sqlite", "--sample"));
             return _workspace.Root("Shop");
         }
 
