@@ -115,6 +115,59 @@ Choose it when you want Identity's ecosystem: its password hasher and upgrade pa
 
 ---
 
+## Binding the User to Your Aggregate
+
+Most systems already have the person somewhere in the domain: a `Customer`, a `Member`, a `Doctor`. `--bind-user` connects the account to that aggregate at scaffold time, in whichever of the two shapes fits your model:
+
+```
+truss add auth --bind-user Customer                      # reference (default)
+truss add auth --bind-user Customer --bind-mode merge    # the aggregate is the account
+```
+
+**Reference mode** keeps identity and business in separate contexts, which is the cleanest DDD cut: the scaffolded `User` carries the aggregate's typed id, `RegisterUser` takes it (`{"email": ..., "name": ..., "password": ..., "customerId": ...}`), and every issued token carries a `customerId` claim, so handlers can reach the business aggregate without a lookup. Create the `Customer` through your own commands first, then register the login for it.
+
+**Merge mode** says your aggregate IS the account: no `User` is scaffolded at all. The commands and stores are generated against `User` and `UserId` as usual, and a pair of `global using` aliases (`AccountAliases.cs`) points those names at your aggregate and its typed id, so all the scaffolded code operates on it directly and stays fully editable. The aggregate must own the identity fields; if it does not, the CLI prints exactly what to add:
+
+```csharp
+public string Email { get; private set; } = string.Empty;
+public string Name { get; private set; } = string.Empty;
+public static Customer Register(string email, string name) { ... }
+```
+
+Credentials, refresh tokens and account flows stay in infrastructure behind the same stores in both modes; binding never moves authentication state into the domain. If the merged aggregate has no EF configuration yet, one is generated mapping `Email` uniquely.
+
+Choose reference when the person and the account can diverge (one account operating several business entities, accounts created before the business relationship). Choose merge when a separate `User` would only mirror your aggregate one to one.
+
+---
+
+## External Login Providers
+
+```
+truss add auth --external google,microsoft,github
+```
+
+Combinable with either credential provider and with the binding, at install time or later. Each provider is wired as an OAuth scheme over the standard ASP.NET Core handlers (Google and Microsoft from Microsoft's packages, GitHub from the community `AspNet.Security.OAuth.GitHub`), and the flow ends in your own code:
+
+```
+GET /auth/external/google            -> redirects to the provider
+GET /auth/external/google/callback   -> access + refresh tokens, same shape as /auth/login
+```
+
+The callback dispatches a scaffolded `ExternalLogin` command. Its handler resolves the account: a login already linked in the `ExternalLogins` table wins; otherwise the account registered for the provider's email is linked; otherwise a new account is provisioned from the external profile (name and email, no password). Social login and password coexist on the same account, and the handler is your code, so the policy is yours to change.
+
+With a reference binding the last step differs: an account cannot be provisioned from an external profile alone, because it must reference your aggregate. Unknown emails are rejected with the stable code `accounts.external-unlinked`; register first, then sign in externally.
+
+Configuration lives under `Truss:Auth:External`; the id can sit in `appsettings.json`, the secret comes from the environment:
+
+```
+Truss__Auth__External__Google__ClientId=...
+Truss__Auth__External__Google__ClientSecret=...
+```
+
+Register the callback in each provider console as `https://<host>/signin-google`, `/signin-microsoft` or `/signin-github`. Two factor is not asked for external logins: the provider already authenticated the person.
+
+---
+
 ## Account Flows
 
 When the email module is present at `truss add auth` time, four more endpoints come along, built on single-use tokens that are stored only as hashes, expire, and are consumed atomically with the command that uses them:
@@ -145,4 +198,4 @@ Exposing a "turn on two factor" surface is your call: an authenticated endpoint 
 
 ## Roadmap
 
-External OpenID providers (Google, Microsoft, GitHub) are planned. The scaffolded model is provider-independent: switching providers later means changing the mechanics, not your domain.
+Further external providers land by demand. The scaffolded model is provider-independent: switching providers later means changing the mechanics, not your domain.

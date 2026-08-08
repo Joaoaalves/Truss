@@ -46,22 +46,14 @@ Truss is built module by module, each one opt-in. The framework never installs a
 - Database per tenant: one registered mapping routes each tenant to its own database, coexisting with the shared default.
 - Tenant-scoped grants: role assignments that apply inside one tenant, resolved against the ambient tenant automatically.
 - Rich generators: aggregates in their own folder with value objects, events and a starter rule; a new entity generator; and --crud producing the whole vertical slice with routes wired.
+- User binding: truss add auth --bind-user connects the account to an existing aggregate, holding its id (reference) or being it outright (merge).
+- External login providers: Google, Microsoft and GitHub OAuth combinable with either credential provider, resolved into the same editable account model.
 
 ---
 
 ## Next
 
-### Auth providers
-
-External OpenID providers (Google, Microsoft, GitHub) over the same editable account model, and further transactional email providers by demand.
-
----
-
-## Planned
-
-| Module | Purpose |
-|---|---|
-| Auth providers | External OpenID providers and scaffolded account flows |
+Further providers (login and transactional email) land by demand.
 
 ---
 
