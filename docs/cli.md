@@ -91,19 +91,33 @@ truss generate query GetOrderById --context Sales --result OrderDto
 truss generate query ListOrders --context Sales --result OrderDto --paged
 ```
 
-Generates building blocks inside the layer projects. An aggregate gets its own folder with everything that belongs to it:
+Generates building blocks inside the layer projects. Namespaces mirror the folders exactly. An aggregate gets its own folder and namespace with everything that belongs to it:
 
 ```
 Domain/Sales/Order/
-  Order.cs                    the aggregate, with the starter rule wired in Create
-  ValueObjects/OrderId.cs     the typed id
-  Events/OrderCreated.cs      the creation event
-  Rules/OrderMustBeValid.cs   a starter rule to replace with the first real invariant
+  Order.cs                    the aggregate, namespace Shop.Domain.Sales.Order
+  ValueObjects/OrderId.cs     the typed id, in .ValueObjects
+  Events/OrderCreated.cs      the creation event, in .Events
+  Rules/OrderMustBeValid.cs   a starter rule to replace with the first real invariant, in .Rules
 ```
 
-`generate entity` creates an `Entity<TId>` with its typed id, in its own folder or nested inside an owning aggregate's folder with `--aggregate`. Namespaces stay flat per context; the folders only organize.
+`generate entity` creates an `Entity<TId>` with its typed id, in its own folder or nested inside an owning aggregate's folder (and namespace) with `--aggregate`. `generate command` and `generate query` put each command or query in its own folder with its handler and validator, under its own namespace.
 
-`--crud` on an aggregate generates the full vertical slice: `Create`, `Update` and `Delete` commands with handlers and validators, `GetById` and a paged `List` query, the repository interface in the application layer with its EF implementation and configuration in infrastructure, the repository registration and the five routes wired into `Program.cs`. The generated aggregate carries a starter `Name` field so everything works end to end immediately; `Update` goes through an intention-revealing `Rename` method on the aggregate, showing where real behavior belongs instead of property setters. Missing records surface as a 422 with the stable code `<name>.not-found`.
+`--crud` on an aggregate generates the full vertical slice, organized the same way:
+
+```
+Application/Billing/Invoice/
+  IInvoiceRepository.cs       the repository contract
+  DTOs/InvoiceDto.cs
+  Rules/InvoiceMustExist.cs   surfaces as 422 with the stable code invoice.not-found
+  CreateInvoice/              CreateInvoice.cs, handler and validator
+  UpdateInvoice/              command, handler and validator
+  DeleteInvoice/              command and handler
+  GetInvoiceById/             query and handler
+  ListInvoice/                paged query, handler and validator
+```
+
+The EF repository implementation and configuration land in infrastructure, and the repository registration plus the five routes are wired into `Program.cs`. The generated aggregate carries a starter `Name` field so everything works end to end immediately; `Update` goes through an intention-revealing `Rename` method on the aggregate, showing where real behavior belongs instead of property setters. Inside the application feature the using directives sit within the namespace, so the aggregate type always resolves over its same-named namespace.
 
 When the project has the test projects, generated code arrives tested: an aggregate brings a domain test asserting its creation event (and, with `--crud`, the `Rename` behavior), and the crud slice brings an integration test driving create, read, update, list and delete through the pipeline. The tests mirror the context folders and are yours to grow.
 

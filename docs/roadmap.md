@@ -50,6 +50,7 @@ Truss is built module by module, each one opt-in. The framework never installs a
 - External login providers: Google, Microsoft and GitHub OAuth combinable with either credential provider, resolved into the same editable account model.
 - Clean scaffold by default: truss new creates no example code unless --sample asks for the Catalog context, and truss remove context deletes a bounded context with all its wiring.
 - Scaffolded tests: every new project carries a domain test project and an integration test project on the TrussTestHost, and generators add matching tests, so generated code arrives tested.
+- Mirrored namespaces: generated code's namespaces follow the folders exactly, with each command and query in its own folder and DTOs and rules in theirs.
 
 ---
 
