@@ -50,7 +50,7 @@ namespace Truss.Cli
                 - src/{name}.Domain: aggregates, value objects, domain events and business rules. No dependencies beyond Truss.Domain; never reference infrastructure here.
                 - src/{name}.Application: commands, queries, handlers and validators, organized by bounded context folder.
                 - src/{name}.Infrastructure: persistence models, EF configurations, repositories and module registrations.
-                - src/{name}.Api: the composition root. Program.cs wires modules and maps endpoints.
+                - src/{name}.Api: the composition root. Program.cs wires modules and maps endpoints.{TestsLayout(manifest)}
 
                 ## Rules that gate every change
 
@@ -156,6 +156,14 @@ namespace Truss.Cli
                         break;
                 }
             }
+        }
+
+        private static string TestsLayout(TrussManifest manifest)
+        {
+            return manifest.Tests
+                ? $"\n- tests/{manifest.Name}.Domain.Tests: pure unit tests of aggregates and rules; no infrastructure."
+                    + $"\n- tests/{manifest.Name}.IntegrationTests: commands dispatched through the full pipeline on TrussTestHost (throwaway database, in-memory transport). Generators add matching tests here; keep them green."
+                : string.Empty;
         }
 
         private static string AuthBindingNote(TrussManifest manifest)

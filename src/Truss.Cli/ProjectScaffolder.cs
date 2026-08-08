@@ -7,6 +7,7 @@ namespace Truss.Cli
         string Database,
         bool Docker,
         bool Sample,
+        bool Tests,
         string OutputDirectory,
         string? LocalPackagesFeed);
 
@@ -33,16 +34,20 @@ namespace Truss.Cli
                 TrussVersion = TrussVersionInfo.Current(),
                 Database = options.Database,
                 Docker = options.Docker,
-                Sample = options.Sample
+                Sample = options.Sample,
+                Tests = options.Tests
             };
 
             var usesEf = manifest.UsesEntityFramework;
 
             Directory.CreateDirectory(root);
 
+            var solution = (usesEf ? ProjectTemplates.SolutionWithInfrastructure : ProjectTemplates.SolutionWithoutInfrastructure)
+                .Replace("__TESTS__", options.Tests ? Environment.NewLine + TestTemplates.SolutionTestsFolder : string.Empty);
+
             Write(root, ".gitignore", ProjectTemplates.GitIgnore, manifest);
             Write(root, "Directory.Build.props", ProjectTemplates.DirectoryBuildProps, manifest);
-            Write(root, $"{options.Name}.slnx", usesEf ? ProjectTemplates.SolutionWithInfrastructure : ProjectTemplates.SolutionWithoutInfrastructure, manifest);
+            Write(root, $"{options.Name}.slnx", solution, manifest);
 
             Write(root, Path.Combine(manifest.DomainProject, $"{options.Name}.Domain.csproj"), ProjectTemplates.DomainCsproj, manifest);
             Write(root, Path.Combine(manifest.ApplicationProject, $"{options.Name}.Application.csproj"), ProjectTemplates.ApplicationCsproj, manifest);
@@ -64,6 +69,9 @@ namespace Truss.Cli
 
             Write(root, Path.Combine(manifest.ApiProject, "Program.cs"), BuildProgramTemplate(manifest), manifest);
             Write(root, Path.Combine(manifest.ApiProject, "Properties", "launchSettings.json"), ProjectTemplates.LaunchSettings, manifest);
+
+            if (options.Tests)
+                WriteTestProjects(root, manifest);
 
             if (options.Sample)
                 WriteSample(root, manifest);
@@ -104,6 +112,22 @@ namespace Truss.Cli
             return template;
         }
 
+        internal static void WriteTestProjects(string root, TrussManifest manifest)
+        {
+            Write(root, Path.Combine(manifest.DomainTestsProject, $"{manifest.Name}.Domain.Tests.csproj"), TestTemplates.DomainTestsCsproj, manifest);
+
+            if (manifest.UsesEntityFramework)
+            {
+                Write(root, Path.Combine(manifest.IntegrationTestsProject, $"{manifest.Name}.IntegrationTests.csproj"), TestTemplates.IntegrationTestsCsproj, manifest);
+                Write(root, Path.Combine(manifest.IntegrationTestsProject, "HostSmokeTests.cs"), TestTemplates.HostSmokeTests, manifest);
+            }
+            else
+            {
+                Write(root, Path.Combine(manifest.IntegrationTestsProject, $"{manifest.Name}.IntegrationTests.csproj"), TestTemplates.IntegrationTestsCsprojWithoutInfrastructure, manifest);
+                Write(root, Path.Combine(manifest.IntegrationTestsProject, "HostSmokeTests.cs"), TestTemplates.HostSmokeTestsWithoutDatabase, manifest);
+            }
+        }
+
         private static void WriteSample(string root, TrussManifest manifest)
         {
             var domain = Path.Combine(manifest.DomainProject, "Catalog");
@@ -126,6 +150,12 @@ namespace Truss.Cli
             Write(root, Path.Combine(infrastructure, "EfProductRepository.cs"), SampleTemplates.EfProductRepository, manifest);
             Write(root, Path.Combine(infrastructure, "CatalogSeeder.cs"), SampleTemplates.CatalogSeeder, manifest);
             Write(root, Path.Combine(manifest.InfrastructureProject, "InfrastructureModule.cs"), SampleTemplates.InfrastructureModule, manifest);
+
+            if (manifest.Tests)
+            {
+                Write(root, Path.Combine(manifest.DomainTestsProject, "Catalog", "ProductTests.cs"), TestTemplates.SampleProductTests, manifest);
+                Write(root, Path.Combine(manifest.IntegrationTestsProject, "Catalog", "CatalogTests.cs"), TestTemplates.SampleCatalogTests, manifest);
+            }
         }
 
         private static void Write(string root, string relativePath, string template, TrussManifest manifest)

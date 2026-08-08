@@ -45,7 +45,10 @@ namespace Truss.Cli.Tests
 
             Assert.Equal(0, _workspace.Run("doctor", "--project", root));
 
-            AssertBuildSucceeds(root);
+            // Running the scaffolded test suite proves the generated tests are
+            // green, not merely compiling: the sample tests, the Invoice crud
+            // slice through the pipeline and the host smoke test.
+            AssertTestsSucceed(root);
 
             RunMigrations(root);
 
@@ -60,6 +63,9 @@ namespace Truss.Cli.Tests
             File.WriteAllText(
                 Path.Combine(identityRoot, "src", "IdShop.Domain", "Community", "Member", "Member.cs"),
                 MergedMemberAggregate);
+            File.WriteAllText(
+                Path.Combine(identityRoot, "tests", "IdShop.Domain.Tests", "Community", "MemberTests.cs"),
+                MergedMemberTests);
 
             Assert.Equal(0, _workspace.Run(
                 "add", "auth", "--provider", "identity",
@@ -98,6 +104,26 @@ namespace Truss.Cli.Tests
 
                         member.AddDomainEvent(new MemberCreated(member.Id));
                         return member;
+                    }
+                }
+            }
+            """;
+
+        private const string MergedMemberTests = """
+            using IdShop.Domain.Community;
+            using Xunit;
+
+            namespace IdShop.Domain.Tests.Community
+            {
+                public class MemberTests
+                {
+                    [Fact]
+                    public void Register_NormalizesTheEmail_AndRaisesTheCreationEvent()
+                    {
+                        var member = Member.Register("Ana@Example.com", "Ana");
+
+                        Assert.Equal("ana@example.com", member.Email);
+                        Assert.Contains(member.DomainEvents, domainEvent => domainEvent is MemberCreated);
                     }
                 }
             }
@@ -146,6 +172,13 @@ namespace Truss.Cli.Tests
             var result = RunProcess(root, "dotnet", $"build {name}.slnx -c Release --nologo", isolateNuGetCache: true);
 
             Assert.True(result.ExitCode == 0, $"Scaffolded project failed to build:{Environment.NewLine}{result.Output}");
+        }
+
+        private void AssertTestsSucceed(string root, string name = "Shop")
+        {
+            var result = RunProcess(root, "dotnet", $"test {name}.slnx -c Release --nologo", isolateNuGetCache: true);
+
+            Assert.True(result.ExitCode == 0, $"Scaffolded tests failed:{Environment.NewLine}{result.Output}");
         }
 
         private (int ExitCode, string Output) RunProcess(string workingDirectory, string fileName, string arguments, bool isolateNuGetCache)

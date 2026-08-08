@@ -18,6 +18,8 @@ namespace Truss.Cli.Tests
             Assert.False(Directory.Exists(Path.Combine(root, "src", "Shop.Domain", "Billing")));
             Assert.False(Directory.Exists(Path.Combine(root, "src", "Shop.Application", "Billing")));
             Assert.False(Directory.Exists(Path.Combine(root, "src", "Shop.Infrastructure", "Billing")));
+            Assert.False(Directory.Exists(Path.Combine(root, "tests", "Shop.Domain.Tests", "Billing")));
+            Assert.False(Directory.Exists(Path.Combine(root, "tests", "Shop.IntegrationTests", "Billing")));
 
             var program = _workspace.ReadFile("Shop", "src", "Shop.Api", "Program.cs");
             Assert.DoesNotContain("Invoice", program);

@@ -19,6 +19,9 @@ namespace Truss.Cli.Commands
             [CommandOption("--sample")]
             public bool Sample { get; init; }
 
+            [CommandOption("--no-tests")]
+            public bool NoTests { get; init; }
+
             [CommandOption("--output <PATH>")]
             public string? Output { get; init; }
 
@@ -76,6 +79,7 @@ namespace Truss.Cli.Commands
                     database,
                     docker,
                     sample,
+                    !settings.NoTests,
                     settings.Output ?? Directory.GetCurrentDirectory(),
                     settings.LocalPackages));
 

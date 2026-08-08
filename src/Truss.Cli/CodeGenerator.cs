@@ -34,8 +34,26 @@ namespace Truss.Cli
                 WriteFile(Path.Combine(folder, "Rules"), $"{name}MustBeValid.cs", RenderRich(GeneratorTemplates.AggregateRule, manifest, name, context))
             };
 
+            if (HasTests(manifest, root, manifest.DomainTestsProject))
+            {
+                files.Add(WriteFile(
+                    TargetDirectory(root, manifest.DomainTestsProject, context),
+                    $"{name}Tests.cs",
+                    RenderTest(crud ? TestTemplates.AggregateCrudTests : TestTemplates.AggregateTests, manifest, name, context)));
+            }
+
             if (crud)
+            {
                 files.AddRange(GenerateCrud(manifest, root, name, context));
+
+                if (HasTests(manifest, root, manifest.IntegrationTestsProject))
+                {
+                    files.Add(WriteFile(
+                        TargetDirectory(root, manifest.IntegrationTestsProject, context),
+                        $"{name}CrudTests.cs",
+                        RenderTest(TestTemplates.CrudIntegrationTests, manifest, name, context)));
+                }
+            }
 
             return files;
         }
@@ -190,6 +208,46 @@ namespace Truss.Cli
                 .Replace("__NS_INFRASTRUCTURE__", InfrastructureNamespace(manifest, context))
                 .Replace("__TYPE__", name)
                 .Replace("__CAMEL__", char.ToLowerInvariant(name[0]) + name[1..]);
+        }
+
+        private static bool HasTests(TrussManifest manifest, string root, string project)
+        {
+            return manifest.Tests && Directory.Exists(Path.Combine(root, project));
+        }
+
+        private static string RenderTest(string template, TrussManifest manifest, string name, string? context)
+        {
+            var domainTests = context is null ? $"{manifest.Name}.Domain.Tests" : $"{manifest.Name}.Domain.Tests.{context}";
+            var integrationTests = context is null ? $"{manifest.Name}.IntegrationTests" : $"{manifest.Name}.IntegrationTests.{context}";
+
+            var rendered = RenderRich(template, manifest, name, context)
+                .Replace("__NS_DOMAIN_TESTS__", domainTests)
+                .Replace("__NS_INTEGRATION_TESTS__", integrationTests)
+                .Replace("__NAME__", manifest.Name);
+
+            return DedupeUsings(rendered);
+        }
+
+        /// <summary>
+        /// Without a context the layer namespaces collapse into the root ones and
+        /// a rendered test would repeat a using; keep the first of each.
+        /// </summary>
+        private static string DedupeUsings(string content)
+        {
+            var seen = new HashSet<string>(StringComparer.Ordinal);
+            var lines = new List<string>();
+
+            foreach (var raw in content.Split('\n'))
+            {
+                var line = raw.TrimEnd('\r');
+
+                if (line.StartsWith("using ", StringComparison.Ordinal) && !seen.Add(line))
+                    continue;
+
+                lines.Add(line);
+            }
+
+            return string.Join('\n', lines);
         }
 
         private static string Render(string template, string type, string ns, string? result)

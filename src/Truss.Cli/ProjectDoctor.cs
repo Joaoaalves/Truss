@@ -20,8 +20,17 @@ namespace Truss.Cli
             if (manifest.Docker)
                 Check(File.Exists(Path.Combine(root, "docker-compose.yml")), "docker-compose.yml", log, ref problems);
 
+            if (manifest.Tests)
+            {
+                Check(ProjectExists(root, manifest.DomainTestsProject), "domain tests project", log, ref problems);
+                Check(ProjectExists(root, manifest.IntegrationTestsProject), "integration tests project", log, ref problems);
+            }
+
             foreach (var module in manifest.Modules)
             {
+                if (module == "tests")
+                    continue;
+
                 if (module == "worker")
                 {
                     Check(ProjectExists(root, Path.Combine("src", $"{manifest.Name}.Worker")), "worker project", log, ref problems);

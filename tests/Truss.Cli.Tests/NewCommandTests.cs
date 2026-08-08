@@ -39,7 +39,7 @@ namespace Truss.Cli.Tests
         }
 
         [Fact]
-        public void New_ByDefault_ScaffoldsClean()
+        public void New_ByDefault_ScaffoldsClean_WithTestProjects()
         {
             var exitCode = _workspace.Scaffold("Shop", "postgres");
 
@@ -51,8 +51,48 @@ namespace Truss.Cli.Tests
             Assert.DoesNotContain("CreateProduct", program);
             Assert.DoesNotContain("AddInfrastructure", program);
 
+            Assert.True(_workspace.FileExists("Shop", "tests", "Shop.Domain.Tests", "Shop.Domain.Tests.csproj"));
+            Assert.True(_workspace.FileExists("Shop", "tests", "Shop.IntegrationTests", "Shop.IntegrationTests.csproj"));
+
+            var smoke = _workspace.ReadFile("Shop", "tests", "Shop.IntegrationTests", "HostSmokeTests.cs");
+            Assert.Contains("TrussTestHost.Start<AppDbContext>", smoke);
+
+            var solution = _workspace.ReadFile("Shop", "Shop.slnx");
+            Assert.Contains("tests/Shop.Domain.Tests/Shop.Domain.Tests.csproj", solution);
+
             var manifest = TrussManifest.Load(_workspace.Root("Shop"));
             Assert.False(manifest!.Sample);
+            Assert.True(manifest.Tests);
+        }
+
+        [Fact]
+        public void New_WithNoTests_SkipsTestProjects_AndAddTestsBringsThemLater()
+        {
+            Assert.Equal(0, _workspace.Scaffold("Shop", "sqlite", "--no-tests"));
+            var root = _workspace.Root("Shop");
+
+            Assert.False(Directory.Exists(Path.Combine(root, "tests")));
+            Assert.False(TrussManifest.Load(root)!.Tests);
+
+            Assert.Equal(0, _workspace.Run("add", "tests", "--project", root));
+
+            Assert.True(_workspace.FileExists("Shop", "tests", "Shop.Domain.Tests", "Shop.Domain.Tests.csproj"));
+            Assert.True(_workspace.FileExists("Shop", "tests", "Shop.IntegrationTests", "HostSmokeTests.cs"));
+            Assert.Contains("tests/Shop.IntegrationTests/Shop.IntegrationTests.csproj", _workspace.ReadFile("Shop", "Shop.slnx"));
+            Assert.True(TrussManifest.Load(root)!.Tests);
+
+            Assert.Equal(0, _workspace.Run("doctor", "--project", root));
+        }
+
+        [Fact]
+        public void New_WithSampleAndTests_ScaffoldsTheSampleTests()
+        {
+            Assert.Equal(0, _workspace.Scaffold("Shop", "sqlite", "--sample"));
+
+            Assert.True(_workspace.FileExists("Shop", "tests", "Shop.Domain.Tests", "Catalog", "ProductTests.cs"));
+
+            var integration = _workspace.ReadFile("Shop", "tests", "Shop.IntegrationTests", "Catalog", "CatalogTests.cs");
+            Assert.Contains("AddScoped<IProductRepository, EfProductRepository>", integration);
         }
 
         [Fact]

@@ -31,7 +31,7 @@ namespace Truss.Cli.Templates
                 <Project Path="src/__NAME__.Application/__NAME__.Application.csproj" />
                 <Project Path="src/__NAME__.Infrastructure/__NAME__.Infrastructure.csproj" />
                 <Project Path="src/__NAME__.Api/__NAME__.Api.csproj" />
-              </Folder>
+              </Folder>__TESTS__
             </Solution>
             """;
 
@@ -41,7 +41,7 @@ namespace Truss.Cli.Templates
                 <Project Path="src/__NAME__.Domain/__NAME__.Domain.csproj" />
                 <Project Path="src/__NAME__.Application/__NAME__.Application.csproj" />
                 <Project Path="src/__NAME__.Api/__NAME__.Api.csproj" />
-              </Folder>
+              </Folder>__TESTS__
             </Solution>
             """;
 

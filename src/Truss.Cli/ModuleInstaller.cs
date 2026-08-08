@@ -1,8 +1,10 @@
+using Truss.Cli.Templates;
+
 namespace Truss.Cli
 {
     internal static class ModuleInstaller
     {
-        public static readonly string[] Modules = ["email", "messaging", "jobs", "observability", "mapping", "auth", "rbac", "tenancy", "worker"];
+        public static readonly string[] Modules = ["email", "messaging", "jobs", "observability", "mapping", "auth", "rbac", "tenancy", "tests", "worker"];
 
         public static readonly string[] Transports = ["inmemory", "postgres", "rabbitmq", "redis"];
 
@@ -63,6 +65,7 @@ namespace Truss.Cli
                 "jobs" => InstallJobs(manifest, root, log),
                 "mapping" => InstallMapping(manifest, root),
                 "auth" => InstallAuth(transport, auth ?? AuthAddOptions.None, manifest, root, log),
+                "tests" => InstallTests(manifest, root, log),
                 "worker" => WorkerScaffolder.Install(manifest, root, log),
                 "email" => InstallEmail(transport, manifest, root, log),
                 "tenancy" => InstallTenancy(manifest, root, log),
@@ -215,6 +218,48 @@ namespace Truss.Cli
         }
 
 
+
+        private static int InstallTests(TrussManifest manifest, string root, Action<string> log)
+        {
+            if (manifest.Tests)
+            {
+                log("The test projects are already scaffolded.");
+                return 1;
+            }
+
+            ProjectScaffolder.WriteTestProjects(root, manifest);
+
+            var solution = Path.Combine(root, $"{manifest.Name}.slnx");
+            var folder = TestTemplates.SolutionTestsFolder.Replace("__NAME__", manifest.Name);
+
+            if (!SourceEditor.InsertBefore(solution, "</Solution>", folder))
+                log($"Could not update the solution automatically. Add to {manifest.Name}.slnx:{Environment.NewLine}{folder}");
+
+            if (manifest.Sample)
+            {
+                var domainTest = Path.Combine(root, manifest.DomainTestsProject, "Catalog", "ProductTests.cs");
+                var integrationTest = Path.Combine(root, manifest.IntegrationTestsProject, "Catalog", "CatalogTests.cs");
+
+                if (!File.Exists(domainTest))
+                    WriteRendered(domainTest, TestTemplates.SampleProductTests, manifest);
+
+                if (!File.Exists(integrationTest))
+                    WriteRendered(integrationTest, TestTemplates.SampleCatalogTests, manifest);
+            }
+
+            manifest.Tests = true;
+
+            log("Two test projects were scaffolded: pure domain tests and integration tests on the TrussTestHost.");
+            log("Generators now add matching tests: an aggregate gets its domain test and --crud gets an integration test of the whole slice.");
+
+            return 0;
+        }
+
+        private static void WriteRendered(string path, string template, TrussManifest manifest)
+        {
+            Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+            File.WriteAllText(path, template.Replace("__NAME__", manifest.Name) + Environment.NewLine);
+        }
 
         private static int InstallTenancy(TrussManifest manifest, string root, Action<string> log)
         {

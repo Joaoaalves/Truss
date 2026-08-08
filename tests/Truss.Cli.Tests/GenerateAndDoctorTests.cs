@@ -46,6 +46,10 @@ namespace Truss.Cli.Tests
             Assert.True(_workspace.FileExists("Shop", "src", "Shop.Domain", "Sales", "Order", "ValueObjects", "OrderId.cs"));
             Assert.True(_workspace.FileExists("Shop", "src", "Shop.Domain", "Sales", "Order", "Events", "OrderCreated.cs"));
             Assert.True(_workspace.FileExists("Shop", "src", "Shop.Domain", "Sales", "Order", "Rules", "OrderMustBeValid.cs"));
+
+            var test = _workspace.ReadFile("Shop", "tests", "Shop.Domain.Tests", "Sales", "OrderTests.cs");
+            Assert.Contains("namespace Shop.Domain.Tests.Sales", test);
+            Assert.Contains("Order.Create()", test);
         }
 
         [Fact]
@@ -86,6 +90,13 @@ namespace Truss.Cli.Tests
             Assert.Contains("app.MapCommand<CreateInvoice, Guid>(\"/invoices\"", program);
             Assert.Contains("app.MapQuery<ListInvoice, PageResult<InvoiceDto>>(\"/invoices\");", program);
             Assert.Contains("using Shop.Application.Billing;", program);
+
+            var domainTest = _workspace.ReadFile("Shop", "tests", "Shop.Domain.Tests", "Billing", "InvoiceTests.cs");
+            Assert.Contains("Rename_ChangesTheName", domainTest);
+
+            var crudTest = _workspace.ReadFile("Shop", "tests", "Shop.IntegrationTests", "Billing", "InvoiceCrudTests.cs");
+            Assert.Contains("AddScoped<IInvoiceRepository, EfInvoiceRepository>", crudTest);
+            Assert.Contains("new CreateInvoice(\"Beam\")", crudTest);
         }
 
         [Fact]

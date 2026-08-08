@@ -28,7 +28,9 @@ namespace Truss.Cli
                 {
                     Path.Combine(root, manifest.DomainProject, context),
                     Path.Combine(root, manifest.ApplicationProject, context),
-                    Path.Combine(root, manifest.InfrastructureProject, context)
+                    Path.Combine(root, manifest.InfrastructureProject, context),
+                    Path.Combine(root, manifest.DomainTestsProject, context),
+                    Path.Combine(root, manifest.IntegrationTestsProject, context)
                 }
                 .Where(Directory.Exists)
                 .ToArray();

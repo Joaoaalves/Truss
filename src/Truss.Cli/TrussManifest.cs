@@ -24,6 +24,8 @@ namespace Truss.Cli
 
         public bool Sample { get; set; }
 
+        public bool Tests { get; set; }
+
         public List<string> Modules { get; set; } = [];
 
         public Dictionary<string, string> Settings { get; set; } = [];
@@ -37,6 +39,10 @@ namespace Truss.Cli
         public string InfrastructureProject => Path.Combine("src", $"{Name}.Infrastructure");
 
         public string ApiProject => Path.Combine("src", $"{Name}.Api");
+
+        public string DomainTestsProject => Path.Combine("tests", $"{Name}.Domain.Tests");
+
+        public string IntegrationTestsProject => Path.Combine("tests", $"{Name}.IntegrationTests");
 
         public void Save(string rootDirectory)
         {
