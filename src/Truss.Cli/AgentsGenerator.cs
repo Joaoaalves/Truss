@@ -64,7 +64,8 @@ namespace Truss.Cli
                 ## Workflow
 
                 - New bounded context: truss generate context <Name>
-                - New aggregate: truss generate aggregate <Name> --context <Context>
+                - New aggregate: truss generate aggregate <Name> --context <Context> (own folder with id, event and starter rule; add --crud for the full vertical slice with routes)
+                - New entity: truss generate entity <Name> --context <Context> [--aggregate <Owner>]
                 - New command or query: truss generate command|query <Name> --context <Context> (record, handler and validator; map it in Program.cs)
                 - Install a module: truss add messaging|jobs|observability|mapping|auth
                 - Evolve the schema: truss db add <Name>, then truss db migrate (development applies pending migrations on startup)

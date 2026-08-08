@@ -33,6 +33,7 @@ namespace Truss.Cli
                     generate.SetDescription("Generate building blocks inside the project.");
                     generate.AddCommand<GenerateContextCommand>("context");
                     generate.AddCommand<GenerateAggregateCommand>("aggregate");
+                    generate.AddCommand<GenerateEntityCommand>("entity");
                     generate.AddCommand<GenerateCommandCommand>("command");
                     generate.AddCommand<GenerateQueryCommand>("query");
                 });

@@ -35,6 +35,8 @@ namespace Truss.Cli.Tests
             Assert.Equal(0, _workspace.Run("add", "rbac", "--project", root));
             Assert.Equal(0, _workspace.Run("add", "worker", "--project", root));
             Assert.Equal(0, _workspace.Run("generate", "command", "ArchiveProduct", "--context", "Catalog", "--project", root));
+            Assert.Equal(0, _workspace.Run("generate", "aggregate", "Invoice", "--context", "Billing", "--crud", "--project", root));
+            Assert.Equal(0, _workspace.Run("generate", "entity", "InvoiceLine", "--context", "Billing", "--aggregate", "Invoice", "--project", root));
             Assert.Equal(0, _workspace.Run("doctor", "--project", root));
 
             AssertBuildSucceeds(root);

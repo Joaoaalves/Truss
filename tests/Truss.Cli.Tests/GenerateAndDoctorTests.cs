@@ -30,7 +30,7 @@ namespace Truss.Cli.Tests
         }
 
         [Fact]
-        public void GenerateAggregate_CreatesIdAggregateAndEvent()
+        public void GenerateAggregate_CreatesItsFolder_WithIdEventAndRule()
         {
             var root = ScaffoldShop();
 
@@ -38,10 +38,54 @@ namespace Truss.Cli.Tests
 
             Assert.Equal(0, exitCode);
 
-            var aggregate = _workspace.ReadFile("Shop", "src", "Shop.Domain", "Sales", "Order.cs");
+            var aggregate = _workspace.ReadFile("Shop", "src", "Shop.Domain", "Sales", "Order", "Order.cs");
             Assert.Contains("public class Order : AggregateRoot<OrderId>", aggregate);
-            Assert.True(_workspace.FileExists("Shop", "src", "Shop.Domain", "Sales", "OrderId.cs"));
-            Assert.True(_workspace.FileExists("Shop", "src", "Shop.Domain", "Sales", "OrderCreated.cs"));
+            Assert.Contains("CheckRule(new OrderMustBeValid())", aggregate);
+            Assert.Contains("namespace Shop.Domain.Sales", aggregate);
+
+            Assert.True(_workspace.FileExists("Shop", "src", "Shop.Domain", "Sales", "Order", "ValueObjects", "OrderId.cs"));
+            Assert.True(_workspace.FileExists("Shop", "src", "Shop.Domain", "Sales", "Order", "Events", "OrderCreated.cs"));
+            Assert.True(_workspace.FileExists("Shop", "src", "Shop.Domain", "Sales", "Order", "Rules", "OrderMustBeValid.cs"));
+        }
+
+        [Fact]
+        public void GenerateEntity_CreatesEntityWithTypedId_AloneOrInsideAnAggregate()
+        {
+            var root = ScaffoldShop();
+
+            Assert.Equal(0, _workspace.Run("generate", "entity", "Warehouse", "--context", "Sales", "--project", root));
+
+            var entity = _workspace.ReadFile("Shop", "src", "Shop.Domain", "Sales", "Warehouse", "Warehouse.cs");
+            Assert.Contains("public class Warehouse : Entity<WarehouseId>", entity);
+            Assert.True(_workspace.FileExists("Shop", "src", "Shop.Domain", "Sales", "Warehouse", "ValueObjects", "WarehouseId.cs"));
+
+            Assert.Equal(0, _workspace.Run("generate", "aggregate", "Order", "--context", "Sales", "--project", root));
+            Assert.Equal(0, _workspace.Run("generate", "entity", "OrderItem", "--context", "Sales", "--aggregate", "Order", "--project", root));
+
+            Assert.True(_workspace.FileExists("Shop", "src", "Shop.Domain", "Sales", "Order", "OrderItem.cs"));
+            Assert.True(_workspace.FileExists("Shop", "src", "Shop.Domain", "Sales", "Order", "ValueObjects", "OrderItemId.cs"));
+        }
+
+        [Fact]
+        public void GenerateAggregate_WithCrud_GeneratesCommandsQueriesRepositoryAndRoutes()
+        {
+            var root = ScaffoldShop();
+
+            Assert.Equal(0, _workspace.Run("generate", "aggregate", "Invoice", "--context", "Billing", "--crud", "--project", root));
+
+            Assert.True(_workspace.FileExists("Shop", "src", "Shop.Application", "Billing", "Invoice", "CreateInvoiceHandler.cs"));
+            Assert.True(_workspace.FileExists("Shop", "src", "Shop.Application", "Billing", "Invoice", "UpdateInvoiceHandler.cs"));
+            Assert.True(_workspace.FileExists("Shop", "src", "Shop.Application", "Billing", "Invoice", "DeleteInvoiceHandler.cs"));
+            Assert.True(_workspace.FileExists("Shop", "src", "Shop.Application", "Billing", "Invoice", "GetInvoiceById.cs"));
+            Assert.True(_workspace.FileExists("Shop", "src", "Shop.Application", "Billing", "Invoice", "ListInvoice.cs"));
+            Assert.True(_workspace.FileExists("Shop", "src", "Shop.Infrastructure", "Billing", "InvoiceConfiguration.cs"));
+            Assert.True(_workspace.FileExists("Shop", "src", "Shop.Infrastructure", "Billing", "EfInvoiceRepository.cs"));
+
+            var program = _workspace.ReadFile("Shop", "src", "Shop.Api", "Program.cs");
+            Assert.Contains("AddScoped<IInvoiceRepository, EfInvoiceRepository>", program);
+            Assert.Contains("app.MapCommand<CreateInvoice, Guid>(\"/invoices\"", program);
+            Assert.Contains("app.MapQuery<ListInvoice, PageResult<InvoiceDto>>(\"/invoices\");", program);
+            Assert.Contains("using Shop.Application.Billing;", program);
         }
 
         [Fact]

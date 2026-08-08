@@ -62,11 +62,32 @@ namespace Truss.Cli.Commands
     {
         public sealed class Settings : GenerateSettings
         {
+            [CommandOption("--crud")]
+            public bool Crud { get; init; }
         }
 
         protected override IReadOnlyList<string> Generate(TrussManifest manifest, string root, Settings settings)
         {
-            return CodeGenerator.GenerateAggregate(manifest, root, settings.Name, settings.Context);
+            var files = CodeGenerator.GenerateAggregate(manifest, root, settings.Name, settings.Context, settings.Crud);
+
+            if (settings.Crud)
+                CodeGenerator.WireCrud(manifest, root, settings.Name, settings.Context, Console.WriteLine);
+
+            return files;
+        }
+    }
+
+    internal sealed class GenerateEntityCommand : GenerateCommandBase<GenerateEntityCommand.Settings>
+    {
+        public sealed class Settings : GenerateSettings
+        {
+            [CommandOption("--aggregate <AGGREGATE>")]
+            public string? Aggregate { get; init; }
+        }
+
+        protected override IReadOnlyList<string> Generate(TrussManifest manifest, string root, Settings settings)
+        {
+            return CodeGenerator.GenerateEntity(manifest, root, settings.Name, settings.Context, settings.Aggregate);
         }
     }
 
