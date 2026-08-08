@@ -131,7 +131,7 @@ namespace Truss.Cli
                         break;
 
                     case "auth":
-                        block.AppendLine($"- Auth ({authProvider ?? "jwt"} provider): endpoints /auth/register, /auth/login and /auth/refresh. The Accounts context is editable project code; extend the User aggregate freely but keep credentials out of it. Protect endpoints with .RequireAuthorization(); the sub claim carries the user id.");
+                        block.AppendLine($"- Auth ({authProvider ?? "jwt"} provider): endpoints /auth/register, /auth/login and /auth/refresh. The Accounts context is editable project code; extend the User aggregate freely but keep credentials out of it. Protect endpoints with .RequireAuthorization(); the sub claim carries the user id.{AuthBindingNote(manifest)}{AuthExternalNote(manifest)}");
                         break;
 
                     case "tenancy":
@@ -155,6 +155,26 @@ namespace Truss.Cli
                         break;
                 }
             }
+        }
+
+        private static string AuthBindingNote(TrussManifest manifest)
+        {
+            if (!manifest.Settings.TryGetValue("auth.bind", out var aggregate))
+                return string.Empty;
+
+            manifest.Settings.TryGetValue("auth.bind.mode", out var mode);
+            var camel = char.ToLowerInvariant(aggregate[0]) + aggregate[1..];
+
+            return mode == "merge"
+                ? $" The {aggregate} aggregate is the account: User and UserId in the scaffolded code are aliases to it (AccountAliases.cs)."
+                : $" The User references the {aggregate} aggregate: registration takes its id and tokens carry it in the {camel}Id claim.";
+        }
+
+        private static string AuthExternalNote(TrussManifest manifest)
+        {
+            return manifest.Settings.TryGetValue("auth.external", out var external)
+                ? $" External login providers ({external}): start at GET /auth/external/<provider>; the callback returns the same tokens as /auth/login."
+                : string.Empty;
         }
 
         private static string DashboardUrl(string dashboard) => dashboard switch

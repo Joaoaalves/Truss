@@ -18,6 +18,15 @@ namespace Truss.Cli.Commands
             [CommandOption("--dashboard <DASHBOARD>")]
             public string? Dashboard { get; init; }
 
+            [CommandOption("--bind-user <AGGREGATE>")]
+            public string? BindUser { get; init; }
+
+            [CommandOption("--bind-mode <MODE>")]
+            public string? BindMode { get; init; }
+
+            [CommandOption("--external <PROVIDERS>")]
+            public string? External { get; init; }
+
             [CommandOption("--project <PATH>")]
             public string? Project { get; init; }
         }
@@ -41,12 +50,20 @@ namespace Truss.Cli.Commands
                 _ => settings.Transport
             };
 
+            var auth = module == "auth"
+                ? new AuthAddOptions(
+                    settings.BindUser,
+                    settings.BindMode?.ToLowerInvariant(),
+                    settings.External?.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries) ?? [])
+                : null;
+
             return ModuleInstaller.Install(
                 module,
                 option?.ToLowerInvariant(),
                 project.Manifest,
                 project.Root,
-                Console.WriteLine);
+                Console.WriteLine,
+                auth);
         }
     }
 }

@@ -30,13 +30,13 @@ namespace Truss.Cli.Tests
             Assert.Equal(0, _workspace.Run("add", "observability", "--dashboard", "aspire", "--project", root));
             Assert.Equal(0, _workspace.Run("add", "mapping", "--project", root));
             Assert.Equal(0, _workspace.Run("add", "email", "--project", root));
-            Assert.Equal(0, _workspace.Run("add", "auth", "--project", root));
+            Assert.Equal(0, _workspace.Run("generate", "aggregate", "Invoice", "--context", "Billing", "--crud", "--project", root));
+            Assert.Equal(0, _workspace.Run("generate", "entity", "InvoiceLine", "--context", "Billing", "--aggregate", "Invoice", "--project", root));
+            Assert.Equal(0, _workspace.Run("add", "auth", "--bind-user", "Invoice", "--external", "google,github", "--project", root));
             Assert.Equal(0, _workspace.Run("add", "tenancy", "--project", root));
             Assert.Equal(0, _workspace.Run("add", "rbac", "--project", root));
             Assert.Equal(0, _workspace.Run("add", "worker", "--project", root));
             Assert.Equal(0, _workspace.Run("generate", "command", "ArchiveProduct", "--context", "Catalog", "--project", root));
-            Assert.Equal(0, _workspace.Run("generate", "aggregate", "Invoice", "--context", "Billing", "--crud", "--project", root));
-            Assert.Equal(0, _workspace.Run("generate", "entity", "InvoiceLine", "--context", "Billing", "--aggregate", "Invoice", "--project", root));
             Assert.Equal(0, _workspace.Run("doctor", "--project", root));
 
             AssertBuildSucceeds(root);
@@ -47,10 +47,55 @@ namespace Truss.Cli.Tests
             var identityRoot = _workspace.Root("IdShop");
 
             Assert.Equal(0, _workspace.Run("add", "email", "--provider", "resend", "--project", identityRoot));
-            Assert.Equal(0, _workspace.Run("add", "auth", "--provider", "identity", "--project", identityRoot));
+
+            // The merge binding makes an existing aggregate the account itself, so
+            // give the generated one the identity fields merge mode requires.
+            Assert.Equal(0, _workspace.Run("generate", "aggregate", "Member", "--context", "Community", "--project", identityRoot));
+            File.WriteAllText(
+                Path.Combine(identityRoot, "src", "IdShop.Domain", "Community", "Member", "Member.cs"),
+                MergedMemberAggregate);
+
+            Assert.Equal(0, _workspace.Run(
+                "add", "auth", "--provider", "identity",
+                "--bind-user", "Member", "--bind-mode", "merge",
+                "--external", "microsoft", "--project", identityRoot));
 
             AssertBuildSucceeds(identityRoot, "IdShop");
         }
+
+        private const string MergedMemberAggregate = """
+            using Truss.Domain;
+
+            namespace IdShop.Domain.Community
+            {
+                public class Member : AggregateRoot<MemberId>
+                {
+                    private Member()
+                    {
+                    }
+
+                    private Member(MemberId id) : base(id)
+                    {
+                    }
+
+                    public string Email { get; private set; } = string.Empty;
+
+                    public string Name { get; private set; } = string.Empty;
+
+                    public static Member Register(string email, string name)
+                    {
+                        var member = new Member(new MemberId(Guid.NewGuid()))
+                        {
+                            Email = email.ToLowerInvariant(),
+                            Name = name
+                        };
+
+                        member.AddDomainEvent(new MemberCreated(member.Id));
+                        return member;
+                    }
+                }
+            }
+            """;
 
         private void RunMigrations(string root)
         {

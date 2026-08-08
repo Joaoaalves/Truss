@@ -8,7 +8,7 @@ namespace Truss.Cli
 
         public static readonly string[] Dashboards = ["aspire", "grafana", "seq"];
 
-        public static int Install(string module, string? transport, TrussManifest manifest, string root, Action<string> log)
+        public static int Install(string module, string? transport, TrussManifest manifest, string root, Action<string> log, AuthAddOptions? auth = null)
         {
             if (!Modules.Contains(module))
             {
@@ -33,6 +33,26 @@ namespace Truss.Cli
                     return 0;
                 }
 
+                if (module == "auth" && auth is not null && (auth.BindUser is not null || auth.External.Length > 0))
+                {
+                    if (auth.BindUser is not null)
+                    {
+                        log("The user binding is chosen when auth is installed; the Accounts context already exists in your code, so edit it there instead.");
+                        return 1;
+                    }
+
+                    var externalResult = AuthScaffolder.AddExternal(auth.External, manifest, root, log);
+
+                    if (externalResult != 0)
+                        return externalResult;
+
+                    AgentsGenerator.Write(manifest, root);
+                    manifest.Save(root);
+
+                    log("The external login providers were wired. Run truss doctor to verify the project.");
+                    return 0;
+                }
+
                 log($"The {module} module is already installed.");
                 return 0;
             }
@@ -42,7 +62,7 @@ namespace Truss.Cli
                 "messaging" => InstallMessaging(transport, manifest, root, log),
                 "jobs" => InstallJobs(manifest, root, log),
                 "mapping" => InstallMapping(manifest, root),
-                "auth" => InstallAuth(transport, manifest, root, log),
+                "auth" => InstallAuth(transport, auth ?? AuthAddOptions.None, manifest, root, log),
                 "worker" => WorkerScaffolder.Install(manifest, root, log),
                 "email" => InstallEmail(transport, manifest, root, log),
                 "tenancy" => InstallTenancy(manifest, root, log),
@@ -170,7 +190,7 @@ namespace Truss.Cli
             return 0;
         }
 
-        private static int InstallAuth(string? provider, TrussManifest manifest, string root, Action<string> log)
+        private static int InstallAuth(string? provider, AuthAddOptions options, TrussManifest manifest, string root, Action<string> log)
         {
             provider ??= "jwt";
 
@@ -180,7 +200,7 @@ namespace Truss.Cli
                 return 1;
             }
 
-            var result = AuthScaffolder.Install(provider, manifest, root, log);
+            var result = AuthScaffolder.Install(provider, options, manifest, root, log);
 
             if (result == 0)
             {
