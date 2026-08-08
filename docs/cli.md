@@ -23,6 +23,7 @@ Scaffolds a complete Clean Architecture solution. Run without flags in a termina
 | `--database` | `postgres`, `sqlserver`, `sqlite`, `none` | EF Core provider, connection string and compose service. `none` skips the Infrastructure project entirely |
 | `--docker` | flag | Generates `docker-compose.yml` for the chosen infrastructure |
 | `--sample` | flag | Includes the sample `Catalog` bounded context; the default scaffold is clean |
+| `--no-tests` | flag | Skips the test projects; by default the scaffold carries `tests/<Name>.Domain.Tests` and `tests/<Name>.IntegrationTests` |
 | `--output` | path | Where to create the project. Defaults to the current directory |
 
 The generated solution:
@@ -42,6 +43,8 @@ MyShop/
 The default scaffold is clean: no example code to delete before the real work starts. With `--sample` (or answering yes to the interactive prompt), a `Catalog` bounded context shows the full pattern in working code: a `Product` aggregate with a typed id, a business rule and a domain event; `CreateProduct` and `GetProductById` with handlers, validator and repository; the EF configuration converting the typed id; a `CatalogSeeder` planting development data; and the endpoints mapped with `MapCommand` and `MapQuery`. When you are done reading it, `truss remove context Catalog` takes all of it out.
 
 Development data comes from seeders: classes implementing `ITrussSeeder`, registered with `AddTrussSeeder<T>()` and executed by `app.Services.RunTrussSeeders()`, which the scaffolded Program calls in development right after the schema is ready. Seeders run in registration order and should check before inserting, so restarting the application never duplicates data.
+
+Two test projects come along by default: `tests/MyShop.Domain.Tests` for pure unit tests of aggregates and rules, and `tests/MyShop.IntegrationTests` dispatching commands through the full pipeline on the [TrussTestHost](testing.md), with a smoke test proving the host boots. Generators add matching tests as the code grows. `--no-tests` skips them; `truss add tests` brings them later.
 
 ```
 cd MyShop
@@ -71,6 +74,7 @@ Installs a module into an existing project: adds the package references to the c
 | `email` | `--provider console`, `smtp`, `resend` | IEmailSender for the application layer; smtp brings Mailpit to the compose file, resend delivers through the API |
 | `tenancy` | | Row-level tenant isolation: ambient resolution, query filtering and stamping; requires a database |
 | `rbac` | | Roles in code, permissions on endpoints and assignments in the database; requires a database |
+| `tests` | | Scaffolds the two test projects into an existing project and adds them to the solution; with the sample present, its tests come too |
 | `worker` | | Scaffolds src/Name.Worker, a separate consumer process wired with the installed modules; requires messaging |
 
 ---
@@ -101,6 +105,8 @@ Domain/Sales/Order/
 
 `--crud` on an aggregate generates the full vertical slice: `Create`, `Update` and `Delete` commands with handlers and validators, `GetById` and a paged `List` query, the repository interface in the application layer with its EF implementation and configuration in infrastructure, the repository registration and the five routes wired into `Program.cs`. The generated aggregate carries a starter `Name` field so everything works end to end immediately; `Update` goes through an intention-revealing `Rename` method on the aggregate, showing where real behavior belongs instead of property setters. Missing records surface as a 422 with the stable code `<name>.not-found`.
 
+When the project has the test projects, generated code arrives tested: an aggregate brings a domain test asserting its creation event (and, with `--crud`, the `Rename` behavior), and the crud slice brings an integration test driving create, read, update, list and delete through the pipeline. The tests mirror the context folders and are yours to grow.
+
 Existing files are never overwritten.
 
 ---
@@ -111,7 +117,7 @@ Existing files are never overwritten.
 truss remove context Catalog
 ```
 
-Removes a bounded context: deletes its folders across the Domain, Application and Infrastructure projects and cleans the wiring that pointed at it, in `Program.cs`, the worker's `Program.cs`, `AppDbContext.cs` and the infrastructure module: usings of the context's namespaces and every line referencing one of the removed types. A slice generated with `--crud` unwinds completely, routes and registration included, and removing the sample `Catalog` also drops its `DbSet`, seeder registration and endpoints.
+Removes a bounded context: deletes its folders across the Domain, Application and Infrastructure projects and the test projects, and cleans the wiring that pointed at it, in `Program.cs`, the worker's `Program.cs`, `AppDbContext.cs` and the infrastructure module: usings of the context's namespaces and every line referencing one of the removed types. A slice generated with `--crud` unwinds completely, routes and registration included, and removing the sample `Catalog` also drops its `DbSet`, seeder registration and endpoints.
 
 The `Accounts` context scaffolded by `truss add auth` is refused: it belongs to a module, and removing it would leave the module half-wired. If the project has migrations, the CLI reminds you to capture the schema change with `truss db add`.
 

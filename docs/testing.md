@@ -2,6 +2,8 @@
 
 `Truss.Testing` boots your application the way production runs it, in a few lines: the full pipeline with validation and the unit of work, a throwaway sqlite database built from your own context model, the in-memory transport with the outbox, and the job runtime with schedulers tuned for fast tests. A test exercises the same code path an endpoint would, without HTTP in the way.
 
+Scaffolded projects come with two test projects wired to this from day one (`truss new` creates them unless `--no-tests`; `truss add tests` brings them to an existing project): `tests/MyShop.Domain.Tests` for pure unit tests of aggregates and rules, and `tests/MyShop.IntegrationTests` on the `TrussTestHost`. The split is deliberate: test the domain directly, test behavior through the pipeline, and do not mock what the pipeline already gives you; handlers rarely deserve isolated unit tests with mocked repositories. Generators keep the suite growing with the code: a generated aggregate arrives with its domain test, and `--crud` arrives with an integration test driving the whole slice.
+
 ```csharp
 await using var host = await TrussTestHost.Start<AppDbContext>(options =>
 {
