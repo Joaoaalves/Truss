@@ -2487,12 +2487,28 @@ Installs a module into an existing project: adds the package references to the c
 ```
 truss generate context Sales
 truss generate aggregate Order --context Sales
+truss generate aggregate Invoice --context Billing --crud
+truss generate entity OrderItem --context Sales --aggregate Order
 truss generate command PlaceOrder --context Sales
 truss generate query GetOrderById --context Sales --result OrderDto
 truss generate query ListOrders --context Sales --result OrderDto --paged
 ```
 
-Generates building blocks inside the layer projects, following the folder-per-context layout: `Domain/Sales`, `Application/Sales`. Aggregates come with their typed id and creation event; commands come with handler and validator; queries with handler. Existing files are never overwritten.
+Generates building blocks inside the layer projects. An aggregate gets its own folder with everything that belongs to it:
+
+```
+Domain/Sales/Order/
+  Order.cs                    the aggregate, with the starter rule wired in Create
+  ValueObjects/OrderId.cs     the typed id
+  Events/OrderCreated.cs      the creation event
+  Rules/OrderMustBeValid.cs   a starter rule to replace with the first real invariant
+```
+
+`generate entity` creates an `Entity<TId>` with its typed id, in its own folder or nested inside an owning aggregate's folder with `--aggregate`. Namespaces stay flat per context; the folders only organize.
+
+`--crud` on an aggregate generates the full vertical slice: `Create`, `Update` and `Delete` commands with handlers and validators, `GetById` and a paged `List` query, the repository interface in the application layer with its EF implementation and configuration in infrastructure, the repository registration and the five routes wired into `Program.cs`. The generated aggregate carries a starter `Name` field so everything works end to end immediately; `Update` goes through an intention-revealing `Rename` method on the aggregate, showing where real behavior belongs instead of property setters. Missing records surface as a 422 with the stable code `<name>.not-found`.
+
+Existing files are never overwritten.
 
 ---
 
@@ -2705,6 +2721,7 @@ Truss is built module by module, each one opt-in. The framework never installs a
 - truss update: every Truss package pointed at the CLI's version in one command.
 - Database per tenant: one registered mapping routes each tenant to its own database, coexisting with the shared default.
 - Tenant-scoped grants: role assignments that apply inside one tenant, resolved against the ambient tenant automatically.
+- Rich generators: aggregates in their own folder with value objects, events and a starter rule; a new entity generator; and --crud producing the whole vertical slice with routes wired.
 
 ---
 

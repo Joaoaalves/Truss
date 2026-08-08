@@ -45,6 +45,7 @@ Truss is built module by module, each one opt-in. The framework never installs a
 - truss update: every Truss package pointed at the CLI's version in one command.
 - Database per tenant: one registered mapping routes each tenant to its own database, coexisting with the shared default.
 - Tenant-scoped grants: role assignments that apply inside one tenant, resolved against the ambient tenant automatically.
+- Rich generators: aggregates in their own folder with value objects, events and a starter rule; a new entity generator; and --crud producing the whole vertical slice with routes wired.
 
 ---
 
