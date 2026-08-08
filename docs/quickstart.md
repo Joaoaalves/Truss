@@ -1,6 +1,6 @@
 # Quickstart
 
-The fastest start is the [truss CLI](cli.md): one command scaffolds a complete Clean Architecture solution with a working sample.
+The fastest start is the [truss CLI](cli.md): one command scaffolds a complete Clean Architecture solution, clean by default; add `--sample` for a working example bounded context.
 
 ```
 dotnet tool install -g Truss.Cli
