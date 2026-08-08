@@ -25,7 +25,7 @@ namespace Truss.Cli
         /// User carries the aggregate's id; in merge mode the aggregate is the
         /// account and aliases point the scaffolded code at it.
         /// </summary>
-        private sealed record BindContext(string Aggregate, string IdType, string Namespace, bool Merge)
+        private sealed record BindContext(string Aggregate, string IdType, string Namespace, string IdNamespace, bool Merge)
         {
             public string Camel => char.ToLowerInvariant(Aggregate[0]) + Aggregate[1..];
         }
@@ -172,9 +172,10 @@ namespace Truss.Cli
             var content = File.ReadAllText(file);
             var ns = Regex.Match(content, @"namespace\s+([\w.]+)").Groups[1].Value;
             var idType = Regex.Match(content, @"AggregateRoot<(\w+)>").Groups[1].Value;
+            var idNs = FindTypeNamespace(domainRoot, idType) ?? ns;
 
             if (mode == "reference")
-                return new BindContext(aggregate, idType, ns, Merge: false);
+                return new BindContext(aggregate, idType, ns, idNs, Merge: false);
 
             if (idType == "Guid")
             {
@@ -204,7 +205,16 @@ namespace Truss.Cli
                 return null;
             }
 
-            return new BindContext(aggregate, idType, ns, Merge: true);
+            return new BindContext(aggregate, idType, ns, idNs, Merge: true);
+        }
+
+        private static string? FindTypeNamespace(string domainRoot, string type)
+        {
+            var file = Directory.EnumerateFiles(domainRoot, $"{type}.cs", SearchOption.AllDirectories).FirstOrDefault();
+
+            return file is null
+                ? null
+                : Regex.Match(File.ReadAllText(file), @"namespace\s+([\w.]+)").Groups[1].Value;
         }
 
         private static BindContext? ResolveInstalledBinding(TrussManifest manifest, string root)
@@ -569,10 +579,13 @@ namespace Truss.Cli
                 return content;
 
             content = content
+                .Replace("__AGGIDNS__", bind.IdNamespace)
                 .Replace("__AGGNS__", bind.Namespace)
                 .Replace("__AGGID__", bind.IdType)
                 .Replace("__AGGCAMEL__", bind.Camel)
                 .Replace("__AGG__", bind.Aggregate);
+
+            content = CodeGenerator.DedupeUsings(content);
 
             return bind.Merge ? content : ApplyReferenceBinding(content, manifest, bind);
         }
@@ -593,8 +606,8 @@ namespace Truss.Cli
                 : $"user.{bind.Aggregate}Id.Value";
 
             var accountsUsing = $"using {manifest.Name}.Domain.Accounts;";
-            var aggregateUsing = $"using {bind.Namespace};";
-            var needsUsing = bind.IdType != "Guid" && bind.Namespace != $"{manifest.Name}.Domain.Accounts";
+            var aggregateUsing = $"using {bind.IdNamespace};";
+            var needsUsing = bind.IdType != "Guid" && bind.IdNamespace != $"{manifest.Name}.Domain.Accounts";
 
             var updated = content.Replace(
                 "RegisterUser(string Email, string Name, string Password)",

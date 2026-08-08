@@ -65,33 +65,37 @@ namespace Truss.Cli
             if (aggregate is not null)
                 ValidateType(aggregate);
 
-            var folder = Path.Combine(TargetDirectory(root, manifest.DomainProject, context), aggregate ?? name);
+            var owner = aggregate ?? name;
+            var folder = Path.Combine(TargetDirectory(root, manifest.DomainProject, context), owner);
 
             return
             [
-                WriteFile(folder, $"{name}.cs", RenderRich(GeneratorTemplates.Entity, manifest, name, context)),
-                WriteFile(Path.Combine(folder, "ValueObjects"), $"{name}Id.cs", RenderRich(GeneratorTemplates.AggregateId, manifest, name, context))
+                WriteFile(folder, $"{name}.cs", RenderRich(GeneratorTemplates.Entity, manifest, name, context, owner)),
+                WriteFile(Path.Combine(folder, "ValueObjects"), $"{name}Id.cs", RenderRich(GeneratorTemplates.AggregateId, manifest, name, context, owner))
             ];
         }
 
         private static IEnumerable<string> GenerateCrud(TrussManifest manifest, string root, string name, string? context)
         {
-            var application = Path.Combine(TargetDirectory(root, manifest.ApplicationProject, context), name);
+            var feature = Path.Combine(TargetDirectory(root, manifest.ApplicationProject, context), name);
             var infrastructure = TargetDirectory(root, manifest.InfrastructureProject, context);
 
-            yield return WriteFile(application, $"{name}Dto.cs", RenderRich(GeneratorTemplates.CrudDto, manifest, name, context));
-            yield return WriteFile(application, $"I{name}Repository.cs", RenderRich(GeneratorTemplates.CrudRepository, manifest, name, context));
-            yield return WriteFile(application, $"Create{name}.cs", RenderRich(GeneratorTemplates.CrudCreate, manifest, name, context));
-            yield return WriteFile(application, $"Create{name}Handler.cs", RenderRich(GeneratorTemplates.CrudCreateHandler, manifest, name, context));
-            yield return WriteFile(application, $"Create{name}Validator.cs", RenderRich(GeneratorTemplates.CrudCreateValidator, manifest, name, context));
-            yield return WriteFile(application, $"Update{name}.cs", RenderRich(GeneratorTemplates.CrudUpdate, manifest, name, context));
-            yield return WriteFile(application, $"Update{name}Handler.cs", RenderRich(GeneratorTemplates.CrudUpdateHandler, manifest, name, context));
-            yield return WriteFile(application, $"Update{name}Validator.cs", RenderRich(GeneratorTemplates.CrudUpdateValidator, manifest, name, context));
-            yield return WriteFile(application, $"Delete{name}.cs", RenderRich(GeneratorTemplates.CrudDelete, manifest, name, context));
-            yield return WriteFile(application, $"Delete{name}Handler.cs", RenderRich(GeneratorTemplates.CrudDeleteHandler, manifest, name, context));
-            yield return WriteFile(application, $"{name}MustExist.cs", RenderRich(GeneratorTemplates.CrudMustExist, manifest, name, context));
-            yield return WriteFile(application, $"Get{name}ById.cs", RenderRich(GeneratorTemplates.CrudGetById, manifest, name, context));
-            yield return WriteFile(application, $"List{name}.cs", RenderRich(GeneratorTemplates.CrudList, manifest, name, context));
+            yield return WriteFile(Path.Combine(feature, "DTOs"), $"{name}Dto.cs", RenderRich(GeneratorTemplates.CrudDto, manifest, name, context));
+            yield return WriteFile(feature, $"I{name}Repository.cs", RenderRich(GeneratorTemplates.CrudRepository, manifest, name, context));
+            yield return WriteFile(Path.Combine(feature, "Rules"), $"{name}MustExist.cs", RenderRich(GeneratorTemplates.CrudMustExist, manifest, name, context));
+            yield return WriteFile(Path.Combine(feature, $"Create{name}"), $"Create{name}.cs", RenderRich(GeneratorTemplates.CrudCreate, manifest, name, context));
+            yield return WriteFile(Path.Combine(feature, $"Create{name}"), $"Create{name}Handler.cs", RenderRich(GeneratorTemplates.CrudCreateHandler, manifest, name, context));
+            yield return WriteFile(Path.Combine(feature, $"Create{name}"), $"Create{name}Validator.cs", RenderRich(GeneratorTemplates.CrudCreateValidator, manifest, name, context));
+            yield return WriteFile(Path.Combine(feature, $"Update{name}"), $"Update{name}.cs", RenderRich(GeneratorTemplates.CrudUpdate, manifest, name, context));
+            yield return WriteFile(Path.Combine(feature, $"Update{name}"), $"Update{name}Handler.cs", RenderRich(GeneratorTemplates.CrudUpdateHandler, manifest, name, context));
+            yield return WriteFile(Path.Combine(feature, $"Update{name}"), $"Update{name}Validator.cs", RenderRich(GeneratorTemplates.CrudUpdateValidator, manifest, name, context));
+            yield return WriteFile(Path.Combine(feature, $"Delete{name}"), $"Delete{name}.cs", RenderRich(GeneratorTemplates.CrudDelete, manifest, name, context));
+            yield return WriteFile(Path.Combine(feature, $"Delete{name}"), $"Delete{name}Handler.cs", RenderRich(GeneratorTemplates.CrudDeleteHandler, manifest, name, context));
+            yield return WriteFile(Path.Combine(feature, $"Get{name}ById"), $"Get{name}ById.cs", RenderRich(GeneratorTemplates.CrudGetById, manifest, name, context));
+            yield return WriteFile(Path.Combine(feature, $"Get{name}ById"), $"Get{name}ByIdHandler.cs", RenderRich(GeneratorTemplates.CrudGetByIdHandler, manifest, name, context));
+            yield return WriteFile(Path.Combine(feature, $"List{name}"), $"List{name}.cs", RenderRich(GeneratorTemplates.CrudList, manifest, name, context));
+            yield return WriteFile(Path.Combine(feature, $"List{name}"), $"List{name}Handler.cs", RenderRich(GeneratorTemplates.CrudListHandler, manifest, name, context));
+            yield return WriteFile(Path.Combine(feature, $"List{name}"), $"List{name}Validator.cs", RenderRich(GeneratorTemplates.CrudListValidator, manifest, name, context));
             yield return WriteFile(infrastructure, $"{name}Configuration.cs", RenderRich(GeneratorTemplates.CrudConfiguration, manifest, name, context));
             yield return WriteFile(infrastructure, $"Ef{name}Repository.cs", RenderRich(GeneratorTemplates.CrudEfRepository, manifest, name, context));
         }
@@ -99,10 +103,18 @@ namespace Truss.Cli
         internal static void WireCrud(TrussManifest manifest, string root, string name, string? context, Action<string> log)
         {
             var program = Path.Combine(root, manifest.ApiProject, "Program.cs");
-            var applicationNs = ApplicationNamespace(manifest, context);
+            var feature = $"{ApplicationNamespace(manifest, context)}.{name}";
             var route = "/" + name.ToLowerInvariant() + "s";
 
-            var usings = $"using {applicationNs};{Environment.NewLine}using Truss.Application;";
+            var usings = string.Join(Environment.NewLine,
+                $"using {feature};",
+                $"using {feature}.Create{name};",
+                $"using {feature}.Delete{name};",
+                $"using {feature}.DTOs;",
+                $"using {feature}.Get{name}ById;",
+                $"using {feature}.List{name};",
+                $"using {feature}.Update{name};",
+                "using Truss.Application;");
 
             if (context is not null)
                 usings += $"{Environment.NewLine}using {InfrastructureNamespace(manifest, context)};";
@@ -134,8 +146,8 @@ namespace Truss.Cli
         {
             ValidateType(name);
 
-            var ns = ApplicationNamespace(manifest, context);
-            var directory = TargetDirectory(root, manifest.ApplicationProject, context);
+            var ns = $"{ApplicationNamespace(manifest, context)}.{name}";
+            var directory = Path.Combine(TargetDirectory(root, manifest.ApplicationProject, context), name);
 
             return
             [
@@ -149,8 +161,8 @@ namespace Truss.Cli
         {
             ValidateType(name);
 
-            var ns = ApplicationNamespace(manifest, context);
-            var directory = TargetDirectory(root, manifest.ApplicationProject, context);
+            var ns = $"{ApplicationNamespace(manifest, context)}.{name}";
+            var directory = Path.Combine(TargetDirectory(root, manifest.ApplicationProject, context), name);
 
             if (paged)
             {
@@ -200,11 +212,17 @@ namespace Truss.Cli
             return context is null ? $"{manifest.Name}.Infrastructure" : $"{manifest.Name}.Infrastructure.{context}";
         }
 
-        private static string RenderRich(string template, TrussManifest manifest, string name, string? context)
+        /// <summary>
+        /// Renders a template whose namespaces mirror the folders: the aggregate
+        /// owns a namespace under its context, with ValueObjects, Events and Rules
+        /// beneath it, and each crud command or query owns one under the feature.
+        /// The owner differs from the name for entities nested in an aggregate.
+        /// </summary>
+        private static string RenderRich(string template, TrussManifest manifest, string name, string? context, string? owner = null)
         {
             return template
-                .Replace("__NS_DOMAIN__", DomainNamespace(manifest, context))
-                .Replace("__NS_APPLICATION__", ApplicationNamespace(manifest, context))
+                .Replace("__NS_AGG__", $"{DomainNamespace(manifest, context)}.{owner ?? name}")
+                .Replace("__NS_FEATURE__", $"{ApplicationNamespace(manifest, context)}.{owner ?? name}")
                 .Replace("__NS_INFRASTRUCTURE__", InfrastructureNamespace(manifest, context))
                 .Replace("__TYPE__", name)
                 .Replace("__CAMEL__", char.ToLowerInvariant(name[0]) + name[1..]);
@@ -230,9 +248,9 @@ namespace Truss.Cli
 
         /// <summary>
         /// Without a context the layer namespaces collapse into the root ones and
-        /// a rendered test would repeat a using; keep the first of each.
+        /// a rendered file would repeat a using; keep the first of each.
         /// </summary>
-        private static string DedupeUsings(string content)
+        internal static string DedupeUsings(string content)
         {
             var seen = new HashSet<string>(StringComparer.Ordinal);
             var lines = new List<string>();

@@ -21,12 +21,12 @@ namespace Truss.Cli.Tests
 
             Assert.Equal(0, exitCode);
 
-            var command = _workspace.ReadFile("Shop", "src", "Shop.Application", "Catalog", "ArchiveProduct.cs");
-            Assert.Contains("namespace Shop.Application.Catalog", command);
+            var command = _workspace.ReadFile("Shop", "src", "Shop.Application", "Catalog", "ArchiveProduct", "ArchiveProduct.cs");
+            Assert.Contains("namespace Shop.Application.Catalog.ArchiveProduct", command);
             Assert.Contains("public sealed record ArchiveProduct : ICommand;", command);
 
-            Assert.True(_workspace.FileExists("Shop", "src", "Shop.Application", "Catalog", "ArchiveProductHandler.cs"));
-            Assert.True(_workspace.FileExists("Shop", "src", "Shop.Application", "Catalog", "ArchiveProductValidator.cs"));
+            Assert.True(_workspace.FileExists("Shop", "src", "Shop.Application", "Catalog", "ArchiveProduct", "ArchiveProductHandler.cs"));
+            Assert.True(_workspace.FileExists("Shop", "src", "Shop.Application", "Catalog", "ArchiveProduct", "ArchiveProductValidator.cs"));
         }
 
         [Fact]
@@ -41,9 +41,11 @@ namespace Truss.Cli.Tests
             var aggregate = _workspace.ReadFile("Shop", "src", "Shop.Domain", "Sales", "Order", "Order.cs");
             Assert.Contains("public class Order : AggregateRoot<OrderId>", aggregate);
             Assert.Contains("CheckRule(new OrderMustBeValid())", aggregate);
-            Assert.Contains("namespace Shop.Domain.Sales", aggregate);
+            Assert.Contains("namespace Shop.Domain.Sales.Order", aggregate);
+            Assert.Contains("using Shop.Domain.Sales.Order.ValueObjects;", aggregate);
 
-            Assert.True(_workspace.FileExists("Shop", "src", "Shop.Domain", "Sales", "Order", "ValueObjects", "OrderId.cs"));
+            var id = _workspace.ReadFile("Shop", "src", "Shop.Domain", "Sales", "Order", "ValueObjects", "OrderId.cs");
+            Assert.Contains("namespace Shop.Domain.Sales.Order.ValueObjects", id);
             Assert.True(_workspace.FileExists("Shop", "src", "Shop.Domain", "Sales", "Order", "Events", "OrderCreated.cs"));
             Assert.True(_workspace.FileExists("Shop", "src", "Shop.Domain", "Sales", "Order", "Rules", "OrderMustBeValid.cs"));
 
@@ -61,13 +63,17 @@ namespace Truss.Cli.Tests
 
             var entity = _workspace.ReadFile("Shop", "src", "Shop.Domain", "Sales", "Warehouse", "Warehouse.cs");
             Assert.Contains("public class Warehouse : Entity<WarehouseId>", entity);
+            Assert.Contains("namespace Shop.Domain.Sales.Warehouse", entity);
             Assert.True(_workspace.FileExists("Shop", "src", "Shop.Domain", "Sales", "Warehouse", "ValueObjects", "WarehouseId.cs"));
 
             Assert.Equal(0, _workspace.Run("generate", "aggregate", "Order", "--context", "Sales", "--project", root));
             Assert.Equal(0, _workspace.Run("generate", "entity", "OrderItem", "--context", "Sales", "--aggregate", "Order", "--project", root));
 
-            Assert.True(_workspace.FileExists("Shop", "src", "Shop.Domain", "Sales", "Order", "OrderItem.cs"));
-            Assert.True(_workspace.FileExists("Shop", "src", "Shop.Domain", "Sales", "Order", "ValueObjects", "OrderItemId.cs"));
+            var nested = _workspace.ReadFile("Shop", "src", "Shop.Domain", "Sales", "Order", "OrderItem.cs");
+            Assert.Contains("namespace Shop.Domain.Sales.Order", nested);
+
+            var nestedId = _workspace.ReadFile("Shop", "src", "Shop.Domain", "Sales", "Order", "ValueObjects", "OrderItemId.cs");
+            Assert.Contains("namespace Shop.Domain.Sales.Order.ValueObjects", nestedId);
         }
 
         [Fact]
@@ -77,19 +83,33 @@ namespace Truss.Cli.Tests
 
             Assert.Equal(0, _workspace.Run("generate", "aggregate", "Invoice", "--context", "Billing", "--crud", "--project", root));
 
-            Assert.True(_workspace.FileExists("Shop", "src", "Shop.Application", "Billing", "Invoice", "CreateInvoiceHandler.cs"));
-            Assert.True(_workspace.FileExists("Shop", "src", "Shop.Application", "Billing", "Invoice", "UpdateInvoiceHandler.cs"));
-            Assert.True(_workspace.FileExists("Shop", "src", "Shop.Application", "Billing", "Invoice", "DeleteInvoiceHandler.cs"));
-            Assert.True(_workspace.FileExists("Shop", "src", "Shop.Application", "Billing", "Invoice", "GetInvoiceById.cs"));
-            Assert.True(_workspace.FileExists("Shop", "src", "Shop.Application", "Billing", "Invoice", "ListInvoice.cs"));
+            Assert.True(_workspace.FileExists("Shop", "src", "Shop.Application", "Billing", "Invoice", "DTOs", "InvoiceDto.cs"));
+            Assert.True(_workspace.FileExists("Shop", "src", "Shop.Application", "Billing", "Invoice", "Rules", "InvoiceMustExist.cs"));
+            Assert.True(_workspace.FileExists("Shop", "src", "Shop.Application", "Billing", "Invoice", "CreateInvoice", "CreateInvoice.cs"));
+            Assert.True(_workspace.FileExists("Shop", "src", "Shop.Application", "Billing", "Invoice", "CreateInvoice", "CreateInvoiceHandler.cs"));
+            Assert.True(_workspace.FileExists("Shop", "src", "Shop.Application", "Billing", "Invoice", "CreateInvoice", "CreateInvoiceValidator.cs"));
+            Assert.True(_workspace.FileExists("Shop", "src", "Shop.Application", "Billing", "Invoice", "UpdateInvoice", "UpdateInvoiceHandler.cs"));
+            Assert.True(_workspace.FileExists("Shop", "src", "Shop.Application", "Billing", "Invoice", "DeleteInvoice", "DeleteInvoiceHandler.cs"));
+            Assert.True(_workspace.FileExists("Shop", "src", "Shop.Application", "Billing", "Invoice", "GetInvoiceById", "GetInvoiceById.cs"));
+            Assert.True(_workspace.FileExists("Shop", "src", "Shop.Application", "Billing", "Invoice", "GetInvoiceById", "GetInvoiceByIdHandler.cs"));
+            Assert.True(_workspace.FileExists("Shop", "src", "Shop.Application", "Billing", "Invoice", "ListInvoice", "ListInvoice.cs"));
+            Assert.True(_workspace.FileExists("Shop", "src", "Shop.Application", "Billing", "Invoice", "ListInvoice", "ListInvoiceHandler.cs"));
+            Assert.True(_workspace.FileExists("Shop", "src", "Shop.Application", "Billing", "Invoice", "ListInvoice", "ListInvoiceValidator.cs"));
             Assert.True(_workspace.FileExists("Shop", "src", "Shop.Infrastructure", "Billing", "InvoiceConfiguration.cs"));
             Assert.True(_workspace.FileExists("Shop", "src", "Shop.Infrastructure", "Billing", "EfInvoiceRepository.cs"));
+
+            var dto = _workspace.ReadFile("Shop", "src", "Shop.Application", "Billing", "Invoice", "DTOs", "InvoiceDto.cs");
+            Assert.Contains("namespace Shop.Application.Billing.Invoice.DTOs", dto);
+
+            var create = _workspace.ReadFile("Shop", "src", "Shop.Application", "Billing", "Invoice", "CreateInvoice", "CreateInvoice.cs");
+            Assert.Contains("namespace Shop.Application.Billing.Invoice.CreateInvoice", create);
 
             var program = _workspace.ReadFile("Shop", "src", "Shop.Api", "Program.cs");
             Assert.Contains("AddScoped<IInvoiceRepository, EfInvoiceRepository>", program);
             Assert.Contains("app.MapCommand<CreateInvoice, Guid>(\"/invoices\"", program);
             Assert.Contains("app.MapQuery<ListInvoice, PageResult<InvoiceDto>>(\"/invoices\");", program);
-            Assert.Contains("using Shop.Application.Billing;", program);
+            Assert.Contains("using Shop.Application.Billing.Invoice.CreateInvoice;", program);
+            Assert.Contains("using Shop.Application.Billing.Invoice.DTOs;", program);
 
             var domainTest = _workspace.ReadFile("Shop", "tests", "Shop.Domain.Tests", "Billing", "InvoiceTests.cs");
             Assert.Contains("Rename_ChangesTheName", domainTest);
@@ -108,8 +128,9 @@ namespace Truss.Cli.Tests
 
             Assert.Equal(0, exitCode);
 
-            var query = _workspace.ReadFile("Shop", "src", "Shop.Application", "CountProducts.cs");
+            var query = _workspace.ReadFile("Shop", "src", "Shop.Application", "CountProducts", "CountProducts.cs");
             Assert.Contains("IQuery<int>", query);
+            Assert.Contains("namespace Shop.Application.CountProducts", query);
         }
 
         [Fact]
@@ -121,14 +142,15 @@ namespace Truss.Cli.Tests
 
             Assert.Equal(0, exitCode);
 
-            var query = _workspace.ReadFile("Shop", "src", "Shop.Application", "Catalog", "ListProducts.cs");
+            var query = _workspace.ReadFile("Shop", "src", "Shop.Application", "Catalog", "ListProducts", "ListProducts.cs");
             Assert.Contains("record ListProducts(int Page = 1, int Size = 20) : IQuery<PageResult<Guid>>", query);
+            Assert.Contains("namespace Shop.Application.Catalog.ListProducts", query);
 
-            var handler = _workspace.ReadFile("Shop", "src", "Shop.Application", "Catalog", "ListProductsHandler.cs");
+            var handler = _workspace.ReadFile("Shop", "src", "Shop.Application", "Catalog", "ListProducts", "ListProductsHandler.cs");
             Assert.Contains("IQueryHandler<ListProducts, PageResult<Guid>>", handler);
             Assert.Contains("ToPageAsync", handler);
 
-            var validator = _workspace.ReadFile("Shop", "src", "Shop.Application", "Catalog", "ListProductsValidator.cs");
+            var validator = _workspace.ReadFile("Shop", "src", "Shop.Application", "Catalog", "ListProducts", "ListProductsValidator.cs");
             Assert.Contains("InclusiveBetween(1, 100)", validator);
         }
 

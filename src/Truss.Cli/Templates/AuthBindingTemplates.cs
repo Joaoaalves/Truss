@@ -9,7 +9,7 @@ namespace Truss.Cli.Templates
     internal static class AuthBindingTemplates
     {
         public const string UserWithBinding = """
-            using __AGGNS__;
+            using __AGGIDNS__;
             using Truss.Domain;
 
             namespace __NAME__.Domain.Accounts
@@ -47,11 +47,12 @@ namespace Truss.Cli.Templates
             // In this project the __AGG__ aggregate is the account. The scaffolded
             // commands and stores speak of users; these aliases point them at it.
             global using User = __AGGNS__.__AGG__;
-            global using UserId = __AGGNS__.__AGGID__;
+            global using UserId = __AGGIDNS__.__AGGID__;
             """;
 
         public const string MergedAggregateConfiguration = """
             using __AGGNS__;
+            using __AGGIDNS__;
             using Microsoft.EntityFrameworkCore;
             using Microsoft.EntityFrameworkCore.Metadata.Builders;
 

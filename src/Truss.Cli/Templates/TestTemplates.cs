@@ -205,7 +205,8 @@ namespace Truss.Cli.Templates
             """;
 
         public const string AggregateTests = """
-            using __NS_DOMAIN__;
+            using __NS_AGG__;
+            using __NS_AGG__.Events;
             using Xunit;
 
             namespace __NS_DOMAIN_TESTS__
@@ -224,7 +225,8 @@ namespace Truss.Cli.Templates
             """;
 
         public const string AggregateCrudTests = """
-            using __NS_DOMAIN__;
+            using __NS_AGG__;
+            using __NS_AGG__.Events;
             using Xunit;
 
             namespace __NS_DOMAIN_TESTS__
@@ -255,8 +257,13 @@ namespace Truss.Cli.Templates
 
         public const string CrudIntegrationTests = """
             using __NAME__.Application;
-            using __NS_APPLICATION__;
             using __NAME__.Infrastructure;
+            using __NS_FEATURE__;
+            using __NS_FEATURE__.Create__TYPE__;
+            using __NS_FEATURE__.Delete__TYPE__;
+            using __NS_FEATURE__.Get__TYPE__ById;
+            using __NS_FEATURE__.List__TYPE__;
+            using __NS_FEATURE__.Update__TYPE__;
             using __NS_INFRASTRUCTURE__;
             using Microsoft.Extensions.DependencyInjection;
             using Truss.Testing;

@@ -76,9 +76,11 @@ namespace Truss.Cli.Tests
         }
 
         private const string MergedMemberAggregate = """
+            using IdShop.Domain.Community.Member.Events;
+            using IdShop.Domain.Community.Member.ValueObjects;
             using Truss.Domain;
 
-            namespace IdShop.Domain.Community
+            namespace IdShop.Domain.Community.Member
             {
                 public class Member : AggregateRoot<MemberId>
                 {
@@ -110,7 +112,8 @@ namespace Truss.Cli.Tests
             """;
 
         private const string MergedMemberTests = """
-            using IdShop.Domain.Community;
+            using IdShop.Domain.Community.Member;
+            using IdShop.Domain.Community.Member.Events;
             using Xunit;
 
             namespace IdShop.Domain.Tests.Community

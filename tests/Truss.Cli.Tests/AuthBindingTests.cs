@@ -21,7 +21,7 @@ namespace Truss.Cli.Tests
             Assert.Equal(0, _workspace.Run("add", "auth", "--bind-user", "Customer", "--project", root));
 
             var user = _workspace.ReadFile("Shop", "src", "Shop.Domain", "Accounts", "User.cs");
-            Assert.Contains("using Shop.Domain.Crm;", user);
+            Assert.Contains("using Shop.Domain.Crm.Customer.ValueObjects;", user);
             Assert.Contains("public CustomerId CustomerId { get; private set; }", user);
             Assert.Contains("public static User Register(string email, string name, CustomerId customerId)", user);
 
@@ -59,9 +59,10 @@ namespace Truss.Cli.Tests
 
             var path = Path.Combine(root, "src", "Shop.Domain", "Crm", "Customer", "Customer.cs");
             File.WriteAllText(path, """
+                using Shop.Domain.Crm.Customer.ValueObjects;
                 using Truss.Domain;
 
-                namespace Shop.Domain.Crm
+                namespace Shop.Domain.Crm.Customer
                 {
                     public class Customer : AggregateRoot<CustomerId>
                     {
@@ -95,8 +96,8 @@ namespace Truss.Cli.Tests
             Assert.False(_workspace.FileExists("Shop", "src", "Shop.Infrastructure", "Accounts", "UserConfiguration.cs"));
 
             var aliases = _workspace.ReadFile("Shop", "src", "Shop.Application", "Accounts", "AccountAliases.cs");
-            Assert.Contains("global using User = Shop.Domain.Crm.Customer;", aliases);
-            Assert.Contains("global using UserId = Shop.Domain.Crm.CustomerId;", aliases);
+            Assert.Contains("global using User = Shop.Domain.Crm.Customer.Customer;", aliases);
+            Assert.Contains("global using UserId = Shop.Domain.Crm.Customer.ValueObjects.CustomerId;", aliases);
 
             Assert.True(_workspace.FileExists("Shop", "src", "Shop.Infrastructure", "Accounts", "AccountAliases.cs"));
 

@@ -5,25 +5,29 @@ namespace Truss.Cli.Templates
         public const string AggregateId = """
             using Truss.Domain;
 
-            namespace __NS_DOMAIN__
+            namespace __NS_AGG__.ValueObjects
             {
                 public sealed record __TYPE__Id(Guid Value) : TypedId<Guid>(Value);
             }
             """;
 
         public const string AggregateCreated = """
+            using __NS_AGG__.ValueObjects;
             using Truss.Domain;
 
-            namespace __NS_DOMAIN__
+            namespace __NS_AGG__.Events
             {
                 public sealed record __TYPE__Created(__TYPE__Id __TYPE__Id) : DomainEvent;
             }
             """;
 
         public const string Aggregate = """
+            using __NS_AGG__.Events;
+            using __NS_AGG__.Rules;
+            using __NS_AGG__.ValueObjects;
             using Truss.Domain;
 
-            namespace __NS_DOMAIN__
+            namespace __NS_AGG__
             {
                 public class __TYPE__ : AggregateRoot<__TYPE__Id>
                 {
@@ -48,19 +52,19 @@ namespace Truss.Cli.Templates
             """;
 
         public const string Command = """
-            using Truss.Application;
-
             namespace __NS_APPLICATION__
             {
+                using Truss.Application;
+
                 public sealed record __TYPE__ : ICommand;
             }
             """;
 
         public const string CommandHandler = """
-            using Truss.Application;
-
             namespace __NS_APPLICATION__
             {
+                using Truss.Application;
+
                 public class __TYPE__Handler : ICommandHandler<__TYPE__>
                 {
                     public Task<Unit> Handle(__TYPE__ command, CancellationToken cancellationToken)
@@ -72,10 +76,10 @@ namespace Truss.Cli.Templates
             """;
 
         public const string CommandValidator = """
-            using FluentValidation;
-
             namespace __NS_APPLICATION__
             {
+                using FluentValidation;
+
                 public class __TYPE__Validator : AbstractValidator<__TYPE__>
                 {
                     public __TYPE__Validator()
@@ -86,19 +90,19 @@ namespace Truss.Cli.Templates
             """;
 
         public const string Query = """
-            using Truss.Application;
-
             namespace __NS_APPLICATION__
             {
+                using Truss.Application;
+
                 public sealed record __TYPE__ : IQuery<__RESULT__>;
             }
             """;
 
         public const string QueryHandler = """
-            using Truss.Application;
-
             namespace __NS_APPLICATION__
             {
+                using Truss.Application;
+
                 public class __TYPE__Handler : IQueryHandler<__TYPE__, __RESULT__>
                 {
                     public Task<__RESULT__> Handle(__TYPE__ query, CancellationToken cancellationToken)
@@ -110,19 +114,19 @@ namespace Truss.Cli.Templates
             """;
 
         public const string QueryPaged = """
-            using Truss.Application;
-
             namespace __NS_APPLICATION__
             {
+                using Truss.Application;
+
                 public sealed record __TYPE__(int Page = 1, int Size = 20) : IQuery<PageResult<__RESULT__>>;
             }
             """;
 
         public const string QueryPagedHandler = """
-            using Truss.Application;
-
             namespace __NS_APPLICATION__
             {
+                using Truss.Application;
+
                 public class __TYPE__Handler : IQueryHandler<__TYPE__, PageResult<__RESULT__>>
                 {
                     public Task<PageResult<__RESULT__>> Handle(__TYPE__ query, CancellationToken cancellationToken)
@@ -135,10 +139,10 @@ namespace Truss.Cli.Templates
             """;
 
         public const string QueryPagedValidator = """
-            using FluentValidation;
-
             namespace __NS_APPLICATION__
             {
+                using FluentValidation;
+
                 public class __TYPE__Validator : AbstractValidator<__TYPE__>
                 {
                     public __TYPE__Validator()
@@ -153,7 +157,7 @@ namespace Truss.Cli.Templates
         public const string AggregateRule = """
             using Truss.Domain;
 
-            namespace __NS_DOMAIN__
+            namespace __NS_AGG__.Rules
             {
                 public class __TYPE__MustBeValid : IBusinessRule
                 {
@@ -167,9 +171,12 @@ namespace Truss.Cli.Templates
             """;
 
         public const string AggregateCrud = """
+            using __NS_AGG__.Events;
+            using __NS_AGG__.Rules;
+            using __NS_AGG__.ValueObjects;
             using Truss.Domain;
 
-            namespace __NS_DOMAIN__
+            namespace __NS_AGG__
             {
                 public class __TYPE__ : AggregateRoot<__TYPE__Id>
                 {
@@ -204,9 +211,10 @@ namespace Truss.Cli.Templates
             """;
 
         public const string Entity = """
+            using __NS_AGG__.ValueObjects;
             using Truss.Domain;
 
-            namespace __NS_DOMAIN__
+            namespace __NS_AGG__
             {
                 public class __TYPE__ : Entity<__TYPE__Id>
                 {
@@ -222,18 +230,20 @@ namespace Truss.Cli.Templates
             """;
 
         public const string CrudDto = """
-            namespace __NS_APPLICATION__
+            namespace __NS_FEATURE__.DTOs
             {
                 public sealed record __TYPE__Dto(Guid Id, string Name);
             }
             """;
 
         public const string CrudRepository = """
-            using __NS_DOMAIN__;
-            using Truss.Application;
-
-            namespace __NS_APPLICATION__
+            namespace __NS_FEATURE__
             {
+                using __NS_AGG__;
+                using __NS_AGG__.ValueObjects;
+                using __NS_FEATURE__.DTOs;
+                using Truss.Application;
+
                 public interface I__TYPE__Repository
                 {
                     void Add(__TYPE__ __CAMEL__);
@@ -248,20 +258,21 @@ namespace Truss.Cli.Templates
             """;
 
         public const string CrudCreate = """
-            using Truss.Application;
-
-            namespace __NS_APPLICATION__
+            namespace __NS_FEATURE__.Create__TYPE__
             {
+                using Truss.Application;
+
                 public sealed record Create__TYPE__(string Name) : ICommand<Guid>;
             }
             """;
 
         public const string CrudCreateHandler = """
-            using __NS_DOMAIN__;
-            using Truss.Application;
-
-            namespace __NS_APPLICATION__
+            namespace __NS_FEATURE__.Create__TYPE__
             {
+                using __NS_AGG__;
+                using __NS_FEATURE__;
+                using Truss.Application;
+
                 public class Create__TYPE__Handler(I__TYPE__Repository repository) : ICommandHandler<Create__TYPE__, Guid>
                 {
                     public Task<Guid> Handle(Create__TYPE__ command, CancellationToken cancellationToken)
@@ -275,10 +286,10 @@ namespace Truss.Cli.Templates
             """;
 
         public const string CrudCreateValidator = """
-            using FluentValidation;
-
-            namespace __NS_APPLICATION__
+            namespace __NS_FEATURE__.Create__TYPE__
             {
+                using FluentValidation;
+
                 public class Create__TYPE__Validator : AbstractValidator<Create__TYPE__>
                 {
                     public Create__TYPE__Validator()
@@ -290,21 +301,23 @@ namespace Truss.Cli.Templates
             """;
 
         public const string CrudUpdate = """
-            using Truss.Application;
-
-            namespace __NS_APPLICATION__
+            namespace __NS_FEATURE__.Update__TYPE__
             {
+                using Truss.Application;
+
                 public sealed record Update__TYPE__(Guid Id, string Name) : ICommand;
             }
             """;
 
         public const string CrudUpdateHandler = """
-            using __NS_DOMAIN__;
-            using Truss.Application;
-            using Truss.Domain;
-
-            namespace __NS_APPLICATION__
+            namespace __NS_FEATURE__.Update__TYPE__
             {
+                using __NS_AGG__.ValueObjects;
+                using __NS_FEATURE__;
+                using __NS_FEATURE__.Rules;
+                using Truss.Application;
+                using Truss.Domain;
+
                 public class Update__TYPE__Handler(I__TYPE__Repository repository) : ICommandHandler<Update__TYPE__>
                 {
                     public async Task<Unit> Handle(Update__TYPE__ command, CancellationToken cancellationToken)
@@ -323,10 +336,10 @@ namespace Truss.Cli.Templates
             """;
 
         public const string CrudUpdateValidator = """
-            using FluentValidation;
-
-            namespace __NS_APPLICATION__
+            namespace __NS_FEATURE__.Update__TYPE__
             {
+                using FluentValidation;
+
                 public class Update__TYPE__Validator : AbstractValidator<Update__TYPE__>
                 {
                     public Update__TYPE__Validator()
@@ -339,21 +352,23 @@ namespace Truss.Cli.Templates
             """;
 
         public const string CrudDelete = """
-            using Truss.Application;
-
-            namespace __NS_APPLICATION__
+            namespace __NS_FEATURE__.Delete__TYPE__
             {
+                using Truss.Application;
+
                 public sealed record Delete__TYPE__(Guid Id) : ICommand;
             }
             """;
 
         public const string CrudDeleteHandler = """
-            using __NS_DOMAIN__;
-            using Truss.Application;
-            using Truss.Domain;
-
-            namespace __NS_APPLICATION__
+            namespace __NS_FEATURE__.Delete__TYPE__
             {
+                using __NS_AGG__.ValueObjects;
+                using __NS_FEATURE__;
+                using __NS_FEATURE__.Rules;
+                using Truss.Application;
+                using Truss.Domain;
+
                 public class Delete__TYPE__Handler(I__TYPE__Repository repository) : ICommandHandler<Delete__TYPE__>
                 {
                     public async Task<Unit> Handle(Delete__TYPE__ command, CancellationToken cancellationToken)
@@ -372,10 +387,10 @@ namespace Truss.Cli.Templates
             """;
 
         public const string CrudMustExist = """
-            using Truss.Domain;
-
-            namespace __NS_APPLICATION__
+            namespace __NS_FEATURE__.Rules
             {
+                using Truss.Domain;
+
                 public class __TYPE__MustExist : IBusinessRule
                 {
                     public bool IsBroken() => true;
@@ -388,12 +403,22 @@ namespace Truss.Cli.Templates
             """;
 
         public const string CrudGetById = """
-            using __NS_DOMAIN__;
-            using Truss.Application;
-
-            namespace __NS_APPLICATION__
+            namespace __NS_FEATURE__.Get__TYPE__ById
             {
+                using __NS_FEATURE__.DTOs;
+                using Truss.Application;
+
                 public sealed record Get__TYPE__ById(Guid Id) : IQuery<__TYPE__Dto?>;
+            }
+            """;
+
+        public const string CrudGetByIdHandler = """
+            namespace __NS_FEATURE__.Get__TYPE__ById
+            {
+                using __NS_AGG__.ValueObjects;
+                using __NS_FEATURE__;
+                using __NS_FEATURE__.DTOs;
+                using Truss.Application;
 
                 public class Get__TYPE__ByIdHandler(I__TYPE__Repository repository) : IQueryHandler<Get__TYPE__ById, __TYPE__Dto?>
                 {
@@ -408,12 +433,21 @@ namespace Truss.Cli.Templates
             """;
 
         public const string CrudList = """
-            using FluentValidation;
-            using Truss.Application;
-
-            namespace __NS_APPLICATION__
+            namespace __NS_FEATURE__.List__TYPE__
             {
+                using __NS_FEATURE__.DTOs;
+                using Truss.Application;
+
                 public sealed record List__TYPE__(int Page = 1, int Size = 20) : IQuery<PageResult<__TYPE__Dto>>;
+            }
+            """;
+
+        public const string CrudListHandler = """
+            namespace __NS_FEATURE__.List__TYPE__
+            {
+                using __NS_FEATURE__;
+                using __NS_FEATURE__.DTOs;
+                using Truss.Application;
 
                 public class List__TYPE__Handler(I__TYPE__Repository repository) : IQueryHandler<List__TYPE__, PageResult<__TYPE__Dto>>
                 {
@@ -422,6 +456,13 @@ namespace Truss.Cli.Templates
                         return repository.List(new PageRequest(query.Page, query.Size), cancellationToken);
                     }
                 }
+            }
+            """;
+
+        public const string CrudListValidator = """
+            namespace __NS_FEATURE__.List__TYPE__
+            {
+                using FluentValidation;
 
                 public class List__TYPE__Validator : AbstractValidator<List__TYPE__>
                 {
@@ -435,7 +476,8 @@ namespace Truss.Cli.Templates
             """;
 
         public const string CrudConfiguration = """
-            using __NS_DOMAIN__;
+            using __NS_AGG__;
+            using __NS_AGG__.ValueObjects;
             using Microsoft.EntityFrameworkCore;
             using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
@@ -458,8 +500,10 @@ namespace Truss.Cli.Templates
             """;
 
         public const string CrudEfRepository = """
-            using __NS_APPLICATION__;
-            using __NS_DOMAIN__;
+            using __NS_AGG__;
+            using __NS_AGG__.ValueObjects;
+            using __NS_FEATURE__;
+            using __NS_FEATURE__.DTOs;
             using Microsoft.EntityFrameworkCore;
             using Truss.Application;
 
