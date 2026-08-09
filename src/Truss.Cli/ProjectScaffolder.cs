@@ -100,7 +100,7 @@ namespace Truss.Cli
                 template = template
                     .Replace(
                         "using __NAME__.Application;",
-                        "using __NAME__.Application;\nusing __NAME__.Application.Catalog;")
+                        $"using __NAME__.Application;\n{SampleTemplates.SampleUsings.Trim()}")
                     .Replace(
                         "builder.Services.AddTrussEntityFramework<AppDbContext>();",
                         "builder.Services.AddTrussEntityFramework<AppDbContext>();\n\nbuilder.Services.AddInfrastructure();")
@@ -130,21 +130,24 @@ namespace Truss.Cli
 
         private static void WriteSample(string root, TrussManifest manifest)
         {
-            var domain = Path.Combine(manifest.DomainProject, "Catalog");
-            var application = Path.Combine(manifest.ApplicationProject, "Catalog");
+            // The sample is laid out exactly like the generators lay their output
+            // out, so reading it teaches the layout the project will grow into.
+            var domain = Path.Combine(manifest.DomainProject, "Catalog", "Product");
+            var application = Path.Combine(manifest.ApplicationProject, "Catalog", "Product");
             var infrastructure = Path.Combine(manifest.InfrastructureProject, "Catalog");
 
-            Write(root, Path.Combine(domain, "ProductId.cs"), SampleTemplates.ProductId, manifest);
             Write(root, Path.Combine(domain, "Product.cs"), SampleTemplates.Product, manifest);
-            Write(root, Path.Combine(domain, "ProductCreated.cs"), SampleTemplates.ProductCreated, manifest);
-            Write(root, Path.Combine(domain, "ProductPriceMustBePositive.cs"), SampleTemplates.ProductPriceMustBePositive, manifest);
+            Write(root, Path.Combine(domain, "ValueObjects", "ProductId.cs"), SampleTemplates.ProductId, manifest);
+            Write(root, Path.Combine(domain, "Events", "ProductCreated.cs"), SampleTemplates.ProductCreated, manifest);
+            Write(root, Path.Combine(domain, "Rules", "ProductPriceMustBePositive.cs"), SampleTemplates.ProductPriceMustBePositive, manifest);
 
             Write(root, Path.Combine(application, "IProductRepository.cs"), SampleTemplates.ProductRepository, manifest);
-            Write(root, Path.Combine(application, "CreateProduct.cs"), SampleTemplates.CreateProduct, manifest);
-            Write(root, Path.Combine(application, "CreateProductHandler.cs"), SampleTemplates.CreateProductHandler, manifest);
-            Write(root, Path.Combine(application, "CreateProductValidator.cs"), SampleTemplates.CreateProductValidator, manifest);
-            Write(root, Path.Combine(application, "GetProductById.cs"), SampleTemplates.GetProductById, manifest);
-            Write(root, Path.Combine(application, "GetProductByIdHandler.cs"), SampleTemplates.GetProductByIdHandler, manifest);
+            Write(root, Path.Combine(application, "DTOs", "ProductDto.cs"), SampleTemplates.ProductDto, manifest);
+            Write(root, Path.Combine(application, "CreateProduct", "CreateProduct.cs"), SampleTemplates.CreateProduct, manifest);
+            Write(root, Path.Combine(application, "CreateProduct", "CreateProductHandler.cs"), SampleTemplates.CreateProductHandler, manifest);
+            Write(root, Path.Combine(application, "CreateProduct", "CreateProductValidator.cs"), SampleTemplates.CreateProductValidator, manifest);
+            Write(root, Path.Combine(application, "GetProductById", "GetProductById.cs"), SampleTemplates.GetProductById, manifest);
+            Write(root, Path.Combine(application, "GetProductById", "GetProductByIdHandler.cs"), SampleTemplates.GetProductByIdHandler, manifest);
 
             Write(root, Path.Combine(infrastructure, "ProductConfiguration.cs"), SampleTemplates.ProductConfiguration, manifest);
             Write(root, Path.Combine(infrastructure, "EfProductRepository.cs"), SampleTemplates.EfProductRepository, manifest);

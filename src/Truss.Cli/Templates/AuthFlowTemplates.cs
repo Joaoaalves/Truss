@@ -2,15 +2,17 @@ namespace Truss.Cli.Templates
 {
     /// <summary>
     /// Templates of the account flows scaffolded when the email module is present:
-    /// password reset, email confirmation and two factor login by email.
+    /// password reset, email confirmation and two factor login by email. They
+    /// follow the same layout as the rest of the Accounts context: a folder and a
+    /// namespace per command, with DTOs and rules in theirs.
     /// </summary>
     internal static class AuthFlowTemplates
     {
         public const string AccountSecurityStore = """
-            using __NAME__.Domain.Accounts;
-
             namespace __NAME__.Application.Accounts
             {
+                using __NS_USER_ID__;
+
                 public sealed record AccountSecurity(bool EmailConfirmed, bool TwoFactorEnabled);
 
                 public interface IAccountSecurityStore
@@ -25,10 +27,10 @@ namespace Truss.Cli.Templates
             """;
 
         public const string AccountTokens = """
-            using __NAME__.Domain.Accounts;
-
             namespace __NAME__.Application.Accounts
             {
+                using __NS_USER_ID__;
+
                 public enum AccountTokenPurpose
                 {
                     PasswordReset = 1,
@@ -46,10 +48,10 @@ namespace Truss.Cli.Templates
             """;
 
         public const string InvalidToken = """
-            using Truss.Domain;
-
-            namespace __NAME__.Application.Accounts
+            namespace __NAME__.Application.Accounts.Rules
             {
+                using Truss.Domain;
+
                 public class InvalidToken : IBusinessRule
                 {
                     public bool IsBroken() => true;
@@ -62,28 +64,29 @@ namespace Truss.Cli.Templates
             """;
 
         public const string LoginResult = """
-            namespace __NAME__.Application.Accounts
+            namespace __NAME__.Application.Accounts.DTOs
             {
                 public sealed record LoginResult(bool RequiresTwoFactor, AuthTokensDto? Tokens);
             }
             """;
 
         public const string RequestPasswordReset = """
-            using Truss.Application;
-
-            namespace __NAME__.Application.Accounts
+            namespace __NAME__.Application.Accounts.RequestPasswordReset
             {
+                using Truss.Application;
+
                 public sealed record RequestPasswordReset(string Email) : ICommand;
             }
             """;
 
         public const string RequestPasswordResetHandler = """
-            using Truss.Application;
-            using Truss.Auth;
-            using Truss.Email;
-
-            namespace __NAME__.Application.Accounts
+            namespace __NAME__.Application.Accounts.RequestPasswordReset
             {
+                using __NAME__.Application.Accounts;
+                using Truss.Application;
+                using Truss.Auth;
+                using Truss.Email;
+
                 public class RequestPasswordResetHandler(
                     IUserRepository users,
                     IAccountTokenStore tokens,
@@ -115,10 +118,10 @@ namespace Truss.Cli.Templates
             """;
 
         public const string RequestPasswordResetValidator = """
-            using FluentValidation;
-
-            namespace __NAME__.Application.Accounts
+            namespace __NAME__.Application.Accounts.RequestPasswordReset
             {
+                using FluentValidation;
+
                 public class RequestPasswordResetValidator : AbstractValidator<RequestPasswordReset>
                 {
                     public RequestPasswordResetValidator()
@@ -130,21 +133,23 @@ namespace Truss.Cli.Templates
             """;
 
         public const string ResetPassword = """
-            using Truss.Application;
-
-            namespace __NAME__.Application.Accounts
+            namespace __NAME__.Application.Accounts.ResetPassword
             {
+                using Truss.Application;
+
                 public sealed record ResetPassword(string Token, string NewPassword) : ICommand;
             }
             """;
 
         public const string ResetPasswordHandler = """
-            using Truss.Application;
-            using Truss.Auth;
-            using Truss.Domain;
-
-            namespace __NAME__.Application.Accounts
+            namespace __NAME__.Application.Accounts.ResetPassword
             {
+                using __NAME__.Application.Accounts;
+                using __NAME__.Application.Accounts.Rules;
+                using Truss.Application;
+                using Truss.Auth;
+                using Truss.Domain;
+
                 public class ResetPasswordHandler(
                     IAccountTokenStore tokens,
                     IOneTimeTokens oneTimeTokens,
@@ -171,10 +176,10 @@ namespace Truss.Cli.Templates
             """;
 
         public const string ResetPasswordValidator = """
-            using FluentValidation;
-
-            namespace __NAME__.Application.Accounts
+            namespace __NAME__.Application.Accounts.ResetPassword
             {
+                using FluentValidation;
+
                 public class ResetPasswordValidator : AbstractValidator<ResetPassword>
                 {
                     public ResetPasswordValidator()
@@ -187,21 +192,23 @@ namespace Truss.Cli.Templates
             """;
 
         public const string ConfirmEmail = """
-            using Truss.Application;
-
-            namespace __NAME__.Application.Accounts
+            namespace __NAME__.Application.Accounts.ConfirmEmail
             {
+                using Truss.Application;
+
                 public sealed record ConfirmEmail(string Token) : ICommand;
             }
             """;
 
         public const string ConfirmEmailHandler = """
-            using Truss.Application;
-            using Truss.Auth;
-            using Truss.Domain;
-
-            namespace __NAME__.Application.Accounts
+            namespace __NAME__.Application.Accounts.ConfirmEmail
             {
+                using __NAME__.Application.Accounts;
+                using __NAME__.Application.Accounts.Rules;
+                using Truss.Application;
+                using Truss.Auth;
+                using Truss.Domain;
+
                 public class ConfirmEmailHandler(
                     IAccountTokenStore tokens,
                     IOneTimeTokens oneTimeTokens,
@@ -228,10 +235,10 @@ namespace Truss.Cli.Templates
             """;
 
         public const string ConfirmEmailValidator = """
-            using FluentValidation;
-
-            namespace __NAME__.Application.Accounts
+            namespace __NAME__.Application.Accounts.ConfirmEmail
             {
+                using FluentValidation;
+
                 public class ConfirmEmailValidator : AbstractValidator<ConfirmEmail>
                 {
                     public ConfirmEmailValidator()
@@ -243,22 +250,26 @@ namespace Truss.Cli.Templates
             """;
 
         public const string VerifyTwoFactor = """
-            using Truss.Application;
-
-            namespace __NAME__.Application.Accounts
+            namespace __NAME__.Application.Accounts.VerifyTwoFactor
             {
+                using __NAME__.Application.Accounts.DTOs;
+                using Truss.Application;
+
                 public sealed record VerifyTwoFactor(string Email, string Code) : ICommand<AuthTokensDto>;
             }
             """;
 
         public const string VerifyTwoFactorHandler = """
-            using System.Security.Claims;
-            using Truss.Application;
-            using Truss.Auth;
-            using Truss.Domain;
-
-            namespace __NAME__.Application.Accounts
+            namespace __NAME__.Application.Accounts.VerifyTwoFactor
             {
+                using System.Security.Claims;
+                using __NAME__.Application.Accounts;
+                using __NAME__.Application.Accounts.DTOs;
+                using __NAME__.Application.Accounts.Rules;
+                using Truss.Application;
+                using Truss.Auth;
+                using Truss.Domain;
+
                 public class VerifyTwoFactorHandler(
                     IUserRepository users,
                     IAccountTokenStore accountTokens,
@@ -297,10 +308,10 @@ namespace Truss.Cli.Templates
             """;
 
         public const string VerifyTwoFactorValidator = """
-            using FluentValidation;
-
-            namespace __NAME__.Application.Accounts
+            namespace __NAME__.Application.Accounts.VerifyTwoFactor
             {
+                using FluentValidation;
+
                 public class VerifyTwoFactorValidator : AbstractValidator<VerifyTwoFactor>
                 {
                     public VerifyTwoFactorValidator()
@@ -313,24 +324,27 @@ namespace Truss.Cli.Templates
             """;
 
         public const string LoginWithFlows = """
-            using Truss.Application;
-
-            namespace __NAME__.Application.Accounts
+            namespace __NAME__.Application.Accounts.Login
             {
+                using __NAME__.Application.Accounts.DTOs;
+                using Truss.Application;
+
                 public sealed record Login(string Email, string Password) : ICommand<LoginResult>;
             }
             """;
 
         public const string LoginHandlerWithFlows = """
-            using System.Security.Claims;
-            using __NAME__.Domain.Accounts;
-            using Truss.Application;
-            using Truss.Auth;
-            using Truss.Domain;
-            using Truss.Email;
-
-            namespace __NAME__.Application.Accounts
+            namespace __NAME__.Application.Accounts.Login
             {
+                using System.Security.Claims;
+                using __NAME__.Application.Accounts;
+                using __NAME__.Application.Accounts.DTOs;
+                using __NAME__.Application.Accounts.Rules;
+                using Truss.Application;
+                using Truss.Auth;
+                using Truss.Domain;
+                using Truss.Email;
+
                 public class LoginHandler(
                     IUserRepository users,
                     IUserCredentialsStore credentials,
@@ -384,14 +398,16 @@ namespace Truss.Cli.Templates
             """;
 
         public const string RegisterUserHandlerWithFlows = """
-            using __NAME__.Domain.Accounts;
-            using Truss.Application;
-            using Truss.Auth;
-            using Truss.Domain;
-            using Truss.Email;
-
-            namespace __NAME__.Application.Accounts
+            namespace __NAME__.Application.Accounts.RegisterUser
             {
+                using __NAME__.Application.Accounts;
+                using __NS_USER__;
+                using __NS_USER_RULES__;__BIND_USING__
+                using Truss.Application;
+                using Truss.Auth;
+                using Truss.Domain;
+                using Truss.Email;
+
                 public class RegisterUserHandler(
                     IUserRepository users,
                     IUserCredentialsStore credentials,
@@ -429,11 +445,11 @@ namespace Truss.Cli.Templates
             """;
 
         public const string RegisterUserValidatorWithFlows = """
-            using FluentValidation;
-            using Truss.Email;
-
-            namespace __NAME__.Application.Accounts
+            namespace __NAME__.Application.Accounts.RegisterUser
             {
+                using FluentValidation;
+                using Truss.Email;
+
                 public class RegisterUserValidator : AbstractValidator<RegisterUser>
                 {
                     public RegisterUserValidator(IEmailAddressValidator emails)
@@ -518,7 +534,7 @@ namespace Truss.Cli.Templates
 
         public const string EfAccountTokenStore = """
             using __NAME__.Application.Accounts;
-            using __NAME__.Domain.Accounts;
+            using __NS_USER_ID__;
             using Microsoft.EntityFrameworkCore;
 
             namespace __NAME__.Infrastructure.Accounts
@@ -548,7 +564,7 @@ namespace Truss.Cli.Templates
 
         public const string EfAccountSecurityStore = """
             using __NAME__.Application.Accounts;
-            using __NAME__.Domain.Accounts;
+            using __NS_USER_ID__;
 
             namespace __NAME__.Infrastructure.Accounts
             {
@@ -580,7 +596,7 @@ namespace Truss.Cli.Templates
 
         public const string IdentityAccountSecurityStore = """
             using __NAME__.Application.Accounts;
-            using __NAME__.Domain.Accounts;
+            using __NS_USER_ID__;
             using Microsoft.AspNetCore.Identity;
 
             namespace __NAME__.Infrastructure.Accounts

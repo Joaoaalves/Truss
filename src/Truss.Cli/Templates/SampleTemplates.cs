@@ -1,20 +1,27 @@
 namespace Truss.Cli.Templates
 {
+    /// <summary>
+    /// The sample Catalog bounded context. It is laid out exactly like the
+    /// generators lay their output out: the aggregate owns a folder with its
+    /// value objects, events and rules, and each command or query owns a folder
+    /// with its handler and validator.
+    /// </summary>
     internal static class SampleTemplates
     {
         public const string ProductId = """
             using Truss.Domain;
 
-            namespace __NAME__.Domain.Catalog
+            namespace __NAME__.Domain.Catalog.Product.ValueObjects
             {
                 public sealed record ProductId(Guid Value) : TypedId<Guid>(Value);
             }
             """;
 
         public const string ProductCreated = """
+            using __NAME__.Domain.Catalog.Product.ValueObjects;
             using Truss.Domain;
 
-            namespace __NAME__.Domain.Catalog
+            namespace __NAME__.Domain.Catalog.Product.Events
             {
                 public sealed record ProductCreated(ProductId ProductId) : DomainEvent;
             }
@@ -23,7 +30,7 @@ namespace Truss.Cli.Templates
         public const string ProductPriceMustBePositive = """
             using Truss.Domain;
 
-            namespace __NAME__.Domain.Catalog
+            namespace __NAME__.Domain.Catalog.Product.Rules
             {
                 public class ProductPriceMustBePositive(decimal price) : IBusinessRule
                 {
@@ -35,9 +42,12 @@ namespace Truss.Cli.Templates
             """;
 
         public const string Product = """
+            using __NAME__.Domain.Catalog.Product.Events;
+            using __NAME__.Domain.Catalog.Product.Rules;
+            using __NAME__.Domain.Catalog.Product.ValueObjects;
             using Truss.Domain;
 
-            namespace __NAME__.Domain.Catalog
+            namespace __NAME__.Domain.Catalog.Product
             {
                 public class Product : AggregateRoot<ProductId>
                 {
@@ -68,10 +78,11 @@ namespace Truss.Cli.Templates
             """;
 
         public const string ProductRepository = """
-            using __NAME__.Domain.Catalog;
-
-            namespace __NAME__.Application.Catalog
+            namespace __NAME__.Application.Catalog.Product
             {
+                using __NAME__.Domain.Catalog.Product;
+                using __NAME__.Domain.Catalog.Product.ValueObjects;
+
                 public interface IProductRepository
                 {
                     void Add(Product product);
@@ -81,21 +92,29 @@ namespace Truss.Cli.Templates
             }
             """;
 
-        public const string CreateProduct = """
-            using Truss.Application;
-
-            namespace __NAME__.Application.Catalog
+        public const string ProductDto = """
+            namespace __NAME__.Application.Catalog.Product.DTOs
             {
+                public sealed record ProductDto(Guid Id, string Name, decimal Price);
+            }
+            """;
+
+        public const string CreateProduct = """
+            namespace __NAME__.Application.Catalog.Product.CreateProduct
+            {
+                using Truss.Application;
+
                 public sealed record CreateProduct(string Name, decimal Price) : ICommand<Guid>;
             }
             """;
 
         public const string CreateProductHandler = """
-            using __NAME__.Domain.Catalog;
-            using Truss.Application;
-
-            namespace __NAME__.Application.Catalog
+            namespace __NAME__.Application.Catalog.Product.CreateProduct
             {
+                using __NAME__.Application.Catalog.Product;
+                using __NAME__.Domain.Catalog.Product;
+                using Truss.Application;
+
                 public class CreateProductHandler(IProductRepository products) : ICommandHandler<CreateProduct, Guid>
                 {
                     public Task<Guid> Handle(CreateProduct command, CancellationToken cancellationToken)
@@ -109,10 +128,10 @@ namespace Truss.Cli.Templates
             """;
 
         public const string CreateProductValidator = """
-            using FluentValidation;
-
-            namespace __NAME__.Application.Catalog
+            namespace __NAME__.Application.Catalog.Product.CreateProduct
             {
+                using FluentValidation;
+
                 public class CreateProductValidator : AbstractValidator<CreateProduct>
                 {
                     public CreateProductValidator()
@@ -125,22 +144,23 @@ namespace Truss.Cli.Templates
             """;
 
         public const string GetProductById = """
-            using Truss.Application;
-
-            namespace __NAME__.Application.Catalog
+            namespace __NAME__.Application.Catalog.Product.GetProductById
             {
-                public sealed record ProductDto(Guid Id, string Name, decimal Price);
+                using __NAME__.Application.Catalog.Product.DTOs;
+                using Truss.Application;
 
                 public sealed record GetProductById(Guid Id) : IQuery<ProductDto?>;
             }
             """;
 
         public const string GetProductByIdHandler = """
-            using __NAME__.Domain.Catalog;
-            using Truss.Application;
-
-            namespace __NAME__.Application.Catalog
+            namespace __NAME__.Application.Catalog.Product.GetProductById
             {
+                using __NAME__.Application.Catalog.Product;
+                using __NAME__.Application.Catalog.Product.DTOs;
+                using __NAME__.Domain.Catalog.Product.ValueObjects;
+                using Truss.Application;
+
                 public class GetProductByIdHandler(IProductRepository products) : IQueryHandler<GetProductById, ProductDto?>
                 {
                     public async Task<ProductDto?> Handle(GetProductById query, CancellationToken cancellationToken)
@@ -156,7 +176,8 @@ namespace Truss.Cli.Templates
             """;
 
         public const string ProductConfiguration = """
-            using __NAME__.Domain.Catalog;
+            using __NAME__.Domain.Catalog.Product;
+            using __NAME__.Domain.Catalog.Product.ValueObjects;
             using Microsoft.EntityFrameworkCore;
             using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
@@ -180,8 +201,9 @@ namespace Truss.Cli.Templates
             """;
 
         public const string EfProductRepository = """
-            using __NAME__.Application.Catalog;
-            using __NAME__.Domain.Catalog;
+            using __NAME__.Application.Catalog.Product;
+            using __NAME__.Domain.Catalog.Product;
+            using __NAME__.Domain.Catalog.Product.ValueObjects;
             using Microsoft.EntityFrameworkCore;
 
             namespace __NAME__.Infrastructure.Catalog
@@ -202,7 +224,7 @@ namespace Truss.Cli.Templates
             """;
 
         public const string CatalogSeeder = """
-            using __NAME__.Domain.Catalog;
+            using __NAME__.Domain.Catalog.Product;
             using Microsoft.EntityFrameworkCore;
             using Truss.Persistence.EntityFrameworkCore;
 
@@ -225,7 +247,7 @@ namespace Truss.Cli.Templates
             """;
 
         public const string InfrastructureModule = """
-            using __NAME__.Application.Catalog;
+            using __NAME__.Application.Catalog.Product;
             using __NAME__.Infrastructure.Catalog;
             using Microsoft.Extensions.DependencyInjection;
 
@@ -251,7 +273,9 @@ namespace Truss.Cli.Templates
             """;
 
         public const string SampleUsings = """
-            using __NAME__.Application.Catalog;
+            using __NAME__.Application.Catalog.Product.CreateProduct;
+            using __NAME__.Application.Catalog.Product.DTOs;
+            using __NAME__.Application.Catalog.Product.GetProductById;
             """;
     }
 }

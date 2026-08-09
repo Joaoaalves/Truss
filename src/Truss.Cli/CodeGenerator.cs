@@ -258,8 +258,9 @@ namespace Truss.Cli
             foreach (var raw in content.Split('\n'))
             {
                 var line = raw.TrimEnd('\r');
+                var directive = line.TrimStart();
 
-                if (line.StartsWith("using ", StringComparison.Ordinal) && !seen.Add(line))
+                if (directive.StartsWith("using ", StringComparison.Ordinal) && !seen.Add(directive))
                     continue;
 
                 lines.Add(line);

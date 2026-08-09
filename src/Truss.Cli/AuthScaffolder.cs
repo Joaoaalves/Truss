@@ -23,9 +23,10 @@ namespace Truss.Cli
         /// <summary>
         /// How the account relates to an existing aggregate: in reference mode the
         /// User carries the aggregate's id; in merge mode the aggregate is the
-        /// account and aliases point the scaffolded code at it.
+        /// account and aliases point the scaffolded code at it. Folder is where the
+        /// aggregate lives, so rules the scaffold brings land beside it.
         /// </summary>
-        private sealed record BindContext(string Aggregate, string IdType, string Namespace, string IdNamespace, bool Merge)
+        private sealed record BindContext(string Aggregate, string IdType, string Namespace, string IdNamespace, string Folder, bool Merge)
         {
             public string Camel => char.ToLowerInvariant(Aggregate[0]) + Aggregate[1..];
         }
@@ -38,9 +39,10 @@ namespace Truss.Cli
                 return 1;
             }
 
-            if (File.Exists(Path.Combine(root, manifest.DomainProject, "Accounts", "User.cs")))
+            if (Directory.Exists(Path.Combine(root, manifest.DomainProject, "Accounts"))
+                || Directory.Exists(Path.Combine(root, manifest.ApplicationProject, "Accounts")))
             {
-                log("An Accounts context already exists in the domain; refusing to overwrite it.");
+                log("An Accounts context already exists; refusing to overwrite it.");
                 return 1;
             }
 
@@ -79,7 +81,7 @@ namespace Truss.Cli
             var flows = manifest.Modules.Contains("email");
 
             WriteScaffold(provider, flows, bind, external.Length > 0, manifest, root, log);
-            WireProgram(flows, manifest, root, log);
+            WireProgram(flows, bind, manifest, root, log);
             WriteJwtSettings(manifest, root);
 
             manifest.Settings["auth.provider"] = provider;
@@ -173,9 +175,10 @@ namespace Truss.Cli
             var ns = Regex.Match(content, @"namespace\s+([\w.]+)").Groups[1].Value;
             var idType = Regex.Match(content, @"AggregateRoot<(\w+)>").Groups[1].Value;
             var idNs = FindTypeNamespace(domainRoot, idType) ?? ns;
+            var folder = Path.GetDirectoryName(file)!;
 
             if (mode == "reference")
-                return new BindContext(aggregate, idType, ns, idNs, Merge: false);
+                return new BindContext(aggregate, idType, ns, idNs, folder, Merge: false);
 
             if (idType == "Guid")
             {
@@ -205,16 +208,7 @@ namespace Truss.Cli
                 return null;
             }
 
-            return new BindContext(aggregate, idType, ns, idNs, Merge: true);
-        }
-
-        private static string? FindTypeNamespace(string domainRoot, string type)
-        {
-            var file = Directory.EnumerateFiles(domainRoot, $"{type}.cs", SearchOption.AllDirectories).FirstOrDefault();
-
-            return file is null
-                ? null
-                : Regex.Match(File.ReadAllText(file), @"namespace\s+([\w.]+)").Groups[1].Value;
+            return new BindContext(aggregate, idType, ns, idNs, folder, Merge: true);
         }
 
         private static BindContext? ResolveInstalledBinding(TrussManifest manifest, string root)
@@ -224,6 +218,15 @@ namespace Truss.Cli
 
             manifest.Settings.TryGetValue("auth.bind.mode", out var mode);
             return ResolveBinding(aggregate, mode, manifest, root, _ => { });
+        }
+
+        private static string? FindTypeNamespace(string domainRoot, string type)
+        {
+            var file = Directory.EnumerateFiles(domainRoot, $"{type}.cs", SearchOption.AllDirectories).FirstOrDefault();
+
+            return file is null
+                ? null
+                : Regex.Match(File.ReadAllText(file), @"namespace\s+([\w.]+)").Groups[1].Value;
         }
 
         private static string[]? NormalizeExternal(string[] providers, Action<string> log)
@@ -247,7 +250,7 @@ namespace Truss.Cli
 
         private static void WriteScaffold(string provider, bool flows, BindContext? bind, bool external, TrussManifest manifest, string root, Action<string> log)
         {
-            var domain = Path.Combine(manifest.DomainProject, "Accounts");
+            var domainUser = Path.Combine(manifest.DomainProject, "Accounts", "User");
             var application = Path.Combine(manifest.ApplicationProject, "Accounts");
             var infrastructure = Path.Combine(manifest.InfrastructureProject, "Accounts");
 
@@ -259,28 +262,31 @@ namespace Truss.Cli
             }
             else
             {
-                Write(root, Path.Combine(domain, "UserId.cs"), AuthTemplates.UserId, manifest, bind);
-                Write(root, Path.Combine(domain, "User.cs"), bind is null ? AuthTemplates.User : AuthBindingTemplates.UserWithBinding, manifest, bind);
-                Write(root, Path.Combine(domain, "UserRegistered.cs"), AuthTemplates.UserRegistered, manifest, bind);
+                Write(root, Path.Combine(domainUser, "User.cs"), bind is null ? AuthTemplates.User : AuthBindingTemplates.UserWithBinding, manifest, bind);
+                Write(root, Path.Combine(domainUser, "ValueObjects", "UserId.cs"), AuthTemplates.UserId, manifest, bind);
+                Write(root, Path.Combine(domainUser, "Events", "UserRegistered.cs"), AuthTemplates.UserRegistered, manifest, bind);
                 Write(root, Path.Combine(infrastructure, "UserConfiguration.cs"), AuthTemplates.UserConfiguration, manifest, bind);
             }
 
-            Write(root, Path.Combine(domain, "EmailMustBeUnique.cs"), AuthTemplates.EmailMustBeUnique, manifest, bind);
+            WriteAccountRule(root, bind, manifest, domainUser);
 
-            Write(root, Path.Combine(application, "InvalidCredentials.cs"), AuthTemplates.InvalidCredentials, manifest, bind);
             Write(root, Path.Combine(application, "IUserRepository.cs"), AuthTemplates.UserRepository, manifest, bind);
             Write(root, Path.Combine(application, "IUserCredentialsStore.cs"), AuthTemplates.UserCredentialsStore, manifest, bind);
             Write(root, Path.Combine(application, "IRefreshTokenStore.cs"), AuthTemplates.RefreshTokenStore, manifest, bind);
-            Write(root, Path.Combine(application, "AuthTokensDto.cs"), AuthTemplates.AuthTokensDto, manifest, bind);
-            Write(root, Path.Combine(application, "RegisterUser.cs"), AuthTemplates.RegisterUser, manifest, bind);
-            Write(root, Path.Combine(application, "RegisterUserHandler.cs"), flows ? AuthFlowTemplates.RegisterUserHandlerWithFlows : AuthTemplates.RegisterUserHandler, manifest, bind);
-            Write(root, Path.Combine(application, "RegisterUserValidator.cs"), flows ? AuthFlowTemplates.RegisterUserValidatorWithFlows : AuthTemplates.RegisterUserValidator, manifest, bind);
-            Write(root, Path.Combine(application, "Login.cs"), flows ? AuthFlowTemplates.LoginWithFlows : AuthTemplates.Login, manifest, bind);
-            Write(root, Path.Combine(application, "LoginHandler.cs"), flows ? AuthFlowTemplates.LoginHandlerWithFlows : AuthTemplates.LoginHandler, manifest, bind);
-            Write(root, Path.Combine(application, "LoginValidator.cs"), AuthTemplates.LoginValidator, manifest, bind);
-            Write(root, Path.Combine(application, "Refresh.cs"), AuthTemplates.Refresh, manifest, bind);
-            Write(root, Path.Combine(application, "RefreshHandler.cs"), AuthTemplates.RefreshHandler, manifest, bind);
-            Write(root, Path.Combine(application, "RefreshValidator.cs"), AuthTemplates.RefreshValidator, manifest, bind);
+            Write(root, Path.Combine(application, "DTOs", "AuthTokensDto.cs"), AuthTemplates.AuthTokensDto, manifest, bind);
+            Write(root, Path.Combine(application, "Rules", "InvalidCredentials.cs"), AuthTemplates.InvalidCredentials, manifest, bind);
+
+            Write(root, Path.Combine(application, "RegisterUser", "RegisterUser.cs"), AuthTemplates.RegisterUser, manifest, bind);
+            Write(root, Path.Combine(application, "RegisterUser", "RegisterUserHandler.cs"), flows ? AuthFlowTemplates.RegisterUserHandlerWithFlows : AuthTemplates.RegisterUserHandler, manifest, bind);
+            Write(root, Path.Combine(application, "RegisterUser", "RegisterUserValidator.cs"), flows ? AuthFlowTemplates.RegisterUserValidatorWithFlows : AuthTemplates.RegisterUserValidator, manifest, bind);
+
+            Write(root, Path.Combine(application, "Login", "Login.cs"), flows ? AuthFlowTemplates.LoginWithFlows : AuthTemplates.Login, manifest, bind);
+            Write(root, Path.Combine(application, "Login", "LoginHandler.cs"), flows ? AuthFlowTemplates.LoginHandlerWithFlows : AuthTemplates.LoginHandler, manifest, bind);
+            Write(root, Path.Combine(application, "Login", "LoginValidator.cs"), AuthTemplates.LoginValidator, manifest, bind);
+
+            Write(root, Path.Combine(application, "Refresh", "Refresh.cs"), AuthTemplates.Refresh, manifest, bind);
+            Write(root, Path.Combine(application, "Refresh", "RefreshHandler.cs"), AuthTemplates.RefreshHandler, manifest, bind);
+            Write(root, Path.Combine(application, "Refresh", "RefreshValidator.cs"), AuthTemplates.RefreshValidator, manifest, bind);
 
             Write(root, Path.Combine(infrastructure, "RefreshTokenRecord.cs"), AuthTemplates.RefreshTokenRecord, manifest, bind);
             Write(root, Path.Combine(infrastructure, "RefreshTokenConfiguration.cs"), AuthTemplates.RefreshTokenConfiguration, manifest, bind);
@@ -292,14 +298,14 @@ namespace Truss.Cli
                 Write(root, Path.Combine(infrastructure, "ApplicationUser.cs"), AuthTemplates.ApplicationUser, manifest, bind);
                 Write(root, Path.Combine(infrastructure, "IdentityModelConfiguration.cs"), AuthTemplates.IdentityModelConfiguration, manifest, bind);
                 Write(root, Path.Combine(infrastructure, "IdentityUserCredentialsStore.cs"), AuthTemplates.IdentityUserCredentialsStore, manifest, bind);
-                WriteAccountsModule(root, manifest, AuthTemplates.AccountsModuleIdentity, flows, external, "IdentityAccountSecurityStore");
+                WriteAccountsModule(root, manifest, bind, AuthTemplates.AccountsModuleIdentity, flows, external, "IdentityAccountSecurityStore");
             }
             else
             {
                 Write(root, Path.Combine(infrastructure, "UserCredential.cs"), AuthTemplates.UserCredential, manifest, bind);
                 Write(root, Path.Combine(infrastructure, "UserCredentialConfiguration.cs"), AuthTemplates.UserCredentialConfiguration, manifest, bind);
                 Write(root, Path.Combine(infrastructure, "EfUserCredentialsStore.cs"), AuthTemplates.EfUserCredentialsStore, manifest, bind);
-                WriteAccountsModule(root, manifest, AuthTemplates.AccountsModule, flows, external, "EfAccountSecurityStore");
+                WriteAccountsModule(root, manifest, bind, AuthTemplates.AccountsModule, flows, external, "EfAccountSecurityStore");
             }
 
             if (flows)
@@ -309,6 +315,20 @@ namespace Truss.Cli
                 WriteExternalScaffold(bind, manifest, root);
         }
 
+        /// <summary>
+        /// The email uniqueness rule belongs to the account aggregate, so it lands
+        /// in its Rules folder: the scaffolded User's, or the bound aggregate's when
+        /// that aggregate is the account.
+        /// </summary>
+        private static void WriteAccountRule(string root, BindContext? bind, TrussManifest manifest, string domainUser)
+        {
+            var folder = bind is { Merge: true }
+                ? Path.Combine(Path.GetRelativePath(root, bind.Folder), "Rules")
+                : Path.Combine(domainUser, "Rules");
+
+            WriteIfMissing(root, Path.Combine(folder, "EmailMustBeUnique.cs"), AuthTemplates.EmailMustBeUnique, manifest, bind);
+        }
+
         private static void WriteFlowScaffold(string provider, BindContext? bind, TrussManifest manifest, string root)
         {
             var application = Path.Combine(manifest.ApplicationProject, "Accounts");
@@ -316,20 +336,24 @@ namespace Truss.Cli
 
             Write(root, Path.Combine(application, "IAccountSecurityStore.cs"), AuthFlowTemplates.AccountSecurityStore, manifest, bind);
             Write(root, Path.Combine(application, "IAccountTokenStore.cs"), AuthFlowTemplates.AccountTokens, manifest, bind);
-            Write(root, Path.Combine(application, "InvalidToken.cs"), AuthFlowTemplates.InvalidToken, manifest, bind);
-            Write(root, Path.Combine(application, "LoginResult.cs"), AuthFlowTemplates.LoginResult, manifest, bind);
-            Write(root, Path.Combine(application, "RequestPasswordReset.cs"), AuthFlowTemplates.RequestPasswordReset, manifest, bind);
-            Write(root, Path.Combine(application, "RequestPasswordResetHandler.cs"), AuthFlowTemplates.RequestPasswordResetHandler, manifest, bind);
-            Write(root, Path.Combine(application, "RequestPasswordResetValidator.cs"), AuthFlowTemplates.RequestPasswordResetValidator, manifest, bind);
-            Write(root, Path.Combine(application, "ResetPassword.cs"), AuthFlowTemplates.ResetPassword, manifest, bind);
-            Write(root, Path.Combine(application, "ResetPasswordHandler.cs"), AuthFlowTemplates.ResetPasswordHandler, manifest, bind);
-            Write(root, Path.Combine(application, "ResetPasswordValidator.cs"), AuthFlowTemplates.ResetPasswordValidator, manifest, bind);
-            Write(root, Path.Combine(application, "ConfirmEmail.cs"), AuthFlowTemplates.ConfirmEmail, manifest, bind);
-            Write(root, Path.Combine(application, "ConfirmEmailHandler.cs"), AuthFlowTemplates.ConfirmEmailHandler, manifest, bind);
-            Write(root, Path.Combine(application, "ConfirmEmailValidator.cs"), AuthFlowTemplates.ConfirmEmailValidator, manifest, bind);
-            Write(root, Path.Combine(application, "VerifyTwoFactor.cs"), AuthFlowTemplates.VerifyTwoFactor, manifest, bind);
-            Write(root, Path.Combine(application, "VerifyTwoFactorHandler.cs"), AuthFlowTemplates.VerifyTwoFactorHandler, manifest, bind);
-            Write(root, Path.Combine(application, "VerifyTwoFactorValidator.cs"), AuthFlowTemplates.VerifyTwoFactorValidator, manifest, bind);
+            Write(root, Path.Combine(application, "Rules", "InvalidToken.cs"), AuthFlowTemplates.InvalidToken, manifest, bind);
+            Write(root, Path.Combine(application, "DTOs", "LoginResult.cs"), AuthFlowTemplates.LoginResult, manifest, bind);
+
+            Write(root, Path.Combine(application, "RequestPasswordReset", "RequestPasswordReset.cs"), AuthFlowTemplates.RequestPasswordReset, manifest, bind);
+            Write(root, Path.Combine(application, "RequestPasswordReset", "RequestPasswordResetHandler.cs"), AuthFlowTemplates.RequestPasswordResetHandler, manifest, bind);
+            Write(root, Path.Combine(application, "RequestPasswordReset", "RequestPasswordResetValidator.cs"), AuthFlowTemplates.RequestPasswordResetValidator, manifest, bind);
+
+            Write(root, Path.Combine(application, "ResetPassword", "ResetPassword.cs"), AuthFlowTemplates.ResetPassword, manifest, bind);
+            Write(root, Path.Combine(application, "ResetPassword", "ResetPasswordHandler.cs"), AuthFlowTemplates.ResetPasswordHandler, manifest, bind);
+            Write(root, Path.Combine(application, "ResetPassword", "ResetPasswordValidator.cs"), AuthFlowTemplates.ResetPasswordValidator, manifest, bind);
+
+            Write(root, Path.Combine(application, "ConfirmEmail", "ConfirmEmail.cs"), AuthFlowTemplates.ConfirmEmail, manifest, bind);
+            Write(root, Path.Combine(application, "ConfirmEmail", "ConfirmEmailHandler.cs"), AuthFlowTemplates.ConfirmEmailHandler, manifest, bind);
+            Write(root, Path.Combine(application, "ConfirmEmail", "ConfirmEmailValidator.cs"), AuthFlowTemplates.ConfirmEmailValidator, manifest, bind);
+
+            Write(root, Path.Combine(application, "VerifyTwoFactor", "VerifyTwoFactor.cs"), AuthFlowTemplates.VerifyTwoFactor, manifest, bind);
+            Write(root, Path.Combine(application, "VerifyTwoFactor", "VerifyTwoFactorHandler.cs"), AuthFlowTemplates.VerifyTwoFactorHandler, manifest, bind);
+            Write(root, Path.Combine(application, "VerifyTwoFactor", "VerifyTwoFactorValidator.cs"), AuthFlowTemplates.VerifyTwoFactorValidator, manifest, bind);
 
             Write(root, Path.Combine(infrastructure, "AccountTokenRecord.cs"), AuthFlowTemplates.AccountTokenRecord, manifest, bind);
             Write(root, Path.Combine(infrastructure, "AccountTokenConfiguration.cs"), AuthFlowTemplates.AccountTokenConfiguration, manifest, bind);
@@ -347,17 +371,17 @@ namespace Truss.Cli
             var infrastructure = Path.Combine(manifest.InfrastructureProject, "Accounts");
 
             WriteIfMissing(root, Path.Combine(application, "IExternalLoginStore.cs"), AuthBindingTemplates.ExternalLoginStore, manifest, bind);
-            WriteIfMissing(root, Path.Combine(application, "ExternalLogin.cs"), AuthBindingTemplates.ExternalLogin, manifest, bind);
-            WriteIfMissing(root, Path.Combine(application, "ExternalLoginValidator.cs"), AuthBindingTemplates.ExternalLoginValidator, manifest, bind);
+            WriteIfMissing(root, Path.Combine(application, "ExternalLogin", "ExternalLogin.cs"), AuthBindingTemplates.ExternalLogin, manifest, bind);
+            WriteIfMissing(root, Path.Combine(application, "ExternalLogin", "ExternalLoginValidator.cs"), AuthBindingTemplates.ExternalLoginValidator, manifest, bind);
 
             if (bind is { Merge: false })
             {
-                WriteIfMissing(root, Path.Combine(application, "ExternalLoginHandler.cs"), AuthBindingTemplates.ExternalLoginHandlerBound, manifest, bind);
-                WriteIfMissing(root, Path.Combine(application, "NoAccountForExternalLogin.cs"), AuthBindingTemplates.NoAccountForExternalLogin, manifest, bind);
+                WriteIfMissing(root, Path.Combine(application, "ExternalLogin", "ExternalLoginHandler.cs"), AuthBindingTemplates.ExternalLoginHandlerBound, manifest, bind);
+                WriteIfMissing(root, Path.Combine(application, "Rules", "NoAccountForExternalLogin.cs"), AuthBindingTemplates.NoAccountForExternalLogin, manifest, bind);
             }
             else
             {
-                WriteIfMissing(root, Path.Combine(application, "ExternalLoginHandler.cs"), AuthBindingTemplates.ExternalLoginHandler, manifest, bind);
+                WriteIfMissing(root, Path.Combine(application, "ExternalLogin", "ExternalLoginHandler.cs"), AuthBindingTemplates.ExternalLoginHandler, manifest, bind);
             }
 
             WriteIfMissing(root, Path.Combine(infrastructure, "ExternalLoginRecord.cs"), AuthBindingTemplates.ExternalLoginRecord, manifest, bind);
@@ -417,7 +441,7 @@ namespace Truss.Cli
                 }
             }
 
-            if (!SourceEditor.InsertBefore(program, $"using {manifest.Name}.Application.Accounts;", $"using {manifest.Name}.Api;"))
+            if (!SourceEditor.InsertBefore(program, $"using {manifest.Name}.Application;", $"using {manifest.Name}.Api;"))
                 log($"Could not update Program.cs usings automatically. Add: using {manifest.Name}.Api;");
 
             if (!SourceEditor.InsertBefore(program, "app.Run();", AuthBindingTemplates.ProgramEndpoint))
@@ -463,7 +487,7 @@ namespace Truss.Cli
             }
         }
 
-        private static void WriteAccountsModule(string root, TrussManifest manifest, string template, bool flows, bool external, string securityStore)
+        private static void WriteAccountsModule(string root, TrussManifest manifest, BindContext? bind, string template, bool flows, bool external, string securityStore)
         {
             var registrations = string.Empty;
 
@@ -478,24 +502,25 @@ namespace Truss.Cli
                     + $"            services.AddScoped<IAccountSecurityStore, {securityStore}>();";
             }
 
-            var content = Render(template, manifest, bind: null).Replace("__FLOW_REGISTRATIONS__", registrations);
+            var content = Render(template, manifest, bind).Replace("__FLOW_REGISTRATIONS__", registrations);
             var path = Path.Combine(root, manifest.InfrastructureProject, "AccountsModule.cs");
 
             Directory.CreateDirectory(Path.GetDirectoryName(path)!);
             File.WriteAllText(path, content + Environment.NewLine);
         }
 
-        private static void WireProgram(bool flows, TrussManifest manifest, string root, Action<string> log)
+        private static void WireProgram(bool flows, BindContext? bind, TrussManifest manifest, string root, Action<string> log)
         {
             var program = Path.Combine(root, manifest.ApiProject, "Program.cs");
+            var usings = Render(flows ? AuthTemplates.ProgramUsingsWithFlows : AuthTemplates.ProgramUsings, manifest, bind);
 
-            if (!SourceEditor.InsertBefore(program, "using __NAME__.Infrastructure;".Replace("__NAME__", manifest.Name), Render(AuthTemplates.ProgramUsing, manifest, bind: null)))
-                log($"Could not update Program.cs usings automatically. Add: {Render(AuthTemplates.ProgramUsing, manifest, bind: null)}");
+            if (!SourceEditor.InsertBefore(program, $"using {manifest.Name}.Infrastructure;", usings))
+                log($"Could not update Program.cs usings automatically. Add:{Environment.NewLine}{usings}");
 
-            if (!SourceEditor.InsertBefore(program, "var app = builder.Build();", Render(AuthTemplates.ProgramServices, manifest, bind: null)))
+            if (!SourceEditor.InsertBefore(program, "var app = builder.Build();", Render(AuthTemplates.ProgramServices, manifest, bind)))
             {
                 log("Could not update Program.cs automatically. Add before building the app:");
-                log(Render(AuthTemplates.ProgramServices, manifest, bind: null));
+                log(Render(AuthTemplates.ProgramServices, manifest, bind));
             }
 
             if (!SourceEditor.InsertAfter(program, "var app = builder.Build();", AuthTemplates.ProgramMiddleware))
@@ -571,23 +596,42 @@ namespace Truss.Cli
                 Write(root, relativePath, template, manifest, bind);
         }
 
+        /// <summary>
+        /// Renders a template against the account's namespaces: the scaffolded
+        /// User's by default, the bound aggregate's in merge mode. __BIND_USING__
+        /// carries the import of the referenced aggregate's typed id, which only
+        /// reference mode needs.
+        /// </summary>
         private static string Render(string template, TrussManifest manifest, BindContext? bind)
         {
-            var content = template.Replace("__NAME__", manifest.Name);
+            var userNamespace = bind is { Merge: true } ? bind.Namespace : $"{manifest.Name}.Domain.Accounts.User";
+            var userIdNamespace = bind is { Merge: true } ? bind.IdNamespace : $"{manifest.Name}.Domain.Accounts.User.ValueObjects";
 
-            if (bind is null)
-                return content;
+            var referencesTypedId = bind is { Merge: false, IdType: not "Guid" };
+            var bindUsing = referencesTypedId ? $"\n    using {bind!.IdNamespace};" : string.Empty;
+            var bindUsingTop = referencesTypedId ? $"\nusing {bind!.IdNamespace};" : string.Empty;
 
-            content = content
-                .Replace("__AGGIDNS__", bind.IdNamespace)
-                .Replace("__AGGNS__", bind.Namespace)
-                .Replace("__AGGID__", bind.IdType)
-                .Replace("__AGGCAMEL__", bind.Camel)
-                .Replace("__AGG__", bind.Aggregate);
+            var content = template
+                .Replace("__NS_USER_RULES__", $"{userNamespace}.Rules")
+                .Replace("__NS_USER_ID__", userIdNamespace)
+                .Replace("__NS_USER__", userNamespace)
+                .Replace("__BIND_USING_TOP__", bindUsingTop)
+                .Replace("__BIND_USING__", bindUsing)
+                .Replace("__NAME__", manifest.Name);
+
+            if (bind is not null)
+            {
+                content = content
+                    .Replace("__AGGIDNS__", bind.IdNamespace)
+                    .Replace("__AGGNS__", bind.Namespace)
+                    .Replace("__AGGID__", bind.IdType)
+                    .Replace("__AGGCAMEL__", bind.Camel)
+                    .Replace("__AGG__", bind.Aggregate);
+            }
 
             content = CodeGenerator.DedupeUsings(content);
 
-            return bind.Merge ? content : ApplyReferenceBinding(content, manifest, bind);
+            return bind is { Merge: false } ? ApplyReferenceBinding(content, manifest, bind) : content;
         }
 
         /// <summary>
@@ -605,23 +649,13 @@ namespace Truss.Cli
                 ? $"user.{bind.Aggregate}Id"
                 : $"user.{bind.Aggregate}Id.Value";
 
-            var accountsUsing = $"using {manifest.Name}.Domain.Accounts;";
-            var aggregateUsing = $"using {bind.IdNamespace};";
-            var needsUsing = bind.IdType != "Guid" && bind.IdNamespace != $"{manifest.Name}.Domain.Accounts";
-
             var updated = content.Replace(
                 "RegisterUser(string Email, string Name, string Password)",
                 $"RegisterUser(string Email, string Name, string Password, Guid {bind.Aggregate}Id)");
 
-            if (updated.Contains("var user = User.Register(command.Email, command.Name);"))
-            {
-                updated = updated.Replace(
-                    "var user = User.Register(command.Email, command.Name);",
-                    $"var user = User.Register(command.Email, command.Name, {idFromCommand});");
-
-                if (needsUsing && !updated.Contains(aggregateUsing))
-                    updated = updated.Replace(accountsUsing, accountsUsing + "\n" + aggregateUsing);
-            }
+            updated = updated.Replace(
+                "var user = User.Register(command.Email, command.Name);",
+                $"var user = User.Register(command.Email, command.Name, {idFromCommand});");
 
             updated = Regex.Replace(
                 updated,
@@ -643,9 +677,6 @@ namespace Truss.Cli
                     + $"            builder.Property(user => user.{bind.Aggregate}Id)\n"
                     + $"                .HasConversion(id => id.Value, value => new {bind.IdType}(value));\n\n"
                     + $"            builder.HasIndex(user => user.{bind.Aggregate}Id);");
-
-                if (needsUsing && !updated.Contains(aggregateUsing))
-                    updated = updated.Replace(accountsUsing, accountsUsing + "\n" + aggregateUsing);
             }
 
             return updated;

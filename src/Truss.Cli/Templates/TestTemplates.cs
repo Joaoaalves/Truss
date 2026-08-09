@@ -133,7 +133,8 @@ namespace Truss.Cli.Templates
             """;
 
         public const string SampleProductTests = """
-            using __NAME__.Domain.Catalog;
+            using __NAME__.Domain.Catalog.Product;
+            using __NAME__.Domain.Catalog.Product.Events;
             using Truss.Domain;
             using Xunit;
 
@@ -161,7 +162,9 @@ namespace Truss.Cli.Templates
 
         public const string SampleCatalogTests = """
             using __NAME__.Application;
-            using __NAME__.Application.Catalog;
+            using __NAME__.Application.Catalog.Product;
+            using __NAME__.Application.Catalog.Product.CreateProduct;
+            using __NAME__.Application.Catalog.Product.GetProductById;
             using __NAME__.Infrastructure;
             using __NAME__.Infrastructure.Catalog;
             using Microsoft.Extensions.DependencyInjection;

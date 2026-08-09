@@ -158,15 +158,21 @@ namespace Truss.Cli.Tests
 
             Assert.Equal(0, _workspace.Run("add", "auth", "--provider", "jwt", "--project", root));
 
-            Assert.True(_workspace.FileExists("Shop", "src", "Shop.Domain", "Accounts", "User.cs"));
-            Assert.True(_workspace.FileExists("Shop", "src", "Shop.Application", "Accounts", "LoginHandler.cs"));
+            Assert.True(_workspace.FileExists("Shop", "src", "Shop.Domain", "Accounts", "User", "User.cs"));
+            Assert.True(_workspace.FileExists("Shop", "src", "Shop.Domain", "Accounts", "User", "ValueObjects", "UserId.cs"));
+            Assert.True(_workspace.FileExists("Shop", "src", "Shop.Domain", "Accounts", "User", "Events", "UserRegistered.cs"));
+            Assert.True(_workspace.FileExists("Shop", "src", "Shop.Domain", "Accounts", "User", "Rules", "EmailMustBeUnique.cs"));
+            Assert.True(_workspace.FileExists("Shop", "src", "Shop.Application", "Accounts", "Login", "LoginHandler.cs"));
+            Assert.True(_workspace.FileExists("Shop", "src", "Shop.Application", "Accounts", "Login", "LoginValidator.cs"));
+            Assert.True(_workspace.FileExists("Shop", "src", "Shop.Application", "Accounts", "DTOs", "AuthTokensDto.cs"));
+            Assert.True(_workspace.FileExists("Shop", "src", "Shop.Application", "Accounts", "Rules", "InvalidCredentials.cs"));
             Assert.True(_workspace.FileExists("Shop", "src", "Shop.Application", "Accounts", "IUserCredentialsStore.cs"));
             Assert.True(_workspace.FileExists("Shop", "src", "Shop.Infrastructure", "Accounts", "EfUserRepository.cs"));
             Assert.True(_workspace.FileExists("Shop", "src", "Shop.Infrastructure", "Accounts", "EfUserCredentialsStore.cs"));
             Assert.True(_workspace.FileExists("Shop", "src", "Shop.Infrastructure", "Accounts", "EfRefreshTokenStore.cs"));
 
-            var user = _workspace.ReadFile("Shop", "src", "Shop.Domain", "Accounts", "User.cs");
-            Assert.Contains("namespace Shop.Domain.Accounts", user);
+            var user = _workspace.ReadFile("Shop", "src", "Shop.Domain", "Accounts", "User", "User.cs");
+            Assert.Contains("namespace Shop.Domain.Accounts.User", user);
             Assert.Contains("public class User : AggregateRoot<UserId>", user);
             Assert.DoesNotContain("PasswordHash", user);
             Assert.DoesNotContain("hash", user, StringComparison.OrdinalIgnoreCase);
@@ -196,12 +202,13 @@ namespace Truss.Cli.Tests
             Assert.Equal(0, _workspace.Run("add", "auth", "--project", root));
 
             Assert.True(_workspace.FileExists("Shop", "src", "Shop.Application", "Accounts", "IAccountSecurityStore.cs"));
-            Assert.True(_workspace.FileExists("Shop", "src", "Shop.Application", "Accounts", "RequestPasswordResetHandler.cs"));
-            Assert.True(_workspace.FileExists("Shop", "src", "Shop.Application", "Accounts", "VerifyTwoFactorHandler.cs"));
+            Assert.True(_workspace.FileExists("Shop", "src", "Shop.Application", "Accounts", "RequestPasswordReset", "RequestPasswordResetHandler.cs"));
+            Assert.True(_workspace.FileExists("Shop", "src", "Shop.Application", "Accounts", "VerifyTwoFactor", "VerifyTwoFactorHandler.cs"));
+            Assert.True(_workspace.FileExists("Shop", "src", "Shop.Application", "Accounts", "DTOs", "LoginResult.cs"));
             Assert.True(_workspace.FileExists("Shop", "src", "Shop.Infrastructure", "Accounts", "AccountTokenRecord.cs"));
             Assert.True(_workspace.FileExists("Shop", "src", "Shop.Infrastructure", "Accounts", "EfAccountSecurityStore.cs"));
 
-            var user = _workspace.ReadFile("Shop", "src", "Shop.Domain", "Accounts", "User.cs");
+            var user = _workspace.ReadFile("Shop", "src", "Shop.Domain", "Accounts", "User", "User.cs");
             Assert.DoesNotContain("EmailConfirmed", user);
             Assert.DoesNotContain("TwoFactorEnabled", user);
             Assert.DoesNotContain("hash", user, StringComparison.OrdinalIgnoreCase);
@@ -233,7 +240,7 @@ namespace Truss.Cli.Tests
             Assert.True(_workspace.FileExists("Shop", "src", "Shop.Infrastructure", "Accounts", "IdentityUserCredentialsStore.cs"));
             Assert.False(_workspace.FileExists("Shop", "src", "Shop.Infrastructure", "Accounts", "UserCredential.cs"));
 
-            var user = _workspace.ReadFile("Shop", "src", "Shop.Domain", "Accounts", "User.cs");
+            var user = _workspace.ReadFile("Shop", "src", "Shop.Domain", "Accounts", "User", "User.cs");
             Assert.DoesNotContain("hash", user, StringComparison.OrdinalIgnoreCase);
             Assert.DoesNotContain("Identity", user);
 
@@ -380,7 +387,7 @@ namespace Truss.Cli.Tests
             var dbContext = _workspace.ReadFile("Shop", "src", "Shop.Infrastructure", "AppDbContext.cs");
             Assert.Contains("ApplyTrussTenancy(this)", dbContext);
 
-            var product = _workspace.ReadFile("Shop", "src", "Shop.Domain", "Catalog", "Product.cs");
+            var product = _workspace.ReadFile("Shop", "src", "Shop.Domain", "Catalog", "Product", "Product.cs");
             Assert.DoesNotContain("Tenant", product);
 
             var manifest = TrussManifest.Load(root);

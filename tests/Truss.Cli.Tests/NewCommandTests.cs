@@ -19,7 +19,7 @@ namespace Truss.Cli.Tests
             Assert.True(_workspace.FileExists("Shop", "src", "Shop.Infrastructure", "AppDbContext.cs"));
             Assert.True(_workspace.FileExists("Shop", "src", "Shop.Api", "Program.cs"));
             Assert.True(_workspace.FileExists("Shop", "src", "Shop.Api", "Properties", "launchSettings.json"));
-            Assert.True(_workspace.FileExists("Shop", "src", "Shop.Domain", "Catalog", "Product.cs"));
+            Assert.True(_workspace.FileExists("Shop", "src", "Shop.Domain", "Catalog", "Product", "Product.cs"));
             Assert.True(_workspace.FileExists("Shop", "docker-compose.yml"));
 
             var program = _workspace.ReadFile("Shop", "src", "Shop.Api", "Program.cs");
@@ -44,7 +44,7 @@ namespace Truss.Cli.Tests
             var exitCode = _workspace.Scaffold("Shop", "postgres");
 
             Assert.Equal(0, exitCode);
-            Assert.False(_workspace.FileExists("Shop", "src", "Shop.Domain", "Catalog", "Product.cs"));
+            Assert.False(_workspace.FileExists("Shop", "src", "Shop.Domain", "Catalog", "Product", "Product.cs"));
             Assert.False(_workspace.FileExists("Shop", "src", "Shop.Infrastructure", "InfrastructureModule.cs"));
 
             var program = _workspace.ReadFile("Shop", "src", "Shop.Api", "Program.cs");
@@ -102,7 +102,7 @@ namespace Truss.Cli.Tests
 
             Assert.Equal(0, exitCode);
             Assert.False(Directory.Exists(Path.Combine(_workspace.Root("Tool"), "src", "Tool.Infrastructure")));
-            Assert.False(_workspace.FileExists("Tool", "src", "Tool.Domain", "Catalog", "Product.cs"));
+            Assert.False(_workspace.FileExists("Tool", "src", "Tool.Domain", "Catalog", "Product", "Product.cs"));
 
             var program = _workspace.ReadFile("Tool", "src", "Tool.Api", "Program.cs");
             Assert.DoesNotContain("AddDbContext", program);

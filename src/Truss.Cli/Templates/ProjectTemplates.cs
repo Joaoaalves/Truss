@@ -150,7 +150,7 @@ namespace Truss.Cli.Templates
             """;
 
         public const string AppDbContextSample = """
-            using __NAME__.Domain.Catalog;
+            using __NAME__.Domain.Catalog.Product;
             using Microsoft.EntityFrameworkCore;
 
             namespace __NAME__.Infrastructure

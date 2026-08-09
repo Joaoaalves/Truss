@@ -106,7 +106,7 @@ namespace Truss.Cli.Tests
             Assert.Equal(0, _workspace.Run("add", "auth", "--project", root));
             Assert.Equal(1, _workspace.Run("remove", "context", "Accounts", "--project", root));
 
-            Assert.True(_workspace.FileExists("Shop", "src", "Shop.Domain", "Accounts", "User.cs"));
+            Assert.True(_workspace.FileExists("Shop", "src", "Shop.Domain", "Accounts", "User", "User.cs"));
         }
 
         public void Dispose() => _workspace.Dispose();

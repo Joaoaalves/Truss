@@ -20,21 +20,21 @@ namespace Truss.Cli.Tests
             Assert.Equal(0, _workspace.Run("generate", "aggregate", "Customer", "--context", "Crm", "--project", root));
             Assert.Equal(0, _workspace.Run("add", "auth", "--bind-user", "Customer", "--project", root));
 
-            var user = _workspace.ReadFile("Shop", "src", "Shop.Domain", "Accounts", "User.cs");
+            var user = _workspace.ReadFile("Shop", "src", "Shop.Domain", "Accounts", "User", "User.cs");
             Assert.Contains("using Shop.Domain.Crm.Customer.ValueObjects;", user);
             Assert.Contains("public CustomerId CustomerId { get; private set; }", user);
             Assert.Contains("public static User Register(string email, string name, CustomerId customerId)", user);
 
-            var command = _workspace.ReadFile("Shop", "src", "Shop.Application", "Accounts", "RegisterUser.cs");
+            var command = _workspace.ReadFile("Shop", "src", "Shop.Application", "Accounts", "RegisterUser", "RegisterUser.cs");
             Assert.Contains("RegisterUser(string Email, string Name, string Password, Guid CustomerId)", command);
 
-            var handler = _workspace.ReadFile("Shop", "src", "Shop.Application", "Accounts", "RegisterUserHandler.cs");
+            var handler = _workspace.ReadFile("Shop", "src", "Shop.Application", "Accounts", "RegisterUser", "RegisterUserHandler.cs");
             Assert.Contains("User.Register(command.Email, command.Name, new CustomerId(command.CustomerId))", handler);
 
-            var validator = _workspace.ReadFile("Shop", "src", "Shop.Application", "Accounts", "RegisterUserValidator.cs");
+            var validator = _workspace.ReadFile("Shop", "src", "Shop.Application", "Accounts", "RegisterUser", "RegisterUserValidator.cs");
             Assert.Contains("RuleFor(command => command.CustomerId).NotEmpty();", validator);
 
-            var login = _workspace.ReadFile("Shop", "src", "Shop.Application", "Accounts", "LoginHandler.cs");
+            var login = _workspace.ReadFile("Shop", "src", "Shop.Application", "Accounts", "Login", "LoginHandler.cs");
             Assert.Contains("new Claim(\"customerId\", user.CustomerId.Value.ToString())", login);
 
             var configuration = _workspace.ReadFile("Shop", "src", "Shop.Infrastructure", "Accounts", "UserConfiguration.cs");
@@ -92,7 +92,7 @@ namespace Truss.Cli.Tests
 
             Assert.Equal(0, _workspace.Run("add", "auth", "--bind-user", "Customer", "--bind-mode", "merge", "--project", root));
 
-            Assert.False(_workspace.FileExists("Shop", "src", "Shop.Domain", "Accounts", "User.cs"));
+            Assert.False(_workspace.FileExists("Shop", "src", "Shop.Domain", "Accounts", "User", "User.cs"));
             Assert.False(_workspace.FileExists("Shop", "src", "Shop.Infrastructure", "Accounts", "UserConfiguration.cs"));
 
             var aliases = _workspace.ReadFile("Shop", "src", "Shop.Application", "Accounts", "AccountAliases.cs");
@@ -126,7 +126,7 @@ namespace Truss.Cli.Tests
             Assert.Contains("using Shop.Api;", program);
 
             Assert.True(_workspace.FileExists("Shop", "src", "Shop.Api", "ExternalAuthEndpoints.cs"));
-            Assert.True(_workspace.FileExists("Shop", "src", "Shop.Application", "Accounts", "ExternalLoginHandler.cs"));
+            Assert.True(_workspace.FileExists("Shop", "src", "Shop.Application", "Accounts", "ExternalLogin", "ExternalLoginHandler.cs"));
             Assert.True(_workspace.FileExists("Shop", "src", "Shop.Infrastructure", "Accounts", "EfExternalLoginStore.cs"));
 
             var module = _workspace.ReadFile("Shop", "src", "Shop.Infrastructure", "AccountsModule.cs");

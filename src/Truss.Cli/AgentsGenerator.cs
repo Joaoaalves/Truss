@@ -133,7 +133,7 @@ namespace Truss.Cli
                         break;
 
                     case "auth":
-                        block.AppendLine($"- Auth ({authProvider ?? "jwt"} provider): endpoints /auth/register, /auth/login and /auth/refresh. The Accounts context is editable project code; extend the User aggregate freely but keep credentials out of it. Protect endpoints with .RequireAuthorization(); the sub claim carries the user id.{AuthBindingNote(manifest)}{AuthExternalNote(manifest)}");
+                        block.AppendLine($"- Auth ({authProvider ?? "jwt"} provider): endpoints /auth/register, /auth/login and /auth/refresh. The Accounts context is editable project code laid out like generated code (aggregate folder with ValueObjects, Events and Rules; a folder per command with its handler and validator; DTOs and Rules in the application). Extend the User aggregate freely but keep credentials out of it. Protect endpoints with .RequireAuthorization(); the sub claim carries the user id.{AuthBindingNote(manifest)}{AuthExternalNote(manifest)}");
                         break;
 
                     case "tenancy":

@@ -9,10 +9,12 @@ namespace Truss.Cli.Templates
     internal static class AuthBindingTemplates
     {
         public const string UserWithBinding = """
+            using __NAME__.Domain.Accounts.User.Events;
+            using __NAME__.Domain.Accounts.User.ValueObjects;
             using __AGGIDNS__;
             using Truss.Domain;
 
-            namespace __NAME__.Domain.Accounts
+            namespace __NAME__.Domain.Accounts.User
             {
                 public class User : AggregateRoot<UserId>
                 {
@@ -78,10 +80,10 @@ namespace Truss.Cli.Templates
             """;
 
         public const string ExternalLoginStore = """
-            using __NAME__.Domain.Accounts;
-
             namespace __NAME__.Application.Accounts
             {
+                using __NS_USER_ID__;
+
                 public interface IExternalLoginStore
                 {
                     Task<UserId?> Find(string provider, string providerKey, CancellationToken cancellationToken = default);
@@ -92,19 +94,20 @@ namespace Truss.Cli.Templates
             """;
 
         public const string ExternalLogin = """
-            using Truss.Application;
-
-            namespace __NAME__.Application.Accounts
+            namespace __NAME__.Application.Accounts.ExternalLogin
             {
+                using __NAME__.Application.Accounts.DTOs;
+                using Truss.Application;
+
                 public sealed record ExternalLogin(string Provider, string ProviderKey, string Email, string Name) : ICommand<AuthTokensDto>;
             }
             """;
 
         public const string ExternalLoginValidator = """
-            using FluentValidation;
-
-            namespace __NAME__.Application.Accounts
+            namespace __NAME__.Application.Accounts.ExternalLogin
             {
+                using FluentValidation;
+
                 public class ExternalLoginValidator : AbstractValidator<ExternalLogin>
                 {
                     public ExternalLoginValidator()
@@ -119,13 +122,15 @@ namespace Truss.Cli.Templates
             """;
 
         public const string ExternalLoginHandler = """
-            using System.Security.Claims;
-            using __NAME__.Domain.Accounts;
-            using Truss.Application;
-            using Truss.Auth;
-
-            namespace __NAME__.Application.Accounts
+            namespace __NAME__.Application.Accounts.ExternalLogin
             {
+                using System.Security.Claims;
+                using __NAME__.Application.Accounts;
+                using __NAME__.Application.Accounts.DTOs;
+                using __NS_USER__;
+                using Truss.Application;
+                using Truss.Auth;
+
                 public class ExternalLoginHandler(
                     IUserRepository users,
                     IExternalLoginStore externalLogins,
@@ -180,14 +185,17 @@ namespace Truss.Cli.Templates
             """;
 
         public const string ExternalLoginHandlerBound = """
-            using System.Security.Claims;
-            using __NAME__.Domain.Accounts;
-            using Truss.Application;
-            using Truss.Auth;
-            using Truss.Domain;
-
-            namespace __NAME__.Application.Accounts
+            namespace __NAME__.Application.Accounts.ExternalLogin
             {
+                using System.Security.Claims;
+                using __NAME__.Application.Accounts;
+                using __NAME__.Application.Accounts.DTOs;
+                using __NAME__.Application.Accounts.Rules;
+                using __NS_USER__;
+                using Truss.Application;
+                using Truss.Auth;
+                using Truss.Domain;
+
                 public class ExternalLoginHandler(
                     IUserRepository users,
                     IExternalLoginStore externalLogins,
@@ -239,10 +247,10 @@ namespace Truss.Cli.Templates
             """;
 
         public const string NoAccountForExternalLogin = """
-            using Truss.Domain;
-
-            namespace __NAME__.Application.Accounts
+            namespace __NAME__.Application.Accounts.Rules
             {
+                using Truss.Domain;
+
                 public class NoAccountForExternalLogin : IBusinessRule
                 {
                     public bool IsBroken() => true;
@@ -305,7 +313,7 @@ namespace Truss.Cli.Templates
 
         public const string EfExternalLoginStore = """
             using __NAME__.Application.Accounts;
-            using __NAME__.Domain.Accounts;
+            using __NS_USER_ID__;
 
             namespace __NAME__.Infrastructure.Accounts
             {
@@ -327,7 +335,7 @@ namespace Truss.Cli.Templates
 
         public const string ExternalAuthEndpoints = """
             using System.Security.Claims;
-            using __NAME__.Application.Accounts;
+            using __NAME__.Application.Accounts.ExternalLogin;
             using Microsoft.AspNetCore.Authentication;
             using Truss.Application;
 
