@@ -40,7 +40,7 @@ MyShop/
     MyShop.Api/              composition root with Truss.AspNetCore and Truss.Generators
 ```
 
-The default scaffold is clean: no example code to delete before the real work starts. With `--sample` (or answering yes to the interactive prompt), a `Catalog` bounded context shows the full pattern in working code: a `Product` aggregate with a typed id, a business rule and a domain event; `CreateProduct` and `GetProductById` with handlers, validator and repository; the EF configuration converting the typed id; a `CatalogSeeder` planting development data; and the endpoints mapped with `MapCommand` and `MapQuery`. When you are done reading it, `truss remove context Catalog` takes all of it out.
+The default scaffold is clean: no example code to delete before the real work starts. With `--sample` (or answering yes to the interactive prompt), a `Catalog` bounded context shows the full pattern in working code, laid out exactly like generated code: a `Product` aggregate with its typed id, domain event and business rule in their folders; `CreateProduct` and `GetProductById` each in their own folder with handler and validator; the DTO in `DTOs/`; the repository, EF configuration and a `CatalogSeeder` in infrastructure; and the endpoints mapped with `MapCommand` and `MapQuery`. When you are done reading it, `truss remove context Catalog` takes all of it out.
 
 Development data comes from seeders: classes implementing `ITrussSeeder`, registered with `AddTrussSeeder<T>()` and executed by `app.Services.RunTrussSeeders()`, which the scaffolded Program calls in development right after the schema is ready. Seeders run in registration order and should check before inserting, so restarting the application never duplicates data.
 

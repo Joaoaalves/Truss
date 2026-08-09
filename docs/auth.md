@@ -13,9 +13,31 @@ truss add auth --provider jwt
 Requires a database. The command:
 
 - References `Truss.Auth.Abstractions` in the application layer and `Truss.Auth.Jwt` in the host.
-- Scaffolds the `Accounts` context: the `User` aggregate, its business rule and the `UserRegistered` event in the domain; the `RegisterUser`, `Login` and `Refresh` commands with handlers, validators and the credential store abstractions in the application; the credential and refresh token persistence models, EF configurations and store implementations in the infrastructure.
+- Scaffolds the `Accounts` context, laid out exactly like [generated code](cli.md#truss-generate): namespaces mirror the folders, the aggregate owns its value objects, events and rules, and each command owns a folder with its handler and validator.
 - Wires `Program.cs`: `AddTrussJwtAuth`, `UseAuthentication`, `UseAuthorization` and the three endpoints.
 - Writes a development signing key to `appsettings.json`.
+
+```
+Domain/Accounts/User/
+  User.cs                       the aggregate, namespace MyShop.Domain.Accounts.User
+  ValueObjects/UserId.cs
+  Events/UserRegistered.cs
+  Rules/EmailMustBeUnique.cs
+
+Application/Accounts/
+  IUserRepository.cs            the repository and the credential and token stores
+  IUserCredentialsStore.cs
+  IRefreshTokenStore.cs
+  DTOs/AuthTokensDto.cs
+  Rules/InvalidCredentials.cs
+  RegisterUser/                 command, handler and validator
+  Login/                        command, handler and validator
+  Refresh/                      command, handler and validator
+
+Infrastructure/Accounts/        persistence models, EF configurations and store implementations
+```
+
+The account flows and external login add their own folders beside these (`ConfirmEmail/`, `ResetPassword/`, `ExternalLogin/`, and so on).
 
 The endpoints work immediately:
 

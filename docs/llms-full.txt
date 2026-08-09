@@ -1955,9 +1955,31 @@ truss add auth --provider jwt
 Requires a database. The command:
 
 - References `Truss.Auth.Abstractions` in the application layer and `Truss.Auth.Jwt` in the host.
-- Scaffolds the `Accounts` context: the `User` aggregate, its business rule and the `UserRegistered` event in the domain; the `RegisterUser`, `Login` and `Refresh` commands with handlers, validators and the credential store abstractions in the application; the credential and refresh token persistence models, EF configurations and store implementations in the infrastructure.
+- Scaffolds the `Accounts` context, laid out exactly like [generated code](cli.md#truss-generate): namespaces mirror the folders, the aggregate owns its value objects, events and rules, and each command owns a folder with its handler and validator.
 - Wires `Program.cs`: `AddTrussJwtAuth`, `UseAuthentication`, `UseAuthorization` and the three endpoints.
 - Writes a development signing key to `appsettings.json`.
+
+```
+Domain/Accounts/User/
+  User.cs                       the aggregate, namespace MyShop.Domain.Accounts.User
+  ValueObjects/UserId.cs
+  Events/UserRegistered.cs
+  Rules/EmailMustBeUnique.cs
+
+Application/Accounts/
+  IUserRepository.cs            the repository and the credential and token stores
+  IUserCredentialsStore.cs
+  IRefreshTokenStore.cs
+  DTOs/AuthTokensDto.cs
+  Rules/InvalidCredentials.cs
+  RegisterUser/                 command, handler and validator
+  Login/                        command, handler and validator
+  Refresh/                      command, handler and validator
+
+Infrastructure/Accounts/        persistence models, EF configurations and store implementations
+```
+
+The account flows and external login add their own folders beside these (`ConfirmEmail/`, `ResetPassword/`, `ExternalLogin/`, and so on).
 
 The endpoints work immediately:
 
@@ -2502,7 +2524,7 @@ MyShop/
     MyShop.Api/              composition root with Truss.AspNetCore and Truss.Generators
 ```
 
-The default scaffold is clean: no example code to delete before the real work starts. With `--sample` (or answering yes to the interactive prompt), a `Catalog` bounded context shows the full pattern in working code: a `Product` aggregate with a typed id, a business rule and a domain event; `CreateProduct` and `GetProductById` with handlers, validator and repository; the EF configuration converting the typed id; a `CatalogSeeder` planting development data; and the endpoints mapped with `MapCommand` and `MapQuery`. When you are done reading it, `truss remove context Catalog` takes all of it out.
+The default scaffold is clean: no example code to delete before the real work starts. With `--sample` (or answering yes to the interactive prompt), a `Catalog` bounded context shows the full pattern in working code, laid out exactly like generated code: a `Product` aggregate with its typed id, domain event and business rule in their folders; `CreateProduct` and `GetProductById` each in their own folder with handler and validator; the DTO in `DTOs/`; the repository, EF configuration and a `CatalogSeeder` in infrastructure; and the endpoints mapped with `MapCommand` and `MapQuery`. When you are done reading it, `truss remove context Catalog` takes all of it out.
 
 Development data comes from seeders: classes implementing `ITrussSeeder`, registered with `AddTrussSeeder<T>()` and executed by `app.Services.RunTrussSeeders()`, which the scaffolded Program calls in development right after the schema is ready. Seeders run in registration order and should check before inserting, so restarting the application never duplicates data.
 
@@ -2813,7 +2835,7 @@ Truss is built module by module, each one opt-in. The framework never installs a
 - External login providers: Google, Microsoft and GitHub OAuth combinable with either credential provider, resolved into the same editable account model.
 - Clean scaffold by default: truss new creates no example code unless --sample asks for the Catalog context, and truss remove context deletes a bounded context with all its wiring.
 - Scaffolded tests: every new project carries a domain test project and an integration test project on the TrussTestHost, and generators add matching tests, so generated code arrives tested.
-- Mirrored namespaces: generated code's namespaces follow the folders exactly, with each command and query in its own folder and DTOs and rules in theirs.
+- Mirrored namespaces: generated code's namespaces follow the folders exactly, with each command and query in its own folder and DTOs and rules in theirs. The sample context and everything truss add auth scaffolds follow the same layout.
 
 ---
 
