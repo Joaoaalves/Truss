@@ -52,6 +52,44 @@ namespace Truss.Cli.Tests
         }
 
         [Fact]
+        public void RemoveContext_OfARootLevelAggregate_SweepsTheLooseTestAndEfFiles()
+        {
+            Assert.Equal(0, _workspace.Scaffold("Shop", "sqlite"));
+            var root = _workspace.Root("Shop");
+
+            Assert.Equal(0, _workspace.Run("generate", "aggregate", "Gadget", "--crud", "--project", root));
+
+            Assert.True(_workspace.FileExists("Shop", "tests", "Shop.Domain.Tests", "GadgetTests.cs"));
+            Assert.True(_workspace.FileExists("Shop", "tests", "Shop.IntegrationTests", "GadgetCrudTests.cs"));
+            Assert.True(_workspace.FileExists("Shop", "src", "Shop.Infrastructure", "EfGadgetRepository.cs"));
+
+            Assert.Equal(0, _workspace.Run("remove", "context", "Gadget", "--project", root));
+
+            Assert.False(_workspace.FileExists("Shop", "tests", "Shop.Domain.Tests", "GadgetTests.cs"));
+            Assert.False(_workspace.FileExists("Shop", "tests", "Shop.IntegrationTests", "GadgetCrudTests.cs"));
+            Assert.False(_workspace.FileExists("Shop", "src", "Shop.Infrastructure", "GadgetConfiguration.cs"));
+            Assert.False(_workspace.FileExists("Shop", "src", "Shop.Infrastructure", "EfGadgetRepository.cs"));
+            Assert.True(_workspace.FileExists("Shop", "tests", "Shop.IntegrationTests", "HostSmokeTests.cs"));
+
+            var program = _workspace.ReadFile("Shop", "src", "Shop.Api", "Program.cs");
+            Assert.DoesNotContain("Gadget", program);
+        }
+
+        [Fact]
+        public void RemoveContext_Catalog_LeavesOtherContextsAlone()
+        {
+            Assert.Equal(0, _workspace.Scaffold("Shop", "sqlite", "--sample"));
+            var root = _workspace.Root("Shop");
+
+            Assert.Equal(0, _workspace.Run("generate", "aggregate", "Ticket", "--context", "Support", "--project", root));
+            Assert.Equal(0, _workspace.Run("remove", "context", "Catalog", "--project", root));
+
+            Assert.False(_workspace.FileExists("Shop", "tests", "Shop.Domain.Tests", "Catalog", "ProductTests.cs"));
+            Assert.False(_workspace.FileExists("Shop", "tests", "Shop.IntegrationTests", "Catalog", "CatalogTests.cs"));
+            Assert.True(_workspace.FileExists("Shop", "tests", "Shop.Domain.Tests", "Support", "TicketTests.cs"));
+        }
+
+        [Fact]
         public void RemoveContext_ThatDoesNotExist_Fails()
         {
             Assert.Equal(0, _workspace.Scaffold("Shop", "sqlite"));

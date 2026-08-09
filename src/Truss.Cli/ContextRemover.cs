@@ -53,6 +53,13 @@ namespace Truss.Cli
                 log($"Removed {Path.GetRelativePath(root, folder)}");
             }
 
+            // Blocks generated without a context leave their tests and EF files
+            // at the project roots instead of inside a context folder; sweep the
+            // ones that belong to the removed types wherever they live.
+            RemoveLooseFiles(root, manifest.DomainTestsProject, types, MatchesTestFile, log);
+            RemoveLooseFiles(root, manifest.IntegrationTestsProject, types, MatchesTestFile, log);
+            RemoveLooseFiles(root, manifest.InfrastructureProject, types, MatchesEfFile, log);
+
             CleanFile(Path.Combine(root, manifest.ApiProject, "Program.cs"), context, types, root, log);
             CleanFile(Path.Combine(root, "src", $"{manifest.Name}.Worker", "Program.cs"), context, types, root, log);
             CleanFile(Path.Combine(root, manifest.InfrastructureProject, "AppDbContext.cs"), context, types, root, log);
@@ -71,6 +78,57 @@ namespace Truss.Cli
 
             log("Run dotnet build; anything else that referenced the removed types will surface there.");
             return 0;
+        }
+
+        private static void RemoveLooseFiles(
+            string root,
+            string project,
+            HashSet<string> types,
+            Func<string, HashSet<string>, bool> belongsToRemovedType,
+            Action<string> log)
+        {
+            var directory = Path.Combine(root, project);
+
+            if (!Directory.Exists(directory))
+                return;
+
+            // Only the project root: context folders were already deleted whole,
+            // and a same-named type in another context must stay untouched.
+            foreach (var file in Directory.EnumerateFiles(directory, "*.cs", SearchOption.TopDirectoryOnly))
+            {
+                if (!belongsToRemovedType(Path.GetFileNameWithoutExtension(file), types))
+                    continue;
+
+                File.Delete(file);
+                log($"Removed {Path.GetRelativePath(root, file)}");
+            }
+        }
+
+        private static bool MatchesTestFile(string name, HashSet<string> types)
+        {
+            if (!name.EndsWith("Tests", StringComparison.Ordinal))
+                return false;
+
+            var subject = name[..^"Tests".Length];
+
+            if (types.Contains(subject))
+                return true;
+
+            return subject.EndsWith("Crud", StringComparison.Ordinal)
+                && types.Contains(subject[..^"Crud".Length]);
+        }
+
+        private static bool MatchesEfFile(string name, HashSet<string> types)
+        {
+            if (name.EndsWith("Configuration", StringComparison.Ordinal)
+                && types.Contains(name[..^"Configuration".Length]))
+            {
+                return true;
+            }
+
+            return name.StartsWith("Ef", StringComparison.Ordinal)
+                && name.EndsWith("Repository", StringComparison.Ordinal)
+                && types.Contains(name["Ef".Length..^"Repository".Length]);
         }
 
         private static void CleanFile(string path, string context, HashSet<string> types, string root, Action<string> log)

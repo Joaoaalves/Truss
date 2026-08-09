@@ -131,7 +131,7 @@ Existing files are never overwritten.
 truss remove context Catalog
 ```
 
-Removes a bounded context: deletes its folders across the Domain, Application and Infrastructure projects and the test projects, and cleans the wiring that pointed at it, in `Program.cs`, the worker's `Program.cs`, `AppDbContext.cs` and the infrastructure module: usings of the context's namespaces and every line referencing one of the removed types. A slice generated with `--crud` unwinds completely, routes and registration included, and removing the sample `Catalog` also drops its `DbSet`, seeder registration and endpoints.
+Removes a bounded context: deletes its folders across the Domain, Application and Infrastructure projects and the test projects, sweeps loose files at the project roots that belong to the removed types (the tests, configuration and repository of a block generated without `--context`), and cleans the wiring that pointed at it, in `Program.cs`, the worker's `Program.cs`, `AppDbContext.cs` and the infrastructure module: usings of the context's namespaces and every line referencing one of the removed types. A slice generated with `--crud` unwinds completely, routes and registration included, and removing the sample `Catalog` also drops its `DbSet`, seeder registration and endpoints.
 
 The `Accounts` context scaffolded by `truss add auth` is refused: it belongs to a module, and removing it would leave the module half-wired. If the project has migrations, the CLI reminds you to capture the schema change with `truss db add`.
 
