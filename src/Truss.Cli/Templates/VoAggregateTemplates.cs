@@ -18,10 +18,10 @@ namespace Truss.Cli.Templates
     {
         public string Camel => char.ToLowerInvariant(Name[0]) + Name[1..];
 
-        public string VoType(VoField field) =>
-            field.Property.StartsWith(Name, StringComparison.Ordinal) ? field.Property : Name + field.Property;
+        public string VoType(VoField field) => field.ReferenceType
+            ?? (field.Property.StartsWith(Name, StringComparison.Ordinal) ? field.Property : Name + field.Property);
 
-        public string VoNs(VoField field) => $"{AggNs}.ValueObjects.{VoType(field)}";
+        public string VoNs(VoField field) => field.ReferenceNamespace ?? $"{AggNs}.ValueObjects.{VoType(field)}";
 
         public IEnumerable<string> VoUsings() =>
             Fields.Select(field => $"using {VoNs(field)};").Distinct().OrderBy(line => line, StringComparer.Ordinal);
@@ -492,7 +492,13 @@ namespace Truss.Cli.Templates
                 rules.AppendLine("            RuleFor(command => command.Id).NotEmpty();");
 
             foreach (var field in model.Fields.Where(field => field.IsString))
-                rules.AppendLine($"            RuleFor(command => command.{field.Property}).NotEmpty().MaximumLength({model.VoType(field)}.MaxLength);");
+            {
+                var minimum = field.HasRule(VoRuleKind.MinLength)
+                    ? $".MinimumLength({model.VoType(field)}.MinLength)"
+                    : string.Empty;
+
+                rules.AppendLine($"            RuleFor(command => command.{field.Property}).NotEmpty(){minimum}.MaximumLength({model.VoType(field)}.MaxLength);");
+            }
 
             var voUsings = model.Fields.Any(field => field.IsString) ? IndentedVoUsings(model, stringsOnly: true) + Environment.NewLine : string.Empty;
 

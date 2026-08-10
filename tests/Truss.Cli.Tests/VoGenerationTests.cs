@@ -119,6 +119,86 @@ namespace Truss.Cli.Tests
         }
 
         [Fact]
+        public void GenerateAggregate_WithRuleSegments_ResolvesRangesAndComparators()
+        {
+            var root = ScaffoldShop();
+
+            Assert.Equal(0, _workspace.Run(
+                "g", "agg", "Food", "-c", "Nutrition",
+                "--vo", "Name:string:3..120", "--vo", "Calories:int:0..900", "--vo", "Fat:decimal:pos", "--project", root));
+
+            var name = _workspace.ReadFile("Shop", "src", "Shop.Domain", "Nutrition", "Food", "ValueObjects", "FoodName", "FoodName.cs");
+            Assert.Contains("public const int MinLength = 3;", name);
+            Assert.Contains("public const int MaxLength = 120;", name);
+            Assert.Contains("CheckRule(new FoodNameMustNotBeTooShort(normalized));", name);
+
+            var atMost = _workspace.ReadFile("Shop", "src", "Shop.Domain", "Nutrition", "Food", "ValueObjects", "FoodCalories", "Rules", "FoodCaloriesMustBeAtMost.cs");
+            Assert.Contains("value > 900", atMost);
+            Assert.Contains("\"foodCalories.too-large\"", atMost);
+
+            var positive = _workspace.ReadFile("Shop", "src", "Shop.Domain", "Nutrition", "Food", "ValueObjects", "FoodFat", "Rules", "FoodFatMustBePositive.cs");
+            Assert.Contains("value <= 0", positive);
+
+            // The generated invalid samples respect the custom bounds.
+            var caloriesTest = _workspace.ReadFile("Shop", "tests", "Shop.Domain.Tests", "Nutrition", "FoodCaloriesTests.cs");
+            Assert.Contains("FoodCalories.Create(-1)", caloriesTest);
+
+            var fatTest = _workspace.ReadFile("Shop", "tests", "Shop.Domain.Tests", "Nutrition", "FoodFatTests.cs");
+            Assert.Contains("FoodFat.Create(0m)", fatTest);
+        }
+
+        [Fact]
+        public void GenerateValueObject_Composite_BuildsTheMembersBesideIt()
+        {
+            var root = ScaffoldShop();
+
+            Assert.Equal(0, _workspace.Run("g", "agg", "Food", "-c", "Nutrition", "--project", root));
+            Assert.Equal(0, _workspace.Run(
+                "g", "vo", "MacroNutrients", "-c", "Nutrition", "-a", "Food",
+                "--vo", "Carbohydrates:decimal", "--vo", "Protein:decimal", "--project", root));
+
+            var composite = _workspace.ReadFile("Shop", "src", "Shop.Domain", "Nutrition", "Food", "ValueObjects", "MacroNutrients", "MacroNutrients.cs");
+            Assert.Contains("namespace Shop.Domain.Nutrition.Food.ValueObjects.MacroNutrients", composite);
+            Assert.Contains("public static MacroNutrients Create(Carbohydrates carbohydrates, Protein protein)", composite);
+            Assert.Contains("public static MacroNutrients Create(decimal carbohydrates, decimal protein)", composite);
+            Assert.Contains("// Rules that read several members belong here.", composite);
+            Assert.DoesNotContain("Calories()", composite);
+
+            Assert.True(_workspace.FileExists("Shop", "src", "Shop.Domain", "Nutrition", "Food", "ValueObjects", "Carbohydrates", "Carbohydrates.cs"));
+            Assert.True(_workspace.FileExists("Shop", "src", "Shop.Domain", "Nutrition", "Food", "ValueObjects", "Protein", "Rules", "ProteinMustNotBeNegative.cs"));
+
+            var test = _workspace.ReadFile("Shop", "tests", "Shop.Domain.Tests", "Nutrition", "MacroNutrientsTests.cs");
+            Assert.Contains("MacroNutrients.Create(10m, 10m)", test);
+        }
+
+        [Fact]
+        public void GenerateValueObject_BoundToAMissingAggregate_Fails()
+        {
+            var root = ScaffoldShop();
+
+            Assert.Equal(1, _workspace.Run("g", "vo", "MacroNutrients", "-c", "Nutrition", "-a", "Food", "--vo", "Protein:decimal", "--project", root));
+        }
+
+        [Fact]
+        public void GenerateAggregate_ReferencingAnExistingValueObject_UsesItWithoutRegenerating()
+        {
+            var root = ScaffoldShop();
+
+            Assert.Equal(0, _workspace.Run("g", "vo", "Money", "-c", "Shared", "-f", "Amount:decimal", "--project", root));
+            Assert.Equal(0, _workspace.Run("g", "agg", "Product", "-c", "Sales", "--vo", "Name:string", "--vo", "Price:Money", "--project", root));
+
+            var aggregate = _workspace.ReadFile("Shop", "src", "Shop.Domain", "Sales", "Product", "Product.cs");
+            Assert.Contains("using Shop.Domain.Shared.ValueObjects.Money;", aggregate);
+            Assert.Contains("public Money Price { get; private set; }", aggregate);
+            Assert.Contains("public static Product Create(ProductName name, Money price)", aggregate);
+
+            Assert.False(Directory.Exists(Path.Combine(root, "src", "Shop.Domain", "Sales", "Product", "ValueObjects", "Money")));
+
+            // A referenced value object cannot be flattened into a crud slice yet.
+            Assert.Equal(1, _workspace.Run("g", "agg", "Order", "-c", "Sales", "--crud", "--vo", "Total:Money", "--project", root));
+        }
+
+        [Fact]
         public void GenerateAggregate_WithUintVo_WrapsAnIntInstead()
         {
             var root = ScaffoldShop();

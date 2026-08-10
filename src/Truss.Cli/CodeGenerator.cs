@@ -24,7 +24,11 @@ namespace Truss.Cli
             if (crud && !manifest.UsesEntityFramework)
                 throw new ArgumentException("--crud generates a repository over the database and requires one. Scaffold the project with --database first.");
 
-            var fields = VoField.Parse(valueObjects ?? [], log);
+            var fields = VoField.Parse(valueObjects ?? [], log, type => ResolveValueObject(manifest, root, type));
+
+            if (crud && fields.Any(field => field.IsReference))
+                throw new ArgumentException("--crud cannot flatten a referenced value object into the slice yet. Generate without --crud, or use primitive members.");
+
             var folder = Path.Combine(TargetDirectory(root, manifest.DomainProject, context), name);
 
             var files = new List<string>
@@ -67,7 +71,9 @@ namespace Truss.Cli
             files.Insert(0, WriteFile(folder, $"{name}.cs", VoAggregateTemplates.Aggregate(model, crud)));
             files.AddRange(GenerateValueObjectFiles(manifest, root, folder, context, model));
 
-            if (HasTests(manifest, root, manifest.DomainTestsProject))
+            // A referenced value object has an unknowable factory, so the sample
+            // construction of the aggregate test cannot be generated.
+            if (HasTests(manifest, root, manifest.DomainTestsProject) && !fields.Any(field => field.IsReference))
             {
                 files.Add(WriteFile(
                     TargetDirectory(root, manifest.DomainTestsProject, context),
@@ -92,35 +98,120 @@ namespace Truss.Cli
         }
 
         /// <summary>
-        /// Generates a standalone value object: shared concepts like Money or
-        /// Email that several aggregates speak, with the fields given as
-        /// Name:type specifications.
+        /// Generates a standalone value object. With -f the members are primitive
+        /// fields of one class; with --vo each member is a value object of its
+        /// own and the class composes them. With --aggregate the value object is
+        /// born inside the owning aggregate's folder, ready to be wired in.
         /// </summary>
-        public static IReadOnlyList<string> GenerateValueObject(TrussManifest manifest, string root, string name, string? context, string[]? fieldSpecs, Action<string>? log = null)
+        public static IReadOnlyList<string> GenerateValueObject(TrussManifest manifest, string root, string name, string? context, string[]? fieldSpecs, string[]? voSpecs, string? aggregate, Action<string>? log = null)
         {
             ValidateType(name);
 
-            var fields = VoField.Parse(fieldSpecs is { Length: > 0 } ? fieldSpecs : ["Value:string"], log);
-            var ns = $"{DomainNamespace(manifest, context)}.ValueObjects.{name}";
-            var folder = Path.Combine(TargetDirectory(root, manifest.DomainProject, context), "ValueObjects", name);
+            if (fieldSpecs is { Length: > 0 } && voSpecs is { Length: > 0 })
+                throw new ArgumentException("Use -f for primitive fields or --vo for composed value objects, not both.");
 
-            var files = new List<string>
+            string parentNs;
+            string parentFolder;
+
+            if (aggregate is null)
             {
-                WriteFile(folder, $"{name}.cs", ValueObjectTemplates.ValueObjectClass(ns, name, fields))
-            };
-
-            foreach (var (fileName, content) in ValueObjectTemplates.RuleFiles(ns, name, fields))
-                files.Add(WriteFile(Path.Combine(folder, "Rules"), fileName, content));
-
-            if (HasTests(manifest, root, manifest.DomainTestsProject))
+                parentNs = $"{DomainNamespace(manifest, context)}.ValueObjects";
+                parentFolder = Path.Combine(TargetDirectory(root, manifest.DomainProject, context), "ValueObjects");
+            }
+            else
             {
-                files.Add(WriteFile(
-                    TargetDirectory(root, manifest.DomainTestsProject, context),
-                    $"{name}Tests.cs",
-                    ValueObjectTemplates.TestFile(DomainTestsNamespace(manifest, context), ns, name, fields)));
+                ValidateType(aggregate);
+
+                var owner = Path.Combine(TargetDirectory(root, manifest.DomainProject, context), aggregate);
+
+                if (!Directory.Exists(owner))
+                    throw new ArgumentException($"No {aggregate} was found to own {name}. Generate it first: truss g agg {aggregate}{(context is null ? string.Empty : $" -c {context}")}");
+
+                parentNs = $"{DomainNamespace(manifest, context)}.{aggregate}.ValueObjects";
+                parentFolder = Path.Combine(owner, "ValueObjects");
+            }
+
+            var ns = $"{parentNs}.{name}";
+            var folder = Path.Combine(parentFolder, name);
+            var files = new List<string>();
+
+            if (voSpecs is { Length: > 0 })
+            {
+                var members = VoField.Parse(voSpecs, log);
+
+                files.Add(WriteFile(folder, $"{name}.cs", ValueObjectTemplates.CompositeClass(parentNs, name, members)));
+
+                // The members are ordinary value objects beside the composite,
+                // so the aggregate (or anything else) can also speak them alone.
+                foreach (var member in members)
+                {
+                    var memberNs = $"{parentNs}.{member.Property}";
+                    var memberFolder = Path.Combine(parentFolder, member.Property);
+                    var single = new List<VoField> { member with { Property = "Value" } };
+
+                    files.Add(WriteFile(memberFolder, $"{member.Property}.cs", ValueObjectTemplates.ValueObjectClass(memberNs, member.Property, single)));
+
+                    foreach (var (fileName, content) in ValueObjectTemplates.RuleFiles(memberNs, member.Property, single))
+                        files.Add(WriteFile(Path.Combine(memberFolder, "Rules"), fileName, content));
+                }
+
+                if (HasTests(manifest, root, manifest.DomainTestsProject))
+                {
+                    files.Add(WriteFile(
+                        TargetDirectory(root, manifest.DomainTestsProject, context),
+                        $"{name}Tests.cs",
+                        ValueObjectTemplates.TestFile(DomainTestsNamespace(manifest, context), ns, name, members, composite: true)));
+                }
+            }
+            else
+            {
+                var fields = VoField.Parse(fieldSpecs is { Length: > 0 } ? fieldSpecs : ["Value:string"], log);
+
+                files.Add(WriteFile(folder, $"{name}.cs", ValueObjectTemplates.ValueObjectClass(ns, name, fields)));
+
+                foreach (var (fileName, content) in ValueObjectTemplates.RuleFiles(ns, name, fields))
+                    files.Add(WriteFile(Path.Combine(folder, "Rules"), fileName, content));
+
+                if (HasTests(manifest, root, manifest.DomainTestsProject))
+                {
+                    files.Add(WriteFile(
+                        TargetDirectory(root, manifest.DomainTestsProject, context),
+                        $"{name}Tests.cs",
+                        ValueObjectTemplates.TestFile(DomainTestsNamespace(manifest, context), ns, name, fields)));
+                }
+            }
+
+            if (aggregate is not null)
+            {
+                log?.Invoke($"Wire it into {aggregate} (properties are yours to name):");
+                log?.Invoke($"    using {ns};");
+                log?.Invoke($"    public {name} {name} {{ get; private set; }} = default!;");
+                log?.Invoke($"    Add a {name} parameter to {aggregate}.Create and assign it.");
             }
 
             return files;
+        }
+
+        /// <summary>
+        /// Finds an existing value object by type name so a --vo member can
+        /// reference it instead of generating a wrapper.
+        /// </summary>
+        private static (string Type, string Ns)? ResolveValueObject(TrussManifest manifest, string root, string type)
+        {
+            var domainRoot = Path.Combine(root, manifest.DomainProject);
+
+            if (!Directory.Exists(domainRoot))
+                return null;
+
+            var file = Directory.EnumerateFiles(domainRoot, $"{type}.cs", SearchOption.AllDirectories)
+                .FirstOrDefault(candidate => File.ReadAllText(candidate).Contains(": ValueObject"));
+
+            if (file is null)
+                return null;
+
+            var ns = System.Text.RegularExpressions.Regex.Match(File.ReadAllText(file), @"namespace\s+([\w.]+)").Groups[1].Value;
+
+            return (type, ns);
         }
 
         public static IReadOnlyList<string> GenerateEntity(TrussManifest manifest, string root, string name, string? context, string? aggregate, string[]? valueObjects = null, Action<string>? log = null)
@@ -130,7 +221,7 @@ namespace Truss.Cli
             if (aggregate is not null)
                 ValidateType(aggregate);
 
-            var fields = VoField.Parse(valueObjects ?? [], log);
+            var fields = VoField.Parse(valueObjects ?? [], log, type => ResolveValueObject(manifest, root, type));
             var owner = aggregate ?? name;
             var folder = Path.Combine(TargetDirectory(root, manifest.DomainProject, context), owner);
 
@@ -171,12 +262,12 @@ namespace Truss.Cli
         /// </summary>
         private static IEnumerable<string> GenerateValueObjectFiles(TrussManifest manifest, string root, string folder, string? context, VoAggregateModel model)
         {
-            foreach (var field in model.Fields)
+            foreach (var field in model.Fields.Where(field => !field.IsReference))
             {
                 var voType = model.VoType(field);
                 var voNs = model.VoNs(field);
                 var voFolder = Path.Combine(folder, "ValueObjects", voType);
-                var single = new List<VoField> { new("Value", field.Primitive) };
+                var single = new List<VoField> { field with { Property = "Value" } };
 
                 yield return WriteFile(voFolder, $"{voType}.cs", ValueObjectTemplates.ValueObjectClass(voNs, voType, single));
 

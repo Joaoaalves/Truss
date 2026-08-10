@@ -115,11 +115,17 @@ namespace Truss.Cli.Commands
         {
             [CommandOption("-f|--field <FIELD>")]
             public string[]? Field { get; init; }
+
+            [CommandOption("--vo <MEMBER>")]
+            public string[]? Vo { get; init; }
+
+            [CommandOption("-a|--aggregate <AGGREGATE>")]
+            public string? Aggregate { get; init; }
         }
 
         protected override IReadOnlyList<string> Generate(TrussManifest manifest, string root, Settings settings)
         {
-            return CodeGenerator.GenerateValueObject(manifest, root, settings.Name, settings.Context, settings.Field, Console.WriteLine);
+            return CodeGenerator.GenerateValueObject(manifest, root, settings.Name, settings.Context, settings.Field, settings.Vo, settings.Aggregate, Console.WriteLine);
         }
     }
 
