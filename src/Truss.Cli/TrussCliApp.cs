@@ -28,23 +28,45 @@ namespace Truss.Cli
                     .WithExample("add", "messaging", "--transport", "redis")
                     .WithExample("add", "observability", "--dashboard", "aspire");
 
+                // The generators are typed dozens of times a day, so every one of
+                // them answers to a short alias too: truss g agg Order --crud.
                 config.AddBranch("generate", generate =>
                 {
-                    generate.SetDescription("Generate building blocks inside the project.");
-                    generate.AddCommand<GenerateContextCommand>("context");
-                    generate.AddCommand<GenerateAggregateCommand>("aggregate");
-                    generate.AddCommand<GenerateEntityCommand>("entity");
-                    generate.AddCommand<GenerateCommandCommand>("command");
-                    generate.AddCommand<GenerateQueryCommand>("query");
-                });
+                    generate.SetDescription("Generate building blocks inside the project. Alias: g");
+
+                    generate.AddCommand<GenerateContextCommand>("context")
+                        .WithAlias("ctx")
+                        .WithDescription("Create the folders of a bounded context. Alias: ctx");
+
+                    generate.AddCommand<GenerateAggregateCommand>("aggregate")
+                        .WithAlias("agg")
+                        .WithDescription("Create an aggregate with its typed id, event and starter rule. Alias: agg")
+                        .WithExample("g", "agg", "Order", "--context", "Sales", "--crud");
+
+                    generate.AddCommand<GenerateEntityCommand>("entity")
+                        .WithAlias("ent")
+                        .WithDescription("Create an entity with its typed id. Alias: ent");
+
+                    generate.AddCommand<GenerateCommandCommand>("command")
+                        .WithAlias("cmd")
+                        .WithDescription("Create a command with its handler and validator. Alias: cmd");
+
+                    generate.AddCommand<GenerateQueryCommand>("query")
+                        .WithAlias("qry")
+                        .WithDescription("Create a query with its handler. Alias: qry");
+                })
+                .WithAlias("g")
+                .WithAlias("gen");
 
                 config.AddBranch("remove", remove =>
                 {
-                    remove.SetDescription("Remove generated building blocks from the project.");
+                    remove.SetDescription("Remove generated building blocks from the project. Alias: rm");
                     remove.AddCommand<RemoveContextCommand>("context")
-                        .WithDescription("Delete a bounded context's folders and clean its wiring.")
+                        .WithAlias("ctx")
+                        .WithDescription("Delete a bounded context's folders and clean its wiring. Alias: ctx")
                         .WithExample("remove", "context", "Catalog");
-                });
+                })
+                .WithAlias("rm");
 
                 config.AddCommand<DevCommand>("dev")
                     .WithDescription("Start the local dependencies and run the API with hot reload.");

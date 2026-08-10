@@ -120,6 +120,27 @@ namespace Truss.Cli.Tests
         }
 
         [Fact]
+        public void ShortAliases_DoTheSameAsTheFullCommands()
+        {
+            var root = ScaffoldShop();
+
+            Assert.Equal(0, _workspace.Run("g", "ctx", "Sales", "--project", root));
+            Assert.Equal(0, _workspace.Run("g", "agg", "Order", "--context", "Sales", "--project", root));
+            Assert.Equal(0, _workspace.Run("g", "ent", "OrderItem", "--context", "Sales", "--aggregate", "Order", "--project", root));
+            Assert.Equal(0, _workspace.Run("gen", "cmd", "ShipOrder", "--context", "Sales", "--project", root));
+            Assert.Equal(0, _workspace.Run("g", "qry", "CountOrders", "--context", "Sales", "--result", "int", "--project", root));
+
+            Assert.True(_workspace.FileExists("Shop", "src", "Shop.Domain", "Sales", "Order", "Order.cs"));
+            Assert.True(_workspace.FileExists("Shop", "src", "Shop.Domain", "Sales", "Order", "OrderItem.cs"));
+            Assert.True(_workspace.FileExists("Shop", "src", "Shop.Application", "Sales", "ShipOrder", "ShipOrderHandler.cs"));
+            Assert.True(_workspace.FileExists("Shop", "src", "Shop.Application", "Sales", "CountOrders", "CountOrdersHandler.cs"));
+
+            Assert.Equal(0, _workspace.Run("rm", "ctx", "Sales", "--project", root));
+
+            Assert.False(Directory.Exists(Path.Combine(root, "src", "Shop.Domain", "Sales")));
+        }
+
+        [Fact]
         public void GenerateQuery_UsesResultType()
         {
             var root = ScaffoldShop();
