@@ -12,6 +12,17 @@ namespace Truss.Cli.Templates
             *.db
             """;
 
+        /// <summary>
+        /// Pins the solution for the C# extension. Without it, an editor that
+        /// opens the folder without loading a solution offers no navigation
+        /// across projects, which bites hardest over a remote or WSL session.
+        /// </summary>
+        public const string VsCodeSettings = """
+            {
+              "dotnet.defaultSolution": "__NAME__.slnx"
+            }
+            """;
+
         public const string DirectoryBuildProps = """
             <Project>
 

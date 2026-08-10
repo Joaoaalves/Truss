@@ -60,6 +60,11 @@ namespace Truss.Cli.Tests
             var solution = _workspace.ReadFile("Shop", "Shop.slnx");
             Assert.Contains("tests/Shop.Domain.Tests/Shop.Domain.Tests.csproj", solution);
 
+            // The solution is pinned for the editor, so navigation works on a
+            // folder opened over a remote or WSL session.
+            var editorSettings = _workspace.ReadFile("Shop", ".vscode", "settings.json");
+            Assert.Contains("\"dotnet.defaultSolution\": \"Shop.slnx\"", editorSettings);
+
             var manifest = TrussManifest.Load(_workspace.Root("Shop"));
             Assert.False(manifest!.Sample);
             Assert.True(manifest.Tests);

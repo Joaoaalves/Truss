@@ -16,6 +16,29 @@ namespace Truss.Cli.Tests
             return TrussCliApp.Build().Run(args);
         }
 
+        /// <summary>
+        /// Runs a command and returns everything it printed, for the cases where
+        /// the guidance itself is the behavior under test.
+        /// </summary>
+        public string Capture(params string[] args)
+        {
+            var original = Console.Out;
+            using var writer = new StringWriter();
+
+            Console.SetOut(writer);
+
+            try
+            {
+                Run(args);
+            }
+            finally
+            {
+                Console.SetOut(original);
+            }
+
+            return writer.ToString();
+        }
+
         public int Scaffold(string name, string database, params string[] extraArgs)
         {
             string[] args = ["new", name, "--database", database, "--output", Directory, .. extraArgs];

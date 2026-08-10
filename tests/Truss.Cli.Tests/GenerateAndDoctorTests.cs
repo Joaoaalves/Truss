@@ -193,7 +193,9 @@ namespace Truss.Cli.Tests
             var csproj = Path.Combine(root, "src", "Shop.Domain", "Shop.Domain.csproj");
             File.WriteAllText(csproj, File.ReadAllText(csproj).Replace(current, "0.0.1"));
 
-            Assert.Equal(0, _workspace.Run("update", "--project", root));
+            // --no-restore keeps the test off the network; the restore itself is
+            // covered by the scaffold build test.
+            Assert.Equal(0, _workspace.Run("update", "--no-restore", "--project", root));
 
             var updated = _workspace.ReadFile("Shop", "src", "Shop.Domain", "Shop.Domain.csproj");
             Assert.DoesNotContain("0.0.1", updated);
@@ -201,6 +203,16 @@ namespace Truss.Cli.Tests
 
             var manifest = TrussManifest.Load(root);
             Assert.Equal(current, manifest!.TrussVersion);
+        }
+
+        [Fact]
+        public void Update_WithoutRestore_ExplainsTheCacheEscapeHatch()
+        {
+            var root = ScaffoldShop();
+
+            var output = _workspace.Capture("update", "--no-restore", "--project", root);
+
+            Assert.Contains("dotnet restore --no-http-cache", output);
         }
 
         [Fact]

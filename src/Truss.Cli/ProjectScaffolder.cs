@@ -48,6 +48,7 @@ namespace Truss.Cli
             Write(root, ".gitignore", ProjectTemplates.GitIgnore, manifest);
             Write(root, "Directory.Build.props", ProjectTemplates.DirectoryBuildProps, manifest);
             Write(root, $"{options.Name}.slnx", solution, manifest);
+            Write(root, Path.Combine(".vscode", "settings.json"), ProjectTemplates.VsCodeSettings, manifest);
 
             Write(root, Path.Combine(manifest.DomainProject, $"{options.Name}.Domain.csproj"), ProjectTemplates.DomainCsproj, manifest);
             Write(root, Path.Combine(manifest.ApplicationProject, $"{options.Name}.Application.csproj"), ProjectTemplates.ApplicationCsproj, manifest);
