@@ -172,6 +172,36 @@ namespace Truss.Cli.Tests
         }
 
         [Fact]
+        public void GenerateValueObject_BoundToAnEntity_LandsInItsFolder()
+        {
+            var root = ScaffoldShop();
+
+            Assert.Equal(0, _workspace.Run("g", "ent", "Warehouse", "-c", "Logistics", "--project", root));
+            Assert.Equal(0, _workspace.Run(
+                "g", "vo", "Capacity", "-c", "Logistics", "-a", "Warehouse",
+                "-f", "Value:int:pos", "--project", root));
+
+            var vo = _workspace.ReadFile("Shop", "src", "Shop.Domain", "Logistics", "Warehouse", "ValueObjects", "Capacity", "Capacity.cs");
+            Assert.Contains("namespace Shop.Domain.Logistics.Warehouse.ValueObjects.Capacity", vo);
+            Assert.Contains("CheckRule(new CapacityMustBePositive(value));", vo);
+        }
+
+        [Fact]
+        public void GenerateEntity_ReferencingAnExistingValueObject_UsesIt()
+        {
+            var root = ScaffoldShop();
+
+            Assert.Equal(0, _workspace.Run("g", "vo", "Money", "-c", "Shared", "-f", "Amount:decimal", "--project", root));
+            Assert.Equal(0, _workspace.Run("g", "agg", "Order", "-c", "Sales", "--project", root));
+            Assert.Equal(0, _workspace.Run("g", "ent", "OrderItem", "-c", "Sales", "-a", "Order", "--vo", "Price:Money", "--project", root));
+
+            var entity = _workspace.ReadFile("Shop", "src", "Shop.Domain", "Sales", "Order", "OrderItem.cs");
+            Assert.Contains("using Shop.Domain.Shared.ValueObjects.Money;", entity);
+            Assert.Contains("public Money Price { get; private set; }", entity);
+            Assert.Contains("public OrderItem(OrderItemId id, Money price) : base(id)", entity);
+        }
+
+        [Fact]
         public void GenerateValueObject_BoundToAMissingAggregate_Fails()
         {
             var root = ScaffoldShop();

@@ -2686,7 +2686,7 @@ truss g vo MacroNutrients -c Nutrition -a Food --vo Carbohydrates:decimal --vo F
 
 The composite's members are generated beside it, each guarding itself; the composite gets a canonical `Create` over the member types, marked as the home for rules that read several members, and a primitive overload (`MacroNutrients.Create(28m, 0.3m, 2.7m)`) that keeps construction short while every invariant still runs. Behavior that derives from the members (a calories total, for one) is yours to write there; the CLI never generates domain methods.
 
-`-a <Aggregate>` places the value object inside the owning aggregate's folder and prints the lines that wire it in. Without it, the value object lands in the context's shared `ValueObjects/` folder, where several aggregates can speak it.
+`-a <Owner>` places the value object inside the owning aggregate's or entity's folder and prints the lines that wire it in, phrased for the owner: aggregates take it through `Create`, entities through their constructor. Without it, the value object lands in the context's shared `ValueObjects/` folder, where several aggregates and entities can speak it. `--vo` works the same on `g ent` as on `g agg`: an entity's members become self-validating value objects too.
 
 An aggregate can also reference an existing value object by naming it as the type:
 

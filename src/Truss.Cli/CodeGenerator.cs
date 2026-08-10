@@ -125,7 +125,7 @@ namespace Truss.Cli
                 var owner = Path.Combine(TargetDirectory(root, manifest.DomainProject, context), aggregate);
 
                 if (!Directory.Exists(owner))
-                    throw new ArgumentException($"No {aggregate} was found to own {name}. Generate it first: truss g agg {aggregate}{(context is null ? string.Empty : $" -c {context}")}");
+                    throw new ArgumentException($"No {aggregate} was found to own {name}. Generate it first: truss g agg {aggregate}{(context is null ? string.Empty : $" -c {context}")} (or g ent for an entity).");
 
                 parentNs = $"{DomainNamespace(manifest, context)}.{aggregate}.ValueObjects";
                 parentFolder = Path.Combine(owner, "ValueObjects");
@@ -182,14 +182,31 @@ namespace Truss.Cli
             }
 
             if (aggregate is not null)
-            {
-                log?.Invoke($"Wire it into {aggregate} (properties are yours to name):");
-                log?.Invoke($"    using {ns};");
-                log?.Invoke($"    public {name} {name} {{ get; private set; }} = default!;");
-                log?.Invoke($"    Add a {name} parameter to {aggregate}.Create and assign it.");
-            }
+                LogOwnerWiring(manifest, root, context, aggregate, name, ns, log);
 
             return files;
+        }
+
+        /// <summary>
+        /// Prints the lines that wire a generated value object into its owner,
+        /// phrased for what the owner actually is: aggregates take it through
+        /// Create, entities through their constructor.
+        /// </summary>
+        private static void LogOwnerWiring(TrussManifest manifest, string root, string? context, string owner, string name, string ns, Action<string>? log)
+        {
+            var ownerFile = Path.Combine(TargetDirectory(root, manifest.DomainProject, context), owner, $"{owner}.cs");
+            var ownerSource = File.Exists(ownerFile) ? File.ReadAllText(ownerFile) : string.Empty;
+
+            var entry = ownerSource.Contains("AggregateRoot<", StringComparison.Ordinal)
+                ? $"{owner}.Create"
+                : ownerSource.Contains("Entity<", StringComparison.Ordinal)
+                    ? $"the {owner} constructor"
+                    : $"{owner}'s factory or constructor";
+
+            log?.Invoke($"Wire it into {owner} (properties are yours to name):");
+            log?.Invoke($"    using {ns};");
+            log?.Invoke($"    public {name} {name} {{ get; private set; }} = default!;");
+            log?.Invoke($"    Add a {name} parameter to {entry} and assign it.");
         }
 
         /// <summary>
