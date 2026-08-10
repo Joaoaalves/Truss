@@ -53,6 +53,7 @@ Truss is built module by module, each one opt-in. The framework never installs a
 - Mirrored namespaces: generated code's namespaces follow the folders exactly, with each command and query in its own folder and DTOs and rules in theirs. The sample context and everything truss add auth scaffolds follow the same layout.
 - Value objects with invariants: --vo on aggregates and entities wraps every primitive in a self-validating value object with its rules, tests and EF conversion, and truss g vo builds shared multi-member ones. Short aliases for every generator and its frequent options.
 - Rule segments and composition: inclusive ranges and REST-style comparators on any --vo member (Name:string:3..120, Calories:int:0..900, pos), composite value objects built from members that guard themselves, -a to place one inside its owning aggregate, and references to existing value objects by name.
+- Fewer first-hour surprises: the scaffold pins the solution for editors, and truss update restores without the http cache so a version published minutes ago is not reported as missing.
 
 ---
 

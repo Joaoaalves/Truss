@@ -2586,6 +2586,7 @@ MyShop/
   truss.json
   MyShop.slnx
   docker-compose.yml
+  .vscode/settings.json      pins the solution so editors navigate across projects
   src/
     MyShop.Domain/           references Truss.Domain only
     MyShop.Application/      references Truss.Application.Abstractions and FluentValidation
@@ -2771,7 +2772,9 @@ In development the scaffolded startup applies pending migrations automatically o
 truss update
 ```
 
-Points every `Truss.*` package reference in the project at the CLI's own version and records it in the manifest. Update the CLI first (`dotnet tool update -g Truss.Cli`), run `truss update`, build, and review the release notes for behavior changes.
+Points every `Truss.*` package reference in the project at the CLI's own version, records it in the manifest, and restores with `--no-http-cache`. Update the CLI first (`dotnet tool update -g Truss.Cli`), run `truss update`, build, and review the release notes for behavior changes.
+
+The restore skips the http cache on purpose: NuGet caches the list of versions of a package for half an hour, so a release published minutes ago is invisible to a plain restore and fails with `NU1102` even though the package is already indexed. `--no-restore` skips the step and prints the command to run yourself.
 
 ---
 
@@ -2959,6 +2962,7 @@ Truss is built module by module, each one opt-in. The framework never installs a
 - Mirrored namespaces: generated code's namespaces follow the folders exactly, with each command and query in its own folder and DTOs and rules in theirs. The sample context and everything truss add auth scaffolds follow the same layout.
 - Value objects with invariants: --vo on aggregates and entities wraps every primitive in a self-validating value object with its rules, tests and EF conversion, and truss g vo builds shared multi-member ones. Short aliases for every generator and its frequent options.
 - Rule segments and composition: inclusive ranges and REST-style comparators on any --vo member (Name:string:3..120, Calories:int:0..900, pos), composite value objects built from members that guard themselves, -a to place one inside its owning aggregate, and references to existing value objects by name.
+- Fewer first-hour surprises: the scaffold pins the solution for editors, and truss update restores without the http cache so a version published minutes ago is not reported as missing.
 
 ---
 

@@ -33,6 +33,7 @@ MyShop/
   truss.json
   MyShop.slnx
   docker-compose.yml
+  .vscode/settings.json      pins the solution so editors navigate across projects
   src/
     MyShop.Domain/           references Truss.Domain only
     MyShop.Application/      references Truss.Application.Abstractions and FluentValidation
@@ -218,7 +219,9 @@ In development the scaffolded startup applies pending migrations automatically o
 truss update
 ```
 
-Points every `Truss.*` package reference in the project at the CLI's own version and records it in the manifest. Update the CLI first (`dotnet tool update -g Truss.Cli`), run `truss update`, build, and review the release notes for behavior changes.
+Points every `Truss.*` package reference in the project at the CLI's own version, records it in the manifest, and restores with `--no-http-cache`. Update the CLI first (`dotnet tool update -g Truss.Cli`), run `truss update`, build, and review the release notes for behavior changes.
+
+The restore skips the http cache on purpose: NuGet caches the list of versions of a package for half an hour, so a release published minutes ago is invisible to a plain restore and fails with `NU1102` even though the package is already indexed. `--no-restore` skips the step and prints the command to run yourself.
 
 ---
 
