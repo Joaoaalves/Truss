@@ -17,62 +17,220 @@ namespace Truss.Cli
             return [domain, application];
         }
 
-        public static IReadOnlyList<string> GenerateAggregate(TrussManifest manifest, string root, string name, string? context, bool crud = false)
+        public static IReadOnlyList<string> GenerateAggregate(TrussManifest manifest, string root, string name, string? context, bool crud = false, string[]? valueObjects = null, Action<string>? log = null)
         {
             ValidateType(name);
 
             if (crud && !manifest.UsesEntityFramework)
                 throw new ArgumentException("--crud generates a repository over the database and requires one. Scaffold the project with --database first.");
 
+            var fields = VoField.Parse(valueObjects ?? [], log);
             var folder = Path.Combine(TargetDirectory(root, manifest.DomainProject, context), name);
 
             var files = new List<string>
             {
-                WriteFile(folder, $"{name}.cs", RenderRich(crud ? GeneratorTemplates.AggregateCrud : GeneratorTemplates.Aggregate, manifest, name, context)),
                 WriteFile(Path.Combine(folder, "ValueObjects"), $"{name}Id.cs", RenderRich(GeneratorTemplates.AggregateId, manifest, name, context)),
                 WriteFile(Path.Combine(folder, "Events"), $"{name}Created.cs", RenderRich(GeneratorTemplates.AggregateCreated, manifest, name, context)),
                 WriteFile(Path.Combine(folder, "Rules"), $"{name}MustBeValid.cs", RenderRich(GeneratorTemplates.AggregateRule, manifest, name, context))
             };
+
+            if (fields.Count == 0)
+            {
+                files.Insert(0, WriteFile(folder, $"{name}.cs", RenderRich(crud ? GeneratorTemplates.AggregateCrud : GeneratorTemplates.Aggregate, manifest, name, context)));
+
+                if (HasTests(manifest, root, manifest.DomainTestsProject))
+                {
+                    files.Add(WriteFile(
+                        TargetDirectory(root, manifest.DomainTestsProject, context),
+                        $"{name}Tests.cs",
+                        RenderTest(crud ? TestTemplates.AggregateCrudTests : TestTemplates.AggregateTests, manifest, name, context)));
+                }
+
+                if (crud)
+                {
+                    files.AddRange(GenerateCrud(manifest, root, name, context));
+
+                    if (HasTests(manifest, root, manifest.IntegrationTestsProject))
+                    {
+                        files.Add(WriteFile(
+                            TargetDirectory(root, manifest.IntegrationTestsProject, context),
+                            $"{name}CrudTests.cs",
+                            RenderTest(TestTemplates.CrudIntegrationTests, manifest, name, context)));
+                    }
+                }
+
+                return files;
+            }
+
+            var model = BuildVoModel(manifest, name, context, fields);
+
+            files.Insert(0, WriteFile(folder, $"{name}.cs", VoAggregateTemplates.Aggregate(model, crud)));
+            files.AddRange(GenerateValueObjectFiles(manifest, root, folder, context, model));
 
             if (HasTests(manifest, root, manifest.DomainTestsProject))
             {
                 files.Add(WriteFile(
                     TargetDirectory(root, manifest.DomainTestsProject, context),
                     $"{name}Tests.cs",
-                    RenderTest(crud ? TestTemplates.AggregateCrudTests : TestTemplates.AggregateTests, manifest, name, context)));
+                    VoAggregateTemplates.AggregateTest(model, DomainTestsNamespace(manifest, context), crud)));
             }
 
             if (crud)
             {
-                files.AddRange(GenerateCrud(manifest, root, name, context));
+                files.AddRange(GenerateVoCrud(manifest, root, name, context, model));
 
                 if (HasTests(manifest, root, manifest.IntegrationTestsProject))
                 {
                     files.Add(WriteFile(
                         TargetDirectory(root, manifest.IntegrationTestsProject, context),
                         $"{name}CrudTests.cs",
-                        RenderTest(TestTemplates.CrudIntegrationTests, manifest, name, context)));
+                        VoAggregateTemplates.IntegrationTest(model, IntegrationTestsNamespace(manifest, context), manifest.Name)));
                 }
             }
 
             return files;
         }
 
-        public static IReadOnlyList<string> GenerateEntity(TrussManifest manifest, string root, string name, string? context, string? aggregate)
+        /// <summary>
+        /// Generates a standalone value object: shared concepts like Money or
+        /// Email that several aggregates speak, with the fields given as
+        /// Name:type specifications.
+        /// </summary>
+        public static IReadOnlyList<string> GenerateValueObject(TrussManifest manifest, string root, string name, string? context, string[]? fieldSpecs, Action<string>? log = null)
+        {
+            ValidateType(name);
+
+            var fields = VoField.Parse(fieldSpecs is { Length: > 0 } ? fieldSpecs : ["Value:string"], log);
+            var ns = $"{DomainNamespace(manifest, context)}.ValueObjects.{name}";
+            var folder = Path.Combine(TargetDirectory(root, manifest.DomainProject, context), "ValueObjects", name);
+
+            var files = new List<string>
+            {
+                WriteFile(folder, $"{name}.cs", ValueObjectTemplates.ValueObjectClass(ns, name, fields))
+            };
+
+            foreach (var (fileName, content) in ValueObjectTemplates.RuleFiles(ns, name, fields))
+                files.Add(WriteFile(Path.Combine(folder, "Rules"), fileName, content));
+
+            if (HasTests(manifest, root, manifest.DomainTestsProject))
+            {
+                files.Add(WriteFile(
+                    TargetDirectory(root, manifest.DomainTestsProject, context),
+                    $"{name}Tests.cs",
+                    ValueObjectTemplates.TestFile(DomainTestsNamespace(manifest, context), ns, name, fields)));
+            }
+
+            return files;
+        }
+
+        public static IReadOnlyList<string> GenerateEntity(TrussManifest manifest, string root, string name, string? context, string? aggregate, string[]? valueObjects = null, Action<string>? log = null)
         {
             ValidateType(name);
 
             if (aggregate is not null)
                 ValidateType(aggregate);
 
+            var fields = VoField.Parse(valueObjects ?? [], log);
             var owner = aggregate ?? name;
             var folder = Path.Combine(TargetDirectory(root, manifest.DomainProject, context), owner);
 
-            return
-            [
-                WriteFile(folder, $"{name}.cs", RenderRich(GeneratorTemplates.Entity, manifest, name, context, owner)),
+            var files = new List<string>
+            {
                 WriteFile(Path.Combine(folder, "ValueObjects"), $"{name}Id.cs", RenderRich(GeneratorTemplates.AggregateId, manifest, name, context, owner))
-            ];
+            };
+
+            if (fields.Count == 0)
+            {
+                files.Insert(0, WriteFile(folder, $"{name}.cs", RenderRich(GeneratorTemplates.Entity, manifest, name, context, owner)));
+                return files;
+            }
+
+            var ownerNs = $"{DomainNamespace(manifest, context)}.{owner}";
+            var model = new VoAggregateModel(name, ownerNs, string.Empty, string.Empty, fields);
+
+            files.Insert(0, WriteFile(folder, $"{name}.cs", VoAggregateTemplates.Entity(model)));
+            files.AddRange(GenerateValueObjectFiles(manifest, root, folder, context, model));
+
+            return files;
+        }
+
+        private static VoAggregateModel BuildVoModel(TrussManifest manifest, string name, string? context, List<VoField> fields)
+        {
+            return new VoAggregateModel(
+                name,
+                $"{DomainNamespace(manifest, context)}.{name}",
+                $"{ApplicationNamespace(manifest, context)}.{name}",
+                InfrastructureNamespace(manifest, context),
+                fields);
+        }
+
+        /// <summary>
+        /// The value objects a rich aggregate or entity owns: one class per field
+        /// in its own folder with its rules, plus a test when the project has the
+        /// test projects.
+        /// </summary>
+        private static IEnumerable<string> GenerateValueObjectFiles(TrussManifest manifest, string root, string folder, string? context, VoAggregateModel model)
+        {
+            foreach (var field in model.Fields)
+            {
+                var voType = model.VoType(field);
+                var voNs = model.VoNs(field);
+                var voFolder = Path.Combine(folder, "ValueObjects", voType);
+                var single = new List<VoField> { new("Value", field.Primitive) };
+
+                yield return WriteFile(voFolder, $"{voType}.cs", ValueObjectTemplates.ValueObjectClass(voNs, voType, single));
+
+                foreach (var (fileName, content) in ValueObjectTemplates.RuleFiles(voNs, voType, single))
+                    yield return WriteFile(Path.Combine(voFolder, "Rules"), fileName, content);
+
+                if (HasTests(manifest, root, manifest.DomainTestsProject))
+                {
+                    yield return WriteFile(
+                        TargetDirectory(root, manifest.DomainTestsProject, context),
+                        $"{voType}Tests.cs",
+                        ValueObjectTemplates.TestFile(DomainTestsNamespace(manifest, context), voNs, voType, single));
+                }
+            }
+        }
+
+        /// <summary>
+        /// The crud slice over a rich aggregate. The shapes that never touch the
+        /// fields reuse the plain templates; the ones that do are built over the
+        /// value objects, converting at the boundary.
+        /// </summary>
+        private static IEnumerable<string> GenerateVoCrud(TrussManifest manifest, string root, string name, string? context, VoAggregateModel model)
+        {
+            var feature = Path.Combine(TargetDirectory(root, manifest.ApplicationProject, context), name);
+            var infrastructure = TargetDirectory(root, manifest.InfrastructureProject, context);
+
+            yield return WriteFile(Path.Combine(feature, "DTOs"), $"{name}Dto.cs", VoAggregateTemplates.Dto(model));
+            yield return WriteFile(feature, $"I{name}Repository.cs", RenderRich(GeneratorTemplates.CrudRepository, manifest, name, context));
+            yield return WriteFile(Path.Combine(feature, "Rules"), $"{name}MustExist.cs", RenderRich(GeneratorTemplates.CrudMustExist, manifest, name, context));
+            yield return WriteFile(Path.Combine(feature, $"Create{name}"), $"Create{name}.cs", VoAggregateTemplates.CreateCommand(model));
+            yield return WriteFile(Path.Combine(feature, $"Create{name}"), $"Create{name}Handler.cs", VoAggregateTemplates.CreateHandler(model));
+            yield return WriteFile(Path.Combine(feature, $"Create{name}"), $"Create{name}Validator.cs", VoAggregateTemplates.CreateValidator(model));
+            yield return WriteFile(Path.Combine(feature, $"Update{name}"), $"Update{name}.cs", VoAggregateTemplates.UpdateCommand(model));
+            yield return WriteFile(Path.Combine(feature, $"Update{name}"), $"Update{name}Handler.cs", VoAggregateTemplates.UpdateHandler(model));
+            yield return WriteFile(Path.Combine(feature, $"Update{name}"), $"Update{name}Validator.cs", VoAggregateTemplates.UpdateValidator(model));
+            yield return WriteFile(Path.Combine(feature, $"Delete{name}"), $"Delete{name}.cs", RenderRich(GeneratorTemplates.CrudDelete, manifest, name, context));
+            yield return WriteFile(Path.Combine(feature, $"Delete{name}"), $"Delete{name}Handler.cs", RenderRich(GeneratorTemplates.CrudDeleteHandler, manifest, name, context));
+            yield return WriteFile(Path.Combine(feature, $"Get{name}ById"), $"Get{name}ById.cs", RenderRich(GeneratorTemplates.CrudGetById, manifest, name, context));
+            yield return WriteFile(Path.Combine(feature, $"Get{name}ById"), $"Get{name}ByIdHandler.cs", VoAggregateTemplates.GetByIdHandler(model));
+            yield return WriteFile(Path.Combine(feature, $"List{name}"), $"List{name}.cs", RenderRich(GeneratorTemplates.CrudList, manifest, name, context));
+            yield return WriteFile(Path.Combine(feature, $"List{name}"), $"List{name}Handler.cs", RenderRich(GeneratorTemplates.CrudListHandler, manifest, name, context));
+            yield return WriteFile(Path.Combine(feature, $"List{name}"), $"List{name}Validator.cs", RenderRich(GeneratorTemplates.CrudListValidator, manifest, name, context));
+            yield return WriteFile(infrastructure, $"{name}Configuration.cs", VoAggregateTemplates.Configuration(model));
+            yield return WriteFile(infrastructure, $"Ef{name}Repository.cs", VoAggregateTemplates.EfRepository(model));
+        }
+
+        private static string DomainTestsNamespace(TrussManifest manifest, string? context)
+        {
+            return context is null ? $"{manifest.Name}.Domain.Tests" : $"{manifest.Name}.Domain.Tests.{context}";
+        }
+
+        private static string IntegrationTestsNamespace(TrussManifest manifest, string? context)
+        {
+            return context is null ? $"{manifest.Name}.IntegrationTests" : $"{manifest.Name}.IntegrationTests.{context}";
         }
 
         private static IEnumerable<string> GenerateCrud(TrussManifest manifest, string root, string name, string? context)

@@ -10,10 +10,10 @@ namespace Truss.Cli.Commands
             [CommandArgument(0, "<name>")]
             public string Name { get; init; } = string.Empty;
 
-            [CommandOption("--context <CONTEXT>")]
+            [CommandOption("-c|--context <CONTEXT>")]
             public string? Context { get; init; }
 
-            [CommandOption("--project <PATH>")]
+            [CommandOption("-p|--project <PATH>")]
             public string? Project { get; init; }
         }
 
@@ -64,11 +64,14 @@ namespace Truss.Cli.Commands
         {
             [CommandOption("--crud")]
             public bool Crud { get; init; }
+
+            [CommandOption("--vo <MEMBER>")]
+            public string[]? Vo { get; init; }
         }
 
         protected override IReadOnlyList<string> Generate(TrussManifest manifest, string root, Settings settings)
         {
-            var files = CodeGenerator.GenerateAggregate(manifest, root, settings.Name, settings.Context, settings.Crud);
+            var files = CodeGenerator.GenerateAggregate(manifest, root, settings.Name, settings.Context, settings.Crud, settings.Vo, Console.WriteLine);
 
             if (settings.Crud)
                 CodeGenerator.WireCrud(manifest, root, settings.Name, settings.Context, Console.WriteLine);
@@ -81,13 +84,16 @@ namespace Truss.Cli.Commands
     {
         public sealed class Settings : GenerateSettings
         {
-            [CommandOption("--aggregate <AGGREGATE>")]
+            [CommandOption("-a|--aggregate <AGGREGATE>")]
             public string? Aggregate { get; init; }
+
+            [CommandOption("--vo <MEMBER>")]
+            public string[]? Vo { get; init; }
         }
 
         protected override IReadOnlyList<string> Generate(TrussManifest manifest, string root, Settings settings)
         {
-            return CodeGenerator.GenerateEntity(manifest, root, settings.Name, settings.Context, settings.Aggregate);
+            return CodeGenerator.GenerateEntity(manifest, root, settings.Name, settings.Context, settings.Aggregate, settings.Vo, Console.WriteLine);
         }
     }
 
@@ -103,11 +109,25 @@ namespace Truss.Cli.Commands
         }
     }
 
+    internal sealed class GenerateValueObjectCommand : GenerateCommandBase<GenerateValueObjectCommand.Settings>
+    {
+        public sealed class Settings : GenerateSettings
+        {
+            [CommandOption("-f|--field <FIELD>")]
+            public string[]? Field { get; init; }
+        }
+
+        protected override IReadOnlyList<string> Generate(TrussManifest manifest, string root, Settings settings)
+        {
+            return CodeGenerator.GenerateValueObject(manifest, root, settings.Name, settings.Context, settings.Field, Console.WriteLine);
+        }
+    }
+
     internal sealed class GenerateQueryCommand : GenerateCommandBase<GenerateQueryCommand.Settings>
     {
         public sealed class Settings : GenerateSettings
         {
-            [CommandOption("--result <TYPE>")]
+            [CommandOption("-r|--result <TYPE>")]
             public string Result { get; init; } = "string";
 
             [CommandOption("--paged")]

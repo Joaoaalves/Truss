@@ -10,7 +10,7 @@ namespace Truss.Cli.Commands
             [CommandArgument(0, "[name]")]
             public string? Name { get; init; }
 
-            [CommandOption("--database <DATABASE>")]
+            [CommandOption("-d|--database <DATABASE>")]
             public string? Database { get; init; }
 
             [CommandOption("--docker")]
@@ -22,7 +22,7 @@ namespace Truss.Cli.Commands
             [CommandOption("--no-tests")]
             public bool NoTests { get; init; }
 
-            [CommandOption("--output <PATH>")]
+            [CommandOption("-o|--output <PATH>")]
             public string? Output { get; init; }
 
             [CommandOption("--local-packages <PATH>")]

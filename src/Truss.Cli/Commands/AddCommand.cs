@@ -9,7 +9,7 @@ namespace Truss.Cli.Commands
             [CommandArgument(0, "<module>")]
             public string Module { get; init; } = string.Empty;
 
-            [CommandOption("--transport <TRANSPORT>")]
+            [CommandOption("-t|--transport <TRANSPORT>")]
             public string? Transport { get; init; }
 
             [CommandOption("--provider <PROVIDER>")]
@@ -27,7 +27,7 @@ namespace Truss.Cli.Commands
             [CommandOption("--external <PROVIDERS>")]
             public string? External { get; init; }
 
-            [CommandOption("--project <PATH>")]
+            [CommandOption("-p|--project <PATH>")]
             public string? Project { get; init; }
         }
 

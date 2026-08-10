@@ -65,6 +65,7 @@ namespace Truss.Cli
 
                 - New bounded context: truss generate context <Name>
                 - New aggregate: truss generate aggregate <Name> --context <Context> (own folder and namespace with ValueObjects, Events and Rules beneath; add --crud for the full vertical slice with routes)
+                - Prefer value objects over primitives: --vo Name:string --vo Calories:int on aggregates and entities generates self-validating value objects with their rules; truss g vo <Name> -f Amount:decimal builds shared ones. Commands stay primitive; handlers convert through Create.
                 - New entity: truss generate entity <Name> --context <Context> [--aggregate <Owner>]
                 - New command or query: truss generate command|query <Name> --context <Context> (own folder and namespace with record, handler and validator; map it in Program.cs)
                 - Namespaces mirror folders exactly; generated application files keep using directives inside the namespace so the aggregate type resolves over its same-named namespace.

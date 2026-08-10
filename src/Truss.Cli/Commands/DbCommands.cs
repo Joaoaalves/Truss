@@ -8,7 +8,7 @@ namespace Truss.Cli.Commands
     {
         public class DbSettings : CommandSettings
         {
-            [CommandOption("--project <PATH>")]
+            [CommandOption("-p|--project <PATH>")]
             public string? Project { get; init; }
         }
 

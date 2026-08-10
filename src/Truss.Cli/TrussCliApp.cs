@@ -47,6 +47,10 @@ namespace Truss.Cli
                         .WithAlias("ent")
                         .WithDescription("Create an entity with its typed id. Alias: ent");
 
+                    generate.AddCommand<GenerateValueObjectCommand>("vo")
+                        .WithDescription("Create a value object that guards its own invariants.")
+                        .WithExample("g", "vo", "Money", "-c", "Shared", "-f", "Amount:decimal", "-f", "Currency:string");
+
                     generate.AddCommand<GenerateCommandCommand>("command")
                         .WithAlias("cmd")
                         .WithDescription("Create a command with its handler and validator. Alias: cmd");

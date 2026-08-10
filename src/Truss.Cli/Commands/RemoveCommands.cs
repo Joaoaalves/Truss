@@ -9,7 +9,7 @@ namespace Truss.Cli.Commands
             [CommandArgument(0, "<name>")]
             public string Name { get; init; } = string.Empty;
 
-            [CommandOption("--project <PATH>")]
+            [CommandOption("-p|--project <PATH>")]
             public string? Project { get; init; }
         }
 

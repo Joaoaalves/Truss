@@ -7,7 +7,7 @@ namespace Truss.Cli.Commands
     {
         public sealed class Settings : CommandSettings
         {
-            [CommandOption("--project <PATH>")]
+            [CommandOption("-p|--project <PATH>")]
             public string? Project { get; init; }
         }
 
