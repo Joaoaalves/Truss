@@ -43,7 +43,18 @@ namespace Truss.Cli.Commands
                 $"--project {project.Manifest.InfrastructureProject} " +
                 $"--startup-project {project.Manifest.ApiProject}";
 
-            return Run("dotnet", arguments, project.Root, cancellationToken);
+            Console.WriteLine($"dotnet {arguments}");
+
+            var exitCode = Run("dotnet", arguments, project.Root, cancellationToken);
+
+            if (exitCode != 0)
+            {
+                Console.WriteLine();
+                Console.WriteLine($"dotnet ef exited with {exitCode}. The output above is its own; run the command by hand from {project.Root} to iterate on it.");
+                Console.WriteLine("If nothing was printed, the local tool could not start: try dotnet tool restore, then dotnet tool run dotnet-ef --version.");
+            }
+
+            return exitCode;
         }
 
         protected abstract string EfArguments(TSettings settings);

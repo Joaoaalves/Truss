@@ -8,7 +8,11 @@ namespace Truss.Generators
 {
     internal static class TrussModelBuilder
     {
-        private static readonly SymbolDisplayFormat FullyQualified = SymbolDisplayFormat.FullyQualifiedFormat;
+        // The nullable annotation is part of the type when it appears in a
+        // constraint: a handler of IQuery<FooDto?> only satisfies IRequest<FooDto?>,
+        // so dropping the ? makes the generated registration warn (CS8631).
+        private static readonly SymbolDisplayFormat FullyQualified = SymbolDisplayFormat.FullyQualifiedFormat
+            .AddMiscellaneousOptions(SymbolDisplayMiscellaneousOptions.IncludeNullableReferenceTypeModifier);
 
         public static TrussModel Build(Compilation compilation, CancellationToken cancellationToken)
         {

@@ -258,6 +258,7 @@ namespace Truss.Cli
             {
                 Write(root, Path.Combine(application, "AccountAliases.cs"), AuthBindingTemplates.AccountAliases, manifest, bind);
                 Write(root, Path.Combine(infrastructure, "AccountAliases.cs"), AuthBindingTemplates.AccountAliases, manifest, bind);
+                Write(root, Path.Combine(manifest.ApiProject, "AccountAliases.cs"), AuthBindingTemplates.AccountAliases, manifest, bind);
                 EnsureMergedConfiguration(bind, manifest, root, log);
             }
             else
@@ -275,6 +276,8 @@ namespace Truss.Cli
             Write(root, Path.Combine(application, "IRefreshTokenStore.cs"), AuthTemplates.RefreshTokenStore, manifest, bind);
             Write(root, Path.Combine(application, "DTOs", "AuthTokensDto.cs"), AuthTemplates.AuthTokensDto, manifest, bind);
             Write(root, Path.Combine(application, "Rules", "InvalidCredentials.cs"), AuthTemplates.InvalidCredentials, manifest, bind);
+            Write(root, Path.Combine(application, "ICurrentUser.cs"), AuthTemplates.CurrentUser, manifest, bind);
+            Write(root, Path.Combine(manifest.ApiProject, "HttpContextCurrentUser.cs"), AuthTemplates.HttpContextCurrentUser, manifest, bind);
 
             Write(root, Path.Combine(application, "RegisterUser", "RegisterUser.cs"), AuthTemplates.RegisterUser, manifest, bind);
             Write(root, Path.Combine(application, "RegisterUser", "RegisterUserHandler.cs"), flows ? AuthFlowTemplates.RegisterUserHandlerWithFlows : AuthTemplates.RegisterUserHandler, manifest, bind);
@@ -298,6 +301,7 @@ namespace Truss.Cli
                 Write(root, Path.Combine(infrastructure, "ApplicationUser.cs"), AuthTemplates.ApplicationUser, manifest, bind);
                 Write(root, Path.Combine(infrastructure, "IdentityModelConfiguration.cs"), AuthTemplates.IdentityModelConfiguration, manifest, bind);
                 Write(root, Path.Combine(infrastructure, "IdentityUserCredentialsStore.cs"), AuthTemplates.IdentityUserCredentialsStore, manifest, bind);
+                Write(root, Path.Combine(infrastructure, "UnitOfWorkUserStore.cs"), AuthTemplates.UnitOfWorkUserStore, manifest, bind);
                 WriteAccountsModule(root, manifest, bind, AuthTemplates.AccountsModuleIdentity, flows, external, "IdentityAccountSecurityStore");
             }
             else
@@ -313,6 +317,43 @@ namespace Truss.Cli
 
             if (external)
                 WriteExternalScaffold(bind, manifest, root);
+
+            WriteAccountsTests(flows, bind, manifest, root, log);
+        }
+
+        /// <summary>
+        /// The account slice is the most sensitive code the CLI writes, so it
+        /// arrives with tests when the project has the test projects. The test
+        /// host mirrors the composition root, so it needs the same packages.
+        /// </summary>
+        private static void WriteAccountsTests(bool flows, BindContext? bind, TrussManifest manifest, string root, Action<string> log)
+        {
+            var testsProject = Path.Combine(root, manifest.IntegrationTestsProject);
+
+            if (!manifest.Tests || !Directory.Exists(testsProject))
+                return;
+
+            if (bind is { Merge: true })
+            {
+                log("The account tests were skipped: with a merged account the registration event is your aggregate's, so write them against it.");
+                return;
+            }
+
+            CsprojEditor.AddPackageReference(CsprojPath(root, manifest.IntegrationTestsProject), "Truss.Auth.Jwt", manifest.TrussVersion);
+
+            if (flows)
+                CsprojEditor.AddPackageReference(CsprojPath(root, manifest.IntegrationTestsProject), "Truss.Email", manifest.TrussVersion);
+
+            var template = AuthTemplates.AccountsTests.Replace(
+                "__TEST_EMAIL__",
+                flows
+                    ? Environment.NewLine
+                        + "                                services.AddTrussConsoleEmail();" + Environment.NewLine
+                        + "                                // Offline: registration checks the address syntax, not DNS." + Environment.NewLine
+                        + "                                services.AddTrussEmailValidation(email => email.VerifyMailServer = false);"
+                    : string.Empty);
+
+            Write(root, Path.Combine(manifest.IntegrationTestsProject, "Accounts", "AccountsTests.cs"), template, manifest, bind);
         }
 
         /// <summary>
@@ -611,7 +652,10 @@ namespace Truss.Cli
             var bindUsing = referencesTypedId ? $"\n    using {bind!.IdNamespace};" : string.Empty;
             var bindUsingTop = referencesTypedId ? $"\nusing {bind!.IdNamespace};" : string.Empty;
 
+            var registerExtra = bind is { Merge: false } ? $", Guid.NewGuid()" : string.Empty;
+
             var content = template
+                .Replace("__REGISTER_EXTRA__", registerExtra)
                 .Replace("__NS_USER_RULES__", $"{userNamespace}.Rules")
                 .Replace("__NS_USER_ID__", userIdNamespace)
                 .Replace("__NS_USER__", userNamespace)

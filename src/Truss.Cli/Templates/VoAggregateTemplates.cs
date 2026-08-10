@@ -21,7 +21,7 @@ namespace Truss.Cli.Templates
         public string VoType(VoField field) => field.ReferenceType
             ?? (field.Property.StartsWith(Name, StringComparison.Ordinal) ? field.Property : Name + field.Property);
 
-        public string VoNs(VoField field) => field.ReferenceNamespace ?? $"{AggNs}.ValueObjects.{VoType(field)}";
+        public string VoNs(VoField field) => field.ReferenceNamespace ?? $"{AggNs}.ValueObjects";
 
         public IEnumerable<string> VoUsings() =>
             Fields.Select(field => $"using {VoNs(field)};").Distinct().OrderBy(line => line, StringComparer.Ordinal);

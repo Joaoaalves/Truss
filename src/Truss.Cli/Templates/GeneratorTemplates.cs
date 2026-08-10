@@ -91,7 +91,7 @@ namespace Truss.Cli.Templates
 
         public const string Query = """
             namespace __NS_APPLICATION__
-            {
+            {__DTO_USING__
                 using Truss.Application;
 
                 public sealed record __TYPE__ : IQuery<__RESULT__>;
@@ -100,7 +100,7 @@ namespace Truss.Cli.Templates
 
         public const string QueryHandler = """
             namespace __NS_APPLICATION__
-            {
+            {__DTO_USING__
                 using Truss.Application;
 
                 public class __TYPE__Handler : IQueryHandler<__TYPE__, __RESULT__>
@@ -115,7 +115,7 @@ namespace Truss.Cli.Templates
 
         public const string QueryPaged = """
             namespace __NS_APPLICATION__
-            {
+            {__DTO_USING__
                 using Truss.Application;
 
                 public sealed record __TYPE__(int Page = 1, int Size = 20) : IQuery<PageResult<__RESULT__>>;
@@ -124,7 +124,7 @@ namespace Truss.Cli.Templates
 
         public const string QueryPagedHandler = """
             namespace __NS_APPLICATION__
-            {
+            {__DTO_USING__
                 using Truss.Application;
 
                 public class __TYPE__Handler : IQueryHandler<__TYPE__, PageResult<__RESULT__>>
@@ -166,6 +166,9 @@ namespace Truss.Cli.Templates
                     public bool IsBroken() => false;
 
                     public string Message => "The __TYPE__ is not valid.";
+
+                    // Clients switch on this code, so it survives renaming the class.
+                    public string Code => "__CAMEL__.invalid";
                 }
             }
             """;
@@ -226,6 +229,15 @@ namespace Truss.Cli.Templates
                     {
                     }
                 }
+            }
+            """;
+
+        public const string QueryDto = """
+            namespace __NS_DTOS__
+            {
+                // The shape this query answers with. Add the members the client needs;
+                // a DTO is a contract, not a mirror of the aggregate.
+                public sealed record __RESULT__(Guid Id);
             }
             """;
 

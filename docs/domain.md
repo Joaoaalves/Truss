@@ -188,6 +188,18 @@ public string Code => "orders.no-items";
 
 > Business rules protect domain invariants. Input validation belongs to the [validation pipeline](pipeline.md). By the time a command reaches the domain, its shape is already valid.
 
+### Checking a rule from a handler
+
+`CheckRule` is protected: aggregates and value objects guard themselves. A rule whose answer needs I/O (uniqueness, existence in another system) is checked by the handler that can ask, through the same mechanism:
+
+```csharp
+var existing = await users.GetByEmail(command.Email, cancellationToken);
+
+BusinessRule.Check(new EmailMustBeUnique(existing is not null));
+```
+
+Same exception, same 422, same stable code as a rule broken inside the domain.
+
 ---
 
 ## Domain Events

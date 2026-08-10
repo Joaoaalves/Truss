@@ -29,12 +29,10 @@ namespace Truss.Cli.Templates
             builder.AppendLine($"    public sealed class {voType} : ValueObject");
             builder.AppendLine("    {");
 
-            foreach (var field in fields.Where(field => field.IsString))
+            foreach (var field in fields)
             {
-                if (field.HasRule(VoRuleKind.MinLength))
-                    builder.AppendLine($"        public const int {LengthConst(field, fields, VoRuleKind.MinLength)} = {(int)field.RuleBound(VoRuleKind.MinLength)};").AppendLine();
-
-                builder.AppendLine($"        public const int {LengthConst(field, fields, VoRuleKind.MaxLength)} = {(int)field.RuleBound(VoRuleKind.MaxLength)};").AppendLine();
+                foreach (var (name, literal) in BoundConstants(field, fields))
+                    builder.AppendLine($"        public const {ConstType(field)} {name} = {literal};").AppendLine();
             }
 
             builder.AppendLine($"        private {voType}({CtorParameters(fields)})");
@@ -103,16 +101,12 @@ namespace Truss.Cli.Templates
         {
             var builder = new StringBuilder();
 
-            // The members live in sibling namespaces, and the usings sit inside
-            // this one so each member type resolves over its same-named namespace.
-            builder.AppendLine($"namespace {parentNs}.{voType}");
-            builder.AppendLine("{");
-
-            foreach (var member in members.OrderBy(member => member.Property, StringComparer.Ordinal))
-                builder.AppendLine($"    using {parentNs}.{member.Property};");
-
-            builder.AppendLine("    using Truss.Domain;");
+            // The composite and its members share the ValueObjects namespace, so
+            // they see each other with no using and no name shadowed by a folder.
+            builder.AppendLine("using Truss.Domain;");
             builder.AppendLine();
+            builder.AppendLine($"namespace {parentNs}");
+            builder.AppendLine("{");
             builder.AppendLine($"    public sealed class {voType} : ValueObject");
             builder.AppendLine("    {");
             builder.AppendLine($"        private {voType}({MemberParameters(members)})");
@@ -178,6 +172,9 @@ namespace Truss.Cli.Templates
             string human,
             string code)
         {
+            var minimum = $"{voType}.{BoundConst(field, fields, lower: true)}";
+            var maximum = $"{voType}.{BoundConst(field, fields, lower: false)}";
+
             var (name, parameterType, broken, message, suffix) = rule.Kind switch
             {
                 VoRuleKind.NotEmpty => (
@@ -186,12 +183,12 @@ namespace Truss.Cli.Templates
                     $"\"The {human} must not be empty.\"", "empty"),
                 VoRuleKind.MinLength => (
                     $"{prefix}MustNotBeTooShort", "string",
-                    $"value.Length < {voType}.{LengthConst(field, fields, VoRuleKind.MinLength)}",
-                    LengthMessage(human, voType, LengthConst(field, fields, VoRuleKind.MinLength), "at least"), "too-short"),
+                    $"value.Length < {minimum}",
+                    BoundMessage(human, minimum, "at least", " characters long"), "too-short"),
                 VoRuleKind.MaxLength => (
                     $"{prefix}MustFitLength", "string",
-                    $"value.Length > {voType}.{LengthConst(field, fields, VoRuleKind.MaxLength)}",
-                    LengthMessage(human, voType, LengthConst(field, fields, VoRuleKind.MaxLength), "at most"), "too-long"),
+                    $"value.Length > {maximum}",
+                    BoundMessage(human, maximum, "at most", " characters long"), "too-long"),
                 VoRuleKind.NonNegative => (
                     $"{prefix}MustNotBeNegative", field.Primitive,
                     "value < 0",
@@ -202,20 +199,20 @@ namespace Truss.Cli.Templates
                     $"\"The {human} must be positive.\"", "not-positive"),
                 VoRuleKind.AtLeast => (
                     $"{prefix}MustBeAtLeast", field.Primitive,
-                    $"value < {field.NumericLiteral(rule.Bound)}",
-                    $"\"The {human} must be at least {Plain(rule.Bound)}.\"", "too-small"),
+                    $"value < {minimum}",
+                    BoundMessage(human, minimum, "at least", string.Empty), "too-small"),
                 VoRuleKind.GreaterThan => (
                     $"{prefix}MustBeGreaterThan", field.Primitive,
-                    $"value <= {field.NumericLiteral(rule.Bound)}",
-                    $"\"The {human} must be greater than {Plain(rule.Bound)}.\"", "too-small"),
+                    $"value <= {minimum}",
+                    BoundMessage(human, minimum, "greater than", string.Empty), "too-small"),
                 VoRuleKind.AtMost => (
                     $"{prefix}MustBeAtMost", field.Primitive,
-                    $"value > {field.NumericLiteral(rule.Bound)}",
-                    $"\"The {human} must be at most {Plain(rule.Bound)}.\"", "too-large"),
+                    $"value > {maximum}",
+                    BoundMessage(human, maximum, "at most", string.Empty), "too-large"),
                 VoRuleKind.LessThan => (
                     $"{prefix}MustBeLessThan", field.Primitive,
-                    $"value >= {field.NumericLiteral(rule.Bound)}",
-                    $"\"The {human} must be less than {Plain(rule.Bound)}.\"", "too-large"),
+                    $"value >= {maximum}",
+                    BoundMessage(human, maximum, "less than", string.Empty), "too-large"),
                 _ => (
                     $"{prefix}MustNotBeDefault", "Guid",
                     "value == Guid.Empty",
@@ -328,19 +325,51 @@ namespace Truss.Cli.Templates
             return fields.Count == 1 && field.Property == "Value" ? voCamel : $"{voCamel}.{field.Camel}";
         }
 
-        public static string LengthConst(VoField field, IReadOnlyList<VoField> fields, VoRuleKind kind)
+        /// <summary>
+        /// The constants a value object publishes for its bounds, so the number
+        /// lives in one place and validators can point at it.
+        /// </summary>
+        public static IEnumerable<(string Name, string Literal)> BoundConstants(VoField field, IReadOnlyList<VoField> fields)
         {
-            var name = kind == VoRuleKind.MinLength ? "MinLength" : "MaxLength";
+            foreach (var rule in field.Rules)
+            {
+                var name = rule.Kind switch
+                {
+                    VoRuleKind.MinLength or VoRuleKind.AtLeast or VoRuleKind.GreaterThan => BoundConst(field, fields, lower: true),
+                    VoRuleKind.MaxLength or VoRuleKind.AtMost or VoRuleKind.LessThan => BoundConst(field, fields, lower: false),
+                    _ => null
+                };
+
+                if (name is null)
+                    continue;
+
+                var literal = field.IsString
+                    ? ((int)rule.Bound).ToString(CultureInfo.InvariantCulture)
+                    : field.NumericLiteral(rule.Bound);
+
+                yield return (name, literal);
+            }
+        }
+
+        /// <summary>
+        /// The constant name of a bound: lengths read MinLength and MaxLength,
+        /// numbers read Minimum and Maximum.
+        /// </summary>
+        public static string BoundConst(VoField field, IReadOnlyList<VoField> fields, bool lower)
+        {
+            var name = field.IsString
+                ? lower ? "MinLength" : "MaxLength"
+                : lower ? "Minimum" : "Maximum";
 
             return fields.Count == 1 && field.Property == "Value" ? name : $"{field.Property}{name}";
         }
 
-        private static string LengthMessage(string human, string voType, string constName, string comparison)
-        {
-            return "$\"The " + human + " must have " + comparison + " {" + voType + "." + constName + "} characters.\"";
-        }
+        private static string ConstType(VoField field) => field.IsString ? "int" : field.Primitive;
 
-        private static string Plain(decimal bound) => bound.ToString(CultureInfo.InvariantCulture);
+        private static string BoundMessage(string human, string reference, string comparison, string unit)
+        {
+            return "$\"The " + human + " must be " + comparison + " {" + reference + "}" + unit + ".\"";
+        }
 
         private static string CtorParameters(IReadOnlyList<VoField> fields)
         {

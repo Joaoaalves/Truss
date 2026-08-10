@@ -24,5 +24,19 @@ namespace Truss.Application
         /// Gets whether a page exists after this one.
         /// </summary>
         public bool HasNextPage => Page < TotalPages;
+
+        /// <summary>
+        /// Projects the items of this page, keeping the counters. Use it to turn a
+        /// page of entities into a page of DTOs without rebuilding the record.
+        /// </summary>
+        /// <typeparam name="TResult">The projected item type.</typeparam>
+        /// <param name="selector">The projection applied to each item.</param>
+        /// <returns>A page of projected items with the same paging counters.</returns>
+        public PageResult<TResult> Map<TResult>(Func<T, TResult> selector)
+        {
+            ArgumentNullException.ThrowIfNull(selector);
+
+            return new PageResult<TResult>([.. Items.Select(selector)], Page, Size, TotalCount);
+        }
     }
 }

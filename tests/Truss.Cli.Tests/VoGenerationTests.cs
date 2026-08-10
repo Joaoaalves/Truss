@@ -28,7 +28,7 @@ namespace Truss.Cli.Tests
             Assert.DoesNotContain("string Name", aggregate);
 
             var vo = _workspace.ReadFile("Shop", "src", "Shop.Domain", "Nutrition", "Food", "ValueObjects", "FoodName", "FoodName.cs");
-            Assert.Contains("namespace Shop.Domain.Nutrition.Food.ValueObjects.FoodName", vo);
+            Assert.Contains("namespace Shop.Domain.Nutrition.Food.ValueObjects", vo);
             Assert.Contains("public sealed class FoodName : ValueObject", vo);
             Assert.Contains("CheckRule(new FoodNameMustNotBeEmpty(normalized));", vo);
             Assert.Contains("value?.Trim() ?? string.Empty", vo);
@@ -106,7 +106,7 @@ namespace Truss.Cli.Tests
             Assert.Equal(0, _workspace.Run("g", "vo", "Money", "-c", "Shared", "-f", "Amount:decimal", "-f", "Currency:string", "--project", root));
 
             var vo = _workspace.ReadFile("Shop", "src", "Shop.Domain", "Shared", "ValueObjects", "Money", "Money.cs");
-            Assert.Contains("namespace Shop.Domain.Shared.ValueObjects.Money", vo);
+            Assert.Contains("namespace Shop.Domain.Shared.ValueObjects", vo);
             Assert.Contains("public static Money Create(decimal amount, string currency)", vo);
             Assert.Contains("public const int CurrencyMaxLength = 200;", vo);
             Assert.Contains("yield return Amount;", vo);
@@ -133,7 +133,7 @@ namespace Truss.Cli.Tests
             Assert.Contains("CheckRule(new FoodNameMustNotBeTooShort(normalized));", name);
 
             var atMost = _workspace.ReadFile("Shop", "src", "Shop.Domain", "Nutrition", "Food", "ValueObjects", "FoodCalories", "Rules", "FoodCaloriesMustBeAtMost.cs");
-            Assert.Contains("value > 900", atMost);
+            Assert.Contains("value > FoodCalories.Maximum", atMost);
             Assert.Contains("\"foodCalories.too-large\"", atMost);
 
             var positive = _workspace.ReadFile("Shop", "src", "Shop.Domain", "Nutrition", "Food", "ValueObjects", "FoodFat", "Rules", "FoodFatMustBePositive.cs");
@@ -158,7 +158,7 @@ namespace Truss.Cli.Tests
                 "--vo", "Carbohydrates:decimal", "--vo", "Protein:decimal", "--project", root));
 
             var composite = _workspace.ReadFile("Shop", "src", "Shop.Domain", "Nutrition", "Food", "ValueObjects", "MacroNutrients", "MacroNutrients.cs");
-            Assert.Contains("namespace Shop.Domain.Nutrition.Food.ValueObjects.MacroNutrients", composite);
+            Assert.Contains("namespace Shop.Domain.Nutrition.Food.ValueObjects", composite);
             Assert.Contains("public static MacroNutrients Create(Carbohydrates carbohydrates, Protein protein)", composite);
             Assert.Contains("public static MacroNutrients Create(decimal carbohydrates, decimal protein)", composite);
             Assert.Contains("// Rules that read several members belong here.", composite);
@@ -166,6 +166,9 @@ namespace Truss.Cli.Tests
 
             Assert.True(_workspace.FileExists("Shop", "src", "Shop.Domain", "Nutrition", "Food", "ValueObjects", "Carbohydrates", "Carbohydrates.cs"));
             Assert.True(_workspace.FileExists("Shop", "src", "Shop.Domain", "Nutrition", "Food", "ValueObjects", "Protein", "Rules", "ProteinMustNotBeNegative.cs"));
+
+            // Members share the namespace of the composite, so it names them directly.
+            Assert.DoesNotContain("using Shop.Domain.Nutrition.Food.ValueObjects.Carbohydrates;", composite);
 
             var test = _workspace.ReadFile("Shop", "tests", "Shop.Domain.Tests", "Nutrition", "MacroNutrientsTests.cs");
             Assert.Contains("MacroNutrients.Create(10m, 10m)", test);
@@ -182,7 +185,7 @@ namespace Truss.Cli.Tests
                 "-f", "Value:int:pos", "--project", root));
 
             var vo = _workspace.ReadFile("Shop", "src", "Shop.Domain", "Logistics", "Warehouse", "ValueObjects", "Capacity", "Capacity.cs");
-            Assert.Contains("namespace Shop.Domain.Logistics.Warehouse.ValueObjects.Capacity", vo);
+            Assert.Contains("namespace Shop.Domain.Logistics.Warehouse.ValueObjects", vo);
             Assert.Contains("CheckRule(new CapacityMustBePositive(value));", vo);
         }
 
@@ -196,7 +199,7 @@ namespace Truss.Cli.Tests
             Assert.Equal(0, _workspace.Run("g", "ent", "OrderItem", "-c", "Sales", "-a", "Order", "--vo", "Price:Money", "--project", root));
 
             var entity = _workspace.ReadFile("Shop", "src", "Shop.Domain", "Sales", "Order", "OrderItem.cs");
-            Assert.Contains("using Shop.Domain.Shared.ValueObjects.Money;", entity);
+            Assert.Contains("using Shop.Domain.Shared.ValueObjects;", entity);
             Assert.Contains("public Money Price { get; private set; }", entity);
             Assert.Contains("public OrderItem(OrderItemId id, Money price) : base(id)", entity);
         }
@@ -218,7 +221,7 @@ namespace Truss.Cli.Tests
             Assert.Equal(0, _workspace.Run("g", "agg", "Product", "-c", "Sales", "--vo", "Name:string", "--vo", "Price:Money", "--project", root));
 
             var aggregate = _workspace.ReadFile("Shop", "src", "Shop.Domain", "Sales", "Product", "Product.cs");
-            Assert.Contains("using Shop.Domain.Shared.ValueObjects.Money;", aggregate);
+            Assert.Contains("using Shop.Domain.Shared.ValueObjects;", aggregate);
             Assert.Contains("public Money Price { get; private set; }", aggregate);
             Assert.Contains("public static Product Create(ProductName name, Money price)", aggregate);
 
@@ -226,6 +229,54 @@ namespace Truss.Cli.Tests
 
             // A referenced value object cannot be flattened into a crud slice yet.
             Assert.Equal(1, _workspace.Run("g", "agg", "Order", "-c", "Sales", "--crud", "--vo", "Total:Money", "--project", root));
+        }
+
+        [Fact]
+        public void ValueObjects_LiveInTheValueObjectsNamespace_SoAFolderNeverShadowsAType()
+        {
+            var root = ScaffoldShop();
+
+            Assert.Equal(0, _workspace.Run("g", "vo", "NutrientAmounts", "-c", "Nutrition", "-f", "Carbs:decimal", "--project", root));
+            Assert.Equal(0, _workspace.Run("g", "vo", "NutritionFacts", "-c", "Nutrition", "-f", "Serving:decimal", "--project", root));
+
+            var facts = _workspace.ReadFile("Shop", "src", "Shop.Domain", "Nutrition", "ValueObjects", "NutritionFacts", "NutritionFacts.cs");
+            var amounts = _workspace.ReadFile("Shop", "src", "Shop.Domain", "Nutrition", "ValueObjects", "NutrientAmounts", "NutrientAmounts.cs");
+
+            // Both types share one namespace, so one can name the other with no
+            // using and nothing resolves to a folder.
+            Assert.Contains("namespace Shop.Domain.Nutrition.ValueObjects", facts);
+            Assert.Contains("namespace Shop.Domain.Nutrition.ValueObjects", amounts);
+            Assert.DoesNotContain("namespace Shop.Domain.Nutrition.ValueObjects.NutritionFacts", facts);
+
+            var rule = _workspace.ReadFile("Shop", "src", "Shop.Domain", "Nutrition", "ValueObjects", "NutritionFacts", "Rules", "NutritionFactsServingMustNotBeNegative.cs");
+            Assert.Contains("namespace Shop.Domain.Nutrition.ValueObjects.Rules", rule);
+        }
+
+        [Fact]
+        public void NumericBounds_BecomeConstantsLikeTheLengthOnes()
+        {
+            var root = ScaffoldShop();
+
+            Assert.Equal(0, _workspace.Run(
+                "g", "agg", "DiaryItem", "-c", "Diary", "--vo", "PortionGrams:decimal:0..2000", "--project", root));
+
+            var vo = _workspace.ReadFile("Shop", "src", "Shop.Domain", "Diary", "DiaryItem", "ValueObjects", "DiaryItemPortionGrams", "DiaryItemPortionGrams.cs");
+            Assert.Contains("public const decimal Minimum = 0m;", vo);
+            Assert.Contains("public const decimal Maximum = 2000m;", vo);
+
+            var rule = _workspace.ReadFile("Shop", "src", "Shop.Domain", "Diary", "DiaryItem", "ValueObjects", "DiaryItemPortionGrams", "Rules", "DiaryItemPortionGramsMustBeAtMost.cs");
+            Assert.Contains("value > DiaryItemPortionGrams.Maximum", rule);
+            Assert.DoesNotContain("2000m;", rule);
+        }
+
+        [Fact]
+        public void GreaterThanZero_ReadsAsPositive()
+        {
+            var root = ScaffoldShop();
+
+            Assert.Equal(0, _workspace.Run("g", "agg", "Food", "-c", "Nutrition", "--vo", "Fat:decimal:gt=0", "--project", root));
+
+            Assert.True(_workspace.FileExists("Shop", "src", "Shop.Domain", "Nutrition", "Food", "ValueObjects", "FoodFat", "Rules", "FoodFatMustBePositive.cs"));
         }
 
         [Fact]

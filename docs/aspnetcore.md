@@ -28,6 +28,29 @@ app.MapCommand<CreateUser, Guid>("/users", id => $"/users/{id}");
 
 ---
 
+## Queries that may find nothing
+
+A query declared as `IQuery<T?>` answers "not found" with null, and `MapQuery` turns that into a 404. Returning 200 with an empty body would make every client check twice.
+
+---
+
+## Endpoints you map by hand
+
+`MapCommand` maps POST and `MapQuery` maps GET. Any other verb is a plain minimal API endpoint, and one call gives it the same error translation:
+
+```csharp
+app.MapDelete("/diary/{date}/items/{itemId}", async (DateOnly date, Guid itemId, IDispatcher dispatcher, CancellationToken ct) =>
+{
+    await dispatcher.Send(new RemoveDiaryItem(date, itemId), ct);
+    return Results.NoContent();
+})
+.AddTrussErrorHandling();
+```
+
+Without it, a broken invariant leaves the endpoint as a 500 instead of the 422 the rest of the API returns.
+
+---
+
 ## Mapping Queries
 
 Queries map to GET endpoints. Route values and the query string bind to the query record:

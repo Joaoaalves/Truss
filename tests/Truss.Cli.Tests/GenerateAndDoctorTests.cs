@@ -176,6 +176,37 @@ namespace Truss.Cli.Tests
         }
 
         [Fact]
+        public void GenerateQuery_WithADtoResult_GeneratesTheDto()
+        {
+            var root = ScaffoldShop();
+
+            Assert.Equal(0, _workspace.Run("g", "qry", "GetFoodByBarcode", "-c", "Nutrition", "-r", "FoodDto", "--project", root));
+
+            var dto = _workspace.ReadFile("Shop", "src", "Shop.Application", "Nutrition", "DTOs", "FoodDto.cs");
+            Assert.Contains("public sealed record FoodDto(Guid Id);", dto);
+            Assert.Contains("namespace Shop.Application.Nutrition.DTOs", dto);
+
+            var handler = _workspace.ReadFile("Shop", "src", "Shop.Application", "Nutrition", "GetFoodByBarcode", "GetFoodByBarcodeHandler.cs");
+            Assert.Contains("using Shop.Application.Nutrition.DTOs;", handler);
+
+            // A result the project already has is not regenerated.
+            Assert.Equal(0, _workspace.Run("g", "qry", "GetOtherFood", "-c", "Nutrition", "-r", "FoodDto", "--project", root));
+            Assert.Equal(0, _workspace.Run("g", "qry", "CountFoods", "-c", "Nutrition", "-r", "int", "--project", root));
+            Assert.False(_workspace.FileExists("Shop", "src", "Shop.Application", "Nutrition", "DTOs", "int.cs"));
+        }
+
+        [Fact]
+        public void GenerateAggregate_RuleCarriesAStableCode()
+        {
+            var root = ScaffoldShop();
+
+            Assert.Equal(0, _workspace.Run("g", "agg", "Order", "-c", "Sales", "--project", root));
+
+            var rule = _workspace.ReadFile("Shop", "src", "Shop.Domain", "Sales", "Order", "Rules", "OrderMustBeValid.cs");
+            Assert.Contains("public string Code => \"order.invalid\";", rule);
+        }
+
+        [Fact]
         public void GenerateExistingFile_Fails()
         {
             var root = ScaffoldShop();

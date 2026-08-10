@@ -139,6 +139,68 @@ namespace Truss.Cli.Templates
             }
             """;
 
+        public const string CurrentUser = """
+            namespace __NAME__.Application.Accounts
+            {
+                using __NS_USER_ID__;
+
+                /// <summary>
+                /// The account behind the current request. Handlers ask for it instead
+                /// of taking an owner id in the command: an id carried in the body is
+                /// a claim the caller makes about themselves, and nothing stops them
+                /// from naming somebody else.
+                /// </summary>
+                public interface ICurrentUser
+                {
+                    /// <summary>
+                    /// Gets whether the request carries an authenticated account.
+                    /// </summary>
+                    bool IsAuthenticated { get; }
+
+                    /// <summary>
+                    /// Gets the account id of the request, or null when anonymous.
+                    /// </summary>
+                    UserId? Id { get; }
+
+                    /// <summary>
+                    /// Gets the account id, or throws when the request is anonymous.
+                    /// Use it in handlers behind RequireAuthorization.
+                    /// </summary>
+                    UserId Require();
+                }
+            }
+            """;
+
+        public const string HttpContextCurrentUser = """
+            using __NAME__.Application.Accounts;
+            using __NS_USER_ID__;
+            using System.Security.Claims;
+
+            namespace __NAME__.Api
+            {
+                public class HttpContextCurrentUser(IHttpContextAccessor accessor) : ICurrentUser
+                {
+                    public bool IsAuthenticated => Id is not null;
+
+                    public UserId? Id
+                    {
+                        get
+                        {
+                            var value = accessor.HttpContext?.User.FindFirstValue("sub");
+
+                            return Guid.TryParse(value, out var id) ? new UserId(id) : null;
+                        }
+                    }
+
+                    public UserId Require()
+                    {
+                        return Id ?? throw new InvalidOperationException(
+                            "The request is anonymous. Protect the endpoint with RequireAuthorization before asking for the current account.");
+                    }
+                }
+            }
+            """;
+
         public const string AuthTokensDto = """
             namespace __NAME__.Application.Accounts.DTOs
             {
@@ -671,6 +733,31 @@ namespace Truss.Cli.Templates
             }
             """;
 
+        public const string UnitOfWorkUserStore = """
+            using Microsoft.AspNetCore.Identity;
+            using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
+
+            namespace __NAME__.Infrastructure.Accounts
+            {
+                /// <summary>
+                /// The Identity store with its automatic save turned off. It shares the
+                /// request's AppDbContext, so saving on every call would commit whatever
+                /// the handler had tracked so far, ahead of the unit of work: the
+                /// aggregate would be written before its domain events were dispatched,
+                /// and a failing event handler could no longer roll the command back.
+                /// With this off, one SaveChanges runs at the end of the pipeline.
+                /// </summary>
+                public class UnitOfWorkUserStore : UserOnlyStore<ApplicationUser, AppDbContext, Guid>
+                {
+                    public UnitOfWorkUserStore(AppDbContext context, IdentityErrorDescriber? describer = null)
+                        : base(context, describer)
+                    {
+                        AutoSaveChanges = false;
+                    }
+                }
+            }
+            """;
+
         public const string IdentityUserCredentialsStore = """
             using __NAME__.Application.Accounts;
             using __NS_USER_ID__;
@@ -713,6 +800,7 @@ namespace Truss.Cli.Templates
         public const string AccountsModuleIdentity = """
             using __NAME__.Application.Accounts;
             using __NAME__.Infrastructure.Accounts;
+            using Microsoft.AspNetCore.Identity;
             using Microsoft.Extensions.DependencyInjection;
 
             namespace __NAME__.Infrastructure
@@ -735,13 +823,114 @@ namespace Truss.Cli.Templates
                         })
                         .AddEntityFrameworkStores<AppDbContext>();
 
+                        // Replaces the store Identity just registered: the default one
+                        // saves on every call, which would commit whatever the handler
+                        // had tracked before the unit of work runs.
+                        services.AddScoped<IUserStore<ApplicationUser>, UnitOfWorkUserStore>();
+
                         return services;
                     }
                 }
             }
             """;
 
+        /// <summary>
+        /// The account slice is the most sensitive code the CLI writes, so it
+        /// arrives with tests: registration persists, the email rule holds, and
+        /// the unit of work still owns the transaction (a store that saved on
+        /// its own would commit the account before its events were dispatched).
+        /// </summary>
+        public const string AccountsTests = """
+            using __NAME__.Application;
+            using __NAME__.Application.Accounts;
+            using __NAME__.Application.Accounts.RegisterUser;
+            using __NAME__.Domain.Accounts.User.Events;
+            using __NAME__.Infrastructure;
+            using Microsoft.Extensions.DependencyInjection;
+            using Truss.Application;
+            using Truss.Domain;
+            using Truss.Testing;
+            using Xunit;
+
+            namespace __NAME__.IntegrationTests.Accounts
+            {
+                public class AccountsTests
+                {
+                    private static Task<TrussTestHost> StartHost(Action<IServiceCollection>? extra = null)
+                    {
+                        return TrussTestHost.Start<AppDbContext>(options =>
+                        {
+                            options.AddAssembly<ApplicationAssemblyMarker>();
+                            options.ConfigureServices(services =>
+                            {
+                                services.AddAccountsInfrastructure();
+                                services.AddTrussJwtAuth(jwt =>
+                                {
+                                    jwt.Issuer = "tests";
+                                    jwt.Audience = "tests";
+                                    jwt.SigningKey = new string('k', 48);
+                                });__TEST_EMAIL__
+
+                                extra?.Invoke(services);
+                            });
+                        });
+                    }
+
+                    [Fact]
+                    public async Task Register_PersistsTheAccount()
+                    {
+                        await using var host = await StartHost();
+
+                        await host.Send(new RegisterUser("joao@example.com", "Joao", "supersecret"__REGISTER_EXTRA__));
+
+                        var found = await host.ExecuteScoped(provider =>
+                            provider.GetRequiredService<IUserRepository>().GetByEmail("joao@example.com"));
+
+                        Assert.NotNull(found);
+                    }
+
+                    [Fact]
+                    public async Task Register_WithAnEmailAlreadyTaken_BreaksTheRule()
+                    {
+                        await using var host = await StartHost();
+
+                        await host.Send(new RegisterUser("joao@example.com", "Joao", "supersecret"__REGISTER_EXTRA__));
+
+                        await Assert.ThrowsAsync<BusinessRuleValidationException>(() =>
+                            host.Send(new RegisterUser("joao@example.com", "Other", "supersecret"__REGISTER_EXTRA__)));
+                    }
+
+                    [Fact]
+                    public async Task AFailingDomainEventHandler_RollsTheAccountBack()
+                    {
+                        // The pipeline owns the transaction: nothing may be committed
+                        // before the domain events of the command have been dispatched.
+                        await using var host = await StartHost(services =>
+                            services.AddScoped<IDomainEventHandler<UserRegistered>, FailingUserRegisteredHandler>());
+
+                        await Assert.ThrowsAnyAsync<Exception>(() =>
+                            host.Send(new RegisterUser("joao@example.com", "Joao", "supersecret"__REGISTER_EXTRA__)));
+
+                        var found = await host.ExecuteScoped(provider =>
+                            provider.GetRequiredService<IUserRepository>().GetByEmail("joao@example.com"));
+
+                        Assert.Null(found);
+                    }
+                }
+
+                public class FailingUserRegisteredHandler : IDomainEventHandler<UserRegistered>
+                {
+                    public Task Handle(UserRegistered domainEvent, CancellationToken cancellationToken)
+                    {
+                        throw new InvalidOperationException("A domain event handler failed.");
+                    }
+                }
+            }
+            """;
+
         public const string ProgramUsings = """
+            using __NAME__.Api;
+            using __NAME__.Application.Accounts;
             using __NAME__.Application.Accounts.DTOs;
             using __NAME__.Application.Accounts.Login;
             using __NAME__.Application.Accounts.Refresh;
@@ -749,6 +938,8 @@ namespace Truss.Cli.Templates
             """;
 
         public const string ProgramUsingsWithFlows = """
+            using __NAME__.Api;
+            using __NAME__.Application.Accounts;
             using __NAME__.Application.Accounts.ConfirmEmail;
             using __NAME__.Application.Accounts.DTOs;
             using __NAME__.Application.Accounts.Login;
@@ -761,6 +952,9 @@ namespace Truss.Cli.Templates
 
         public const string ProgramServices = """
             builder.Services.AddAccountsInfrastructure();
+
+            builder.Services.AddHttpContextAccessor();
+            builder.Services.AddScoped<ICurrentUser, HttpContextCurrentUser>();
 
             builder.Services.AddTrussJwtAuth(options =>
             {

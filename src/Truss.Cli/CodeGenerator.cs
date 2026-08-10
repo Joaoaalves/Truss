@@ -131,7 +131,7 @@ namespace Truss.Cli
                 parentFolder = Path.Combine(owner, "ValueObjects");
             }
 
-            var ns = $"{parentNs}.{name}";
+            var ns = parentNs;
             var folder = Path.Combine(parentFolder, name);
             var files = new List<string>();
 
@@ -145,13 +145,12 @@ namespace Truss.Cli
                 // so the aggregate (or anything else) can also speak them alone.
                 foreach (var member in members)
                 {
-                    var memberNs = $"{parentNs}.{member.Property}";
                     var memberFolder = Path.Combine(parentFolder, member.Property);
                     var single = new List<VoField> { member with { Property = "Value" } };
 
-                    files.Add(WriteFile(memberFolder, $"{member.Property}.cs", ValueObjectTemplates.ValueObjectClass(memberNs, member.Property, single)));
+                    files.Add(WriteFile(memberFolder, $"{member.Property}.cs", ValueObjectTemplates.ValueObjectClass(parentNs, member.Property, single)));
 
-                    foreach (var (fileName, content) in ValueObjectTemplates.RuleFiles(memberNs, member.Property, single))
+                    foreach (var (fileName, content) in ValueObjectTemplates.RuleFiles(parentNs, member.Property, single))
                         files.Add(WriteFile(Path.Combine(memberFolder, "Rules"), fileName, content));
                 }
 
@@ -430,21 +429,57 @@ namespace Truss.Cli
             var ns = $"{ApplicationNamespace(manifest, context)}.{name}";
             var directory = Path.Combine(TargetDirectory(root, manifest.ApplicationProject, context), name);
 
-            if (paged)
+            var files = new List<string>();
+            var dtoUsing = string.Empty;
+
+            // A query that answers with a DTO gets the DTO: a handler pointing at a
+            // type nobody wrote does not compile.
+            if (NeedsDto(manifest, root, context, result))
             {
-                return
-                [
-                    WriteFile(directory, $"{name}.cs", Render(GeneratorTemplates.QueryPaged, name, ns, result)),
-                    WriteFile(directory, $"{name}Handler.cs", Render(GeneratorTemplates.QueryPagedHandler, name, ns, result)),
-                    WriteFile(directory, $"{name}Validator.cs", Render(GeneratorTemplates.QueryPagedValidator, name, ns, result))
-                ];
+                var dtoNamespace = $"{ApplicationNamespace(manifest, context)}.DTOs";
+
+                files.Add(WriteFile(
+                    Path.Combine(TargetDirectory(root, manifest.ApplicationProject, context), "DTOs"),
+                    $"{result}.cs",
+                    GeneratorTemplates.QueryDto.Replace("__NS_DTOS__", dtoNamespace).Replace("__RESULT__", result)));
+
+                dtoUsing = $"{Environment.NewLine}    using {dtoNamespace};";
             }
 
-            return
-            [
-                WriteFile(directory, $"{name}.cs", Render(GeneratorTemplates.Query, name, ns, result)),
-                WriteFile(directory, $"{name}Handler.cs", Render(GeneratorTemplates.QueryHandler, name, ns, result))
-            ];
+            if (paged)
+            {
+                files.Add(WriteFile(directory, $"{name}.cs", Render(GeneratorTemplates.QueryPaged, name, ns, result, dtoUsing)));
+                files.Add(WriteFile(directory, $"{name}Handler.cs", Render(GeneratorTemplates.QueryPagedHandler, name, ns, result, dtoUsing)));
+                files.Add(WriteFile(directory, $"{name}Validator.cs", Render(GeneratorTemplates.QueryPagedValidator, name, ns, result)));
+
+                return files;
+            }
+
+            files.Add(WriteFile(directory, $"{name}.cs", Render(GeneratorTemplates.Query, name, ns, result, dtoUsing)));
+            files.Add(WriteFile(directory, $"{name}Handler.cs", Render(GeneratorTemplates.QueryHandler, name, ns, result, dtoUsing)));
+
+            return files;
+        }
+
+        private static readonly string[] KnownResultTypes =
+        [
+            "string", "int", "long", "decimal", "double", "bool", "Guid",
+            "DateOnly", "DateTime", "DateTimeOffset", "TimeSpan", "object"
+        ];
+
+        /// <summary>
+        /// Whether the result type names something the project does not have yet,
+        /// in which case the generator writes its skeleton.
+        /// </summary>
+        private static bool NeedsDto(TrussManifest manifest, string root, string? context, string result)
+        {
+            if (KnownResultTypes.Contains(result, StringComparer.OrdinalIgnoreCase) || !Naming.IsValidTypeName(result))
+                return false;
+
+            var application = Path.Combine(root, manifest.ApplicationProject);
+
+            return !Directory.Exists(application)
+                || !Directory.EnumerateFiles(application, $"{result}.cs", SearchOption.AllDirectories).Any();
         }
 
         private static void ValidateType(string name)
@@ -535,9 +570,10 @@ namespace Truss.Cli
             return string.Join('\n', lines);
         }
 
-        private static string Render(string template, string type, string ns, string? result)
+        private static string Render(string template, string type, string ns, string? result, string dtoUsing = "")
         {
             var rendered = template
+                .Replace("__DTO_USING__", dtoUsing)
                 .Replace("__NS_DOMAIN__", ns)
                 .Replace("__NS_APPLICATION__", ns)
                 .Replace("__TYPE__", type);

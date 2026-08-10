@@ -149,7 +149,7 @@ namespace Truss.Cli
                     WholeBound(bound, member);
             }
 
-            if (positive)
+            if (positive || (floors.Count == 1 && floors[0].Exclusive && floors[0].Bound == 0))
                 rules.Add(new VoRule(VoRuleKind.Positive));
             else if (floors.Count == 1)
                 rules.Add(new VoRule(floors[0].Exclusive ? VoRuleKind.GreaterThan : VoRuleKind.AtLeast, floors[0].Bound));

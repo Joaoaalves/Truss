@@ -1,5 +1,6 @@
 using System.Reflection;
 using FluentValidation;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Truss.Application;
 
 namespace Microsoft.Extensions.DependencyInjection
@@ -33,6 +34,10 @@ namespace Microsoft.Extensions.DependencyInjection
                     "At least one assembly must be registered. Use options.AddAssembly<TMarker>() to expose the assemblies that contain your handlers."
                 );
             }
+
+            // Handlers that reason about time take TimeProvider, so the pipeline
+            // provides the system one unless the host registered a fake first.
+            services.TryAddSingleton(TimeProvider.System);
 
             services.AddScoped<IDispatcher, Dispatcher>();
             services.AddScoped<IDomainEventDispatcher, DomainEventDispatcher>();

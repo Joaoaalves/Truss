@@ -99,16 +99,24 @@ namespace Microsoft.AspNetCore.Builder
                 .MapGet(pattern, async ([AsParameters] TQuery query, IDispatcher dispatcher, CancellationToken cancellationToken) =>
                 {
                     var result = await dispatcher.Send(query, cancellationToken);
-                    return Results.Ok(result);
+
+                    // A query declared as IQuery<T?> answers "not found" with null,
+                    // so the endpoint says 404 instead of 200 with an empty body.
+                    return result is null ? Results.NotFound() : Results.Ok(result);
                 })
                 .AddTrussErrorHandling()
-                .Produces<TResult>(StatusCodes.Status200OK);
+                .Produces<TResult>(StatusCodes.Status200OK)
+                .Produces(StatusCodes.Status404NotFound);
         }
 
         /// <summary>
         /// Adds the Truss exception filter and the ProblemDetails response metadata shared by all endpoints.
+        /// Endpoints mapped by hand (any verb MapCommand does not cover) get the same
+        /// translation of validation and business rule failures by calling this.
         /// </summary>
-        private static RouteHandlerBuilder AddTrussErrorHandling(this RouteHandlerBuilder builder)
+        /// <param name="builder">The endpoint builder to decorate.</param>
+        /// <returns>The same builder, for chaining.</returns>
+        public static RouteHandlerBuilder AddTrussErrorHandling(this RouteHandlerBuilder builder)
         {
             return builder
                 .AddEndpointFilter(TrussExceptionFilter.Instance)

@@ -103,3 +103,9 @@ services.AddScoped(typeof(IPipelineBehavior<,>), typeof(LoggingBehavior<,>));
 ```
 
 Open generic registrations with type constraints are supported. The container skips a behavior whenever the request type does not satisfy its constraints, which is exactly how `UnitOfWorkBehavior` targets commands only.
+
+---
+
+## What AddTruss registers for you
+
+Besides the dispatcher, the validation behavior and your handlers, `AddTruss` registers `TimeProvider.System` when the host has not registered one. Handlers that reason about time take `TimeProvider` and stay testable, and the [test host](testing.md) can replace it with a fake before the pipeline is built.

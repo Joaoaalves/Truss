@@ -23,16 +23,18 @@ public sealed record DeactivateUser(Guid UserId) : ICommand;
 Each command has exactly one handler:
 
 ```csharp
-public class CreateUserHandler(AppDbContext context) : ICommandHandler<CreateUser, Guid>
+public class CreateUserHandler(IUserRepository users) : ICommandHandler<CreateUser, Guid>
 {
     public Task<Guid> Handle(CreateUser command, CancellationToken cancellationToken)
     {
         var user = User.Create(command.Name, command.Email);
-        context.Users.Add(user);
+        users.Add(user);
         return Task.FromResult(user.Id.Value);
     }
 }
 ```
+
+The handler takes a repository declared in the application layer, not the `DbContext`: in the layout `truss new` creates, the application project does not reference infrastructure, and that is the point. The EF implementation lives in the infrastructure project and is registered in the composition root.
 
 Command handlers:
 
@@ -43,16 +45,21 @@ Command handlers:
 Commands with no result return `Unit`:
 
 ```csharp
-public class DeactivateUserHandler(AppDbContext context) : ICommandHandler<DeactivateUser>
+public class DeactivateUserHandler(IUserRepository users) : ICommandHandler<DeactivateUser>
 {
     public async Task<Unit> Handle(DeactivateUser command, CancellationToken cancellationToken)
     {
-        var user = await context.Users.FindAsync([command.UserId], cancellationToken);
+        var user = await users.GetById(new UserId(command.UserId), cancellationToken);
+
+        BusinessRule.Check(new UserMustExist(user));
         user!.Deactivate();
+
         return Unit.Value;
     }
 }
 ```
+
+`BusinessRule.Check` is how a handler enforces a rule it can only answer with I/O (existence, uniqueness). Inside an aggregate or a value object, use the protected `CheckRule`; both raise the same 422 with the same code.
 
 ---
 
@@ -63,16 +70,23 @@ A query implements `IQuery<TResult>` and never changes state:
 ```csharp
 public sealed record GetUserById(Guid UserId) : IQuery<UserDto?>;
 
-public class GetUserByIdHandler(AppDbContext context) : IQueryHandler<GetUserById, UserDto?>
+public class GetUserByIdHandler(IUserRepository users) : IQueryHandler<GetUserById, UserDto?>
 {
     public Task<UserDto?> Handle(GetUserById query, CancellationToken cancellationToken)
     {
-        return context.Users
-            .Where(u => u.Id == new UserId(query.UserId))
-            .Select(u => new UserDto(u.Id.Value, u.Name))
-            .FirstOrDefaultAsync(cancellationToken);
+        return users.FindDto(new UserId(query.UserId), cancellationToken);
     }
 }
+```
+
+A query declared as `IQuery<T?>` answers "not found" with null, and `MapQuery` turns that into a 404 instead of a 200 with an empty body.
+
+`PageResult<T>.Map` projects a page without rebuilding the record, which is what a handler paginating entities needs:
+
+```csharp
+var page = await orders.List(new PageRequest(query.Page, query.Size), cancellationToken);
+
+return page.Map(order => new OrderSummaryDto(order.Id.Value, order.Total));
 ```
 
 Queries do not create a unit of work and never trigger a commit. Reading is free of transactional overhead.
@@ -84,14 +98,11 @@ Paged queries follow one convention: `Page` and `Size` properties on the query, 
 ```csharp
 public sealed record ListProducts(int Page = 1, int Size = 20) : IQuery<PageResult<ProductDto>>;
 
-public class ListProductsHandler(AppDbContext context) : IQueryHandler<ListProducts, PageResult<ProductDto>>
+public class ListProductsHandler(IProductRepository products) : IQueryHandler<ListProducts, PageResult<ProductDto>>
 {
     public Task<PageResult<ProductDto>> Handle(ListProducts query, CancellationToken cancellationToken)
     {
-        return context.Products
-            .OrderBy(p => p.Name)
-            .Select(p => new ProductDto(p.Id.Value, p.Name))
-            .ToPageAsync(new PageRequest(query.Page, query.Size), cancellationToken);
+        return products.List(new PageRequest(query.Page, query.Size), cancellationToken);
     }
 }
 ```
@@ -149,7 +160,7 @@ Dispatch characteristics:
 React to domain events by implementing `IDomainEventHandler<TEvent>`:
 
 ```csharp
-public class OrderPlacedHandler(AppDbContext context) : IDomainEventHandler<OrderPlaced>
+public class OrderPlacedHandler(IOrderRepository orders) : IDomainEventHandler<OrderPlaced>
 {
     public async Task Handle(OrderPlaced domainEvent, CancellationToken cancellationToken)
     {

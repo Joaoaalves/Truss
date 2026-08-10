@@ -64,16 +64,18 @@ public class CreateUserValidator : AbstractValidator<CreateUser>
     }
 }
 
-public class CreateUserHandler(AppDbContext context) : ICommandHandler<CreateUser, Guid>
+public class CreateUserHandler(IUserRepository users) : ICommandHandler<CreateUser, Guid>
 {
     public Task<Guid> Handle(CreateUser command, CancellationToken cancellationToken)
     {
         var user = User.Create(command.Name, command.Email);
-        context.Users.Add(user);
+        users.Add(user);
         return Task.FromResult(user.Id.Value);
     }
 }
 ```
+
+The handler depends on a repository interface declared in the application layer, never on the `DbContext`: in the layout `truss new` creates, the application project does not reference infrastructure. The EF implementation of `IUserRepository` lives in the infrastructure project and is registered in the composition root.
 
 Note what the handler does not do: it does not validate the command, does not call `SaveChangesAsync` and does not dispatch events. The pipeline does all of that.
 
