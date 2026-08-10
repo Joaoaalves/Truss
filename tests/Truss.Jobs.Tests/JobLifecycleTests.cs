@@ -137,19 +137,33 @@ namespace Truss.Jobs.Tests
             await using var host = new JobsTestHost(startHostedServices: false);
 
             using var scope = host.Provider.CreateScope();
-            var schedulerLock = scope.ServiceProvider.GetRequiredService<ISchedulerLock>();
-            Assert.IsType<EfSchedulerLock<Fakes.JobsDbContext>>(schedulerLock);
+            Assert.IsType<EfSchedulerLock<Fakes.JobsDbContext>>(scope.ServiceProvider.GetRequiredService<ISchedulerLock>());
 
-            var lease = TimeSpan.FromMilliseconds(200);
+            // The lease is a clock question, so the test owns the clock: sleeping
+            // for a real lease makes the result depend on how busy the machine is.
+            var clock = new MutableClock(DateTimeOffset.UtcNow);
+            var schedulerLock = new EfSchedulerLock<Fakes.JobsDbContext>(
+                scope.ServiceProvider.GetRequiredService<Fakes.JobsDbContext>(), clock);
+
+            var lease = TimeSpan.FromMinutes(1);
 
             Assert.True(await schedulerLock.TryAcquire("test.lock", "instance-a", lease));
             Assert.False(await schedulerLock.TryAcquire("test.lock", "instance-b", lease));
             Assert.True(await schedulerLock.TryAcquire("test.lock", "instance-a", lease));
 
-            await Task.Delay(300);
+            clock.Advance(lease + TimeSpan.FromSeconds(1));
 
             Assert.True(await schedulerLock.TryAcquire("test.lock", "instance-b", lease));
             Assert.False(await schedulerLock.TryAcquire("test.lock", "instance-a", lease));
+        }
+
+        private sealed class MutableClock(DateTimeOffset now) : TimeProvider
+        {
+            private DateTimeOffset _now = now;
+
+            public override DateTimeOffset GetUtcNow() => _now;
+
+            public void Advance(TimeSpan amount) => _now += amount;
         }
     }
 }
