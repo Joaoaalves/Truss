@@ -2653,30 +2653,48 @@ truss g agg Invoice -c Billing --crud
 
 ### Value objects with invariants
 
-`--vo Name:type` (repeatable, or a comma list) replaces primitives with self-validating value objects. Supported types: `string`, `int`, `long`, `decimal`, `double`, `guid`; the type defaults to `string`.
+`--vo Name:type:rules` (repeatable, or a comma list) replaces primitives with self-validating value objects. Supported types: `string`, `int`, `long`, `decimal`, `double`, `guid`; the type defaults to `string`.
 
 ```
-truss g agg Food -c Nutrition --crud --vo Name:string --vo Calories:int
+truss g agg Food -c Nutrition --crud --vo Name:string:3..120 --vo Calories:int:0..900 --vo Fat:decimal:pos
 ```
 
-Every member of `Food` becomes a value object in its own folder, with a private constructor, a `Create` factory that normalizes and checks the starter rules (strings must not be empty and must fit the length, numbers must not be negative, guids must not be default), equality by value, and its own tests:
+Every member of `Food` becomes a value object in its own folder, with a private constructor, a `Create` factory that normalizes and checks the rules, equality by value, and its own tests. Value objects have no identity and raise no events; if one exists, it is valid.
+
+The rules segment borrows what you already type elsewhere. A range is inclusive, as in SQL BETWEEN; on a string a bound measures length, on a number it measures value, in the Laravel tradition; and the comparators are the ones of REST filters. Join tokens with `+`. Everything is shell-safe: no quoting needed.
+
+| Segment | Meaning |
+|---|---|
+| (none) | strings: not empty, at most 200 chars; numbers: not negative; guids: not default |
+| `3..120` | between 3 and 120, inclusive (`3..` and `..120` bound one side) |
+| `gt=0`, `gte=0`, `lt=10`, `lte=10` | the usual comparators; `min=`/`max=` are synonyms of `gte=`/`lte=` |
+| `pos` | greater than zero |
+| `gt=0+lte=10` | combined |
+
+Each token becomes a real named rule with a stable code (`FoodCaloriesMustBeAtMost`, `foodCalories.too-large`), and length bounds become constants on the value object (`FoodName.MinLength`, `FoodName.MaxLength`) that the generated validator and EF configuration reference, so the number lives in one place.
+
+With `--crud`, the whole slice speaks the value objects while the boundary stays primitive: commands carry `string` and `int`, handlers convert through `Create`, the EF configuration gets the conversions automatically, and the generated integration test drives the slice end to end.
+
+### Composed and shared value objects
+
+`truss g vo` builds standalone value objects. With `-f` the members are primitive fields of one class; with `--vo` each member becomes a value object of its own and the class composes them:
 
 ```
-Domain/Nutrition/Food/ValueObjects/FoodName/
-  FoodName.cs
-  Rules/FoodNameMustNotBeEmpty.cs
-  Rules/FoodNameMustFitLength.cs
+truss g vo Money -c Shared -f Amount:decimal:pos -f Currency:string:3..3
+truss g vo MacroNutrients -c Nutrition -a Food --vo Carbohydrates:decimal --vo Fat:decimal --vo Protein:decimal
 ```
 
-With `--crud`, the whole slice speaks the value objects while the boundary stays primitive: commands carry `string` and `int`, handlers convert through `Create`, the EF configuration gets the conversions automatically, and the generated integration test drives the slice end to end. Value objects have no identity and raise no events.
+The composite's members are generated beside it, each guarding itself; the composite gets a canonical `Create` over the member types, marked as the home for rules that read several members, and a primitive overload (`MacroNutrients.Create(28m, 0.3m, 2.7m)`) that keeps construction short while every invariant still runs. Behavior that derives from the members (a calories total, for one) is yours to write there; the CLI never generates domain methods.
 
-`truss g vo` builds shared, standalone value objects, including multi-member ones:
+`-a <Aggregate>` places the value object inside the owning aggregate's folder and prints the lines that wire it in. Without it, the value object lands in the context's shared `ValueObjects/` folder, where several aggregates can speak it.
+
+An aggregate can also reference an existing value object by naming it as the type:
 
 ```
-truss g vo Money -c Shared -f Amount:decimal -f Currency:string
+truss g agg Meal -c Nutrition --vo Name:string --vo Macros:MacroNutrients
 ```
 
-A multi-member value object is not covered by an automatic conversion; map it as an EF complex type, as shown in [the domain guide](domain.md#mapping-value-objects-with-ef-core).
+Nothing is regenerated: the property is typed to the value object found in the domain. Referenced value objects are not yet flattened into `--crud` slices, and a multi-member value object maps as an EF complex type rather than a conversion, as shown in [the domain guide](domain.md#mapping-value-objects-with-ef-core).
 
 Generates building blocks inside the layer projects. Namespaces mirror the folders exactly. An aggregate gets its own folder and namespace with everything that belongs to it:
 
@@ -2940,6 +2958,7 @@ Truss is built module by module, each one opt-in. The framework never installs a
 - Scaffolded tests: every new project carries a domain test project and an integration test project on the TrussTestHost, and generators add matching tests, so generated code arrives tested.
 - Mirrored namespaces: generated code's namespaces follow the folders exactly, with each command and query in its own folder and DTOs and rules in theirs. The sample context and everything truss add auth scaffolds follow the same layout.
 - Value objects with invariants: --vo on aggregates and entities wraps every primitive in a self-validating value object with its rules, tests and EF conversion, and truss g vo builds shared multi-member ones. Short aliases for every generator and its frequent options.
+- Rule segments and composition: inclusive ranges and REST-style comparators on any --vo member (Name:string:3..120, Calories:int:0..900, pos), composite value objects built from members that guard themselves, -a to place one inside its owning aggregate, and references to existing value objects by name.
 
 ---
 
