@@ -2575,6 +2575,13 @@ truss generate query GetOrderById --context Sales --result OrderDto
 truss generate query ListOrders --context Sales --result OrderDto --paged
 ```
 
+These are the commands you type most, so each one answers to a short alias: `g` (or `gen`) for `generate`, and `ctx`, `agg`, `ent`, `cmd`, `qry` for the building blocks. `truss rm ctx` is `truss remove context`. The same line twice:
+
+```
+truss generate aggregate Invoice --context Billing --crud
+truss g agg Invoice --context Billing --crud
+```
+
 Generates building blocks inside the layer projects. Namespaces mirror the folders exactly. An aggregate gets its own folder and namespace with everything that belongs to it:
 
 ```
