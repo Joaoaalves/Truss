@@ -51,6 +51,7 @@ Truss is built module by module, each one opt-in. The framework never installs a
 - Clean scaffold by default: truss new creates no example code unless --sample asks for the Catalog context, and truss remove context deletes a bounded context with all its wiring.
 - Scaffolded tests: every new project carries a domain test project and an integration test project on the TrussTestHost, and generators add matching tests, so generated code arrives tested.
 - Mirrored namespaces: generated code's namespaces follow the folders exactly, with each command and query in its own folder and DTOs and rules in theirs. The sample context and everything truss add auth scaffolds follow the same layout.
+- Value objects with invariants: --vo on aggregates and entities wraps every primitive in a self-validating value object with its rules, tests and EF conversion, and truss g vo builds shared multi-member ones. Short aliases for every generator and its frequent options.
 
 ---
 

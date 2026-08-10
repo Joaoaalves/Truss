@@ -91,12 +91,39 @@ truss generate query GetOrderById --context Sales --result OrderDto
 truss generate query ListOrders --context Sales --result OrderDto --paged
 ```
 
-These are the commands you type most, so each one answers to a short alias: `g` (or `gen`) for `generate`, and `ctx`, `agg`, `ent`, `cmd`, `qry` for the building blocks. `truss rm ctx` is `truss remove context`. The same line twice:
+These are the commands you type most, so each one answers to a short alias: `g` (or `gen`) for `generate`, and `ctx`, `agg`, `ent`, `vo`, `cmd`, `qry` for the building blocks. `truss rm ctx` is `truss remove context`, and the frequent options have short forms too: `-c` for `--context`, `-a` for `--aggregate`, `-r` for `--result`, `-f` for `--field`, `-p` for `--project`. The same line twice:
 
 ```
 truss generate aggregate Invoice --context Billing --crud
-truss g agg Invoice --context Billing --crud
+truss g agg Invoice -c Billing --crud
 ```
+
+### Value objects with invariants
+
+`--vo Name:type` (repeatable, or a comma list) replaces primitives with self-validating value objects. Supported types: `string`, `int`, `long`, `decimal`, `double`, `guid`; the type defaults to `string`.
+
+```
+truss g agg Food -c Nutrition --crud --vo Name:string --vo Calories:int
+```
+
+Every member of `Food` becomes a value object in its own folder, with a private constructor, a `Create` factory that normalizes and checks the starter rules (strings must not be empty and must fit the length, numbers must not be negative, guids must not be default), equality by value, and its own tests:
+
+```
+Domain/Nutrition/Food/ValueObjects/FoodName/
+  FoodName.cs
+  Rules/FoodNameMustNotBeEmpty.cs
+  Rules/FoodNameMustFitLength.cs
+```
+
+With `--crud`, the whole slice speaks the value objects while the boundary stays primitive: commands carry `string` and `int`, handlers convert through `Create`, the EF configuration gets the conversions automatically, and the generated integration test drives the slice end to end. Value objects have no identity and raise no events.
+
+`truss g vo` builds shared, standalone value objects, including multi-member ones:
+
+```
+truss g vo Money -c Shared -f Amount:decimal -f Currency:string
+```
+
+A multi-member value object is not covered by an automatic conversion; map it as an EF complex type, as shown in [the domain guide](domain.md#mapping-value-objects-with-ef-core).
 
 Generates building blocks inside the layer projects. Namespaces mirror the folders exactly. An aggregate gets its own folder and namespace with everything that belongs to it:
 

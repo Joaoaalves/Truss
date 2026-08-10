@@ -75,6 +75,75 @@ public class Money(decimal amount, string currency) : ValueObject
 
 Two value objects are equal when their components are equal, in the same order.
 
+### Invariants live in the value object
+
+A primitive has nowhere to keep a rule, which is how validation drifts into handlers and the domain goes anemic. The strongest pattern Truss encourages is the self-validating value object: a private constructor, a `Create` factory that normalizes and checks rules, and therefore a type whose instances are valid by construction. `ValueObject` carries the same `CheckRule` as aggregates, so a broken invariant surfaces as the same 422 with a stable code:
+
+```csharp
+public sealed class FoodName : ValueObject
+{
+    public const int MaxLength = 200;
+
+    private FoodName(string value)
+    {
+        Value = value;
+    }
+
+    public string Value { get; }
+
+    public static FoodName Create(string value)
+    {
+        var normalized = value?.Trim() ?? string.Empty;
+
+        CheckRule(new FoodNameMustNotBeEmpty(normalized));
+        CheckRule(new FoodNameMustFitLength(normalized));
+
+        return new FoodName(normalized);
+    }
+
+    protected override IEnumerable<object?> GetEqualityComponents()
+    {
+        yield return Value;
+    }
+
+    public override string ToString() => Value;
+}
+```
+
+An aggregate whose `Name` is a `FoodName` cannot hold an invalid name; the rule has one home, and the state that would break it is unrepresentable. Value objects have no identity and raise no events, and the boundary stays primitive: commands carry strings and numbers, handlers convert through `Create`, and validators keep checking shape for the 400 while the value object guards the invariant for the 422.
+
+The [CLI generates this shape](cli.md#truss-generate): `truss g agg Food -c Nutrition --vo Name:string --vo Calories:int` builds each value object in its own folder with its rules and tests, and `truss g vo Money -c Shared -f Amount:decimal -f Currency:string` builds shared, multi-field ones.
+
+### Mapping value objects with EF Core
+
+A single-value wrapper maps as a conversion, which is exactly what the generator writes into the aggregate's configuration:
+
+```csharp
+builder.Property(food => food.Name)
+    .HasConversion(name => name.Value, value => FoodName.Create(value))
+    .HasMaxLength(FoodName.MaxLength)
+    .IsRequired();
+```
+
+Rehydration goes through `Create` on purpose: a row that no longer satisfies the invariant fails loudly instead of resurrecting an invalid object.
+
+A value object with several members must not use a conversion. Map it as a complex type, which stores each member as a column of the owner's table while keeping the type without identity:
+
+```csharp
+builder.ComplexProperty(order => order.Price, price =>
+{
+    price.Property(money => money.Amount)
+        .HasColumnName("PriceAmount")
+        .HasPrecision(18, 2);
+
+    price.Property(money => money.Currency)
+        .HasColumnName("PriceCurrency")
+        .HasMaxLength(Money.CurrencyMaxLength);
+});
+```
+
+Complex types are the correct mapping for multi-member value objects on EF Core 8 and later: no separate table, no shadow key, and the object stays immutable. Reach for owned entities (`OwnsOne`/`OwnsMany`) only when you need a collection of value objects or a separate table; they carry a hidden key, which a value object conceptually does not have.
+
 ---
 
 ## Typed Identifiers
