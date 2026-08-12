@@ -76,11 +76,35 @@ namespace Truss.Messaging.Tests.Fakes
         }
     }
 
+    public sealed record FlakyEvent(Guid Id) : IntegrationEvent;
+
+    /// <summary>
+    /// Fails its first handling and succeeds afterwards, so a test can prove
+    /// the inbox record rolls back with the failed attempt and only sticks
+    /// with a successful one.
+    /// </summary>
+    public class FlakyEventHandler(ReceivedEvents received) : IIntegrationEventHandler<FlakyEvent>
+    {
+        private static int _attempts;
+
+        public static void Reset() => Interlocked.Exchange(ref _attempts, 0);
+
+        public Task Handle(FlakyEvent integrationEvent, CancellationToken cancellationToken)
+        {
+            if (Interlocked.Increment(ref _attempts) == 1)
+                throw new InvalidOperationException("First delivery fails.");
+
+            received.Add(integrationEvent);
+            return Task.CompletedTask;
+        }
+    }
+
     public class MessagingDbContext(DbContextOptions<MessagingDbContext> options) : DbContext(options)
     {
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             modelBuilder.ApplyTrussOutbox();
+            modelBuilder.ApplyTrussInbox();
         }
     }
 
