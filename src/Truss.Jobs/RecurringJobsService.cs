@@ -74,6 +74,27 @@ namespace Truss.Jobs
                     break;
                 }
             }
+
+            await ReleaseLock();
+        }
+
+        /// <summary>
+        /// Hands the lease to another instance on shutdown, so failover does
+        /// not wait for it to expire. Best effort: a failure only means the
+        /// old behavior, and the lease lapses on its own.
+        /// </summary>
+        private async Task ReleaseLock()
+        {
+            try
+            {
+                await using var scope = scopeFactory.CreateAsyncScope();
+                await scope.ServiceProvider.GetRequiredService<ISchedulerLock>()
+                    .Release(SchedulerLockNames.Recurring, _owner, CancellationToken.None);
+            }
+            catch (Exception exception)
+            {
+                logger.LogWarning(exception, "Releasing the recurring scheduler lease failed; it will expire on its own.");
+            }
         }
 
         private static CronExpression Parse(string cron)

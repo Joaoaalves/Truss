@@ -33,6 +33,21 @@ namespace Truss.Jobs.EntityFrameworkCore
             return await TrySave(cancellationToken);
         }
 
+        /// <inheritdoc />
+        public async Task Release(string name, string owner, CancellationToken cancellationToken = default)
+        {
+            var lease = await _context.Set<SchedulerLease>()
+                .FirstOrDefaultAsync(l => l.Name == name && l.Owner == owner, cancellationToken);
+
+            if (lease is null)
+                return;
+
+            // Expiring the lease instead of deleting it keeps the row and its
+            // concurrency token; a racing renewal simply fails to save.
+            lease.Renew(owner, timeProvider.GetUtcNow());
+            await TrySave(cancellationToken);
+        }
+
         private async Task<bool> TrySave(CancellationToken cancellationToken)
         {
             try

@@ -155,6 +155,15 @@ namespace Truss.Jobs.Tests
 
             Assert.True(await schedulerLock.TryAcquire("test.lock", "instance-b", lease));
             Assert.False(await schedulerLock.TryAcquire("test.lock", "instance-a", lease));
+
+            // A graceful shutdown releases the lease, so the other instance
+            // takes over immediately instead of waiting out the expiry.
+            await schedulerLock.Release("test.lock", "instance-b");
+            Assert.True(await schedulerLock.TryAcquire("test.lock", "instance-a", lease));
+
+            // Releasing a lease the caller does not hold changes nothing.
+            await schedulerLock.Release("test.lock", "instance-b");
+            Assert.False(await schedulerLock.TryAcquire("test.lock", "instance-b", lease));
         }
 
         private sealed class MutableClock(DateTimeOffset now) : TimeProvider

@@ -89,7 +89,7 @@ All settings bind from configuration, for example `Truss__Jobs__MaxAttempts=5`.
 
 ### Multiple instances
 
-With the EF store, the schedulers elect a leader through a lease-based lock stored next to the job records, so `EnableSchedulers` can stay enabled everywhere: one instance sweeps scheduled and recurring jobs at a time, and when it stops, another takes over once the lease expires. Execution itself is already distributed by the transport; the lock only covers who enqueues.
+With the EF store, the schedulers elect a leader through a lease-based lock stored next to the job records, so `EnableSchedulers` can stay enabled everywhere: one instance sweeps scheduled and recurring jobs at a time. A graceful shutdown releases the lease, so during a rolling deploy the next instance takes over immediately; only a crash makes the successor wait out the lease. Execution itself is already distributed by the transport; the lock only covers who enqueues.
 
 ---
 
