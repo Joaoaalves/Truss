@@ -59,7 +59,9 @@ With the outbox configured, `Publish` does not touch the broker. The event is st
 
 Delivery starts immediately: every commit that stores outbox messages wakes the processor in-process, so events reach the transport right after the transaction, not on the next poll. Polling (15 seconds by default) remains only as the safety net for retries and for messages written by other application instances.
 
-Delivery is **at-least-once**: consumers must be idempotent.
+Running more than one instance is fine. On PostgreSQL and SQL Server each fetch claims its batch with SKIP LOCKED semantics, so instances that wake up together pick disjoint batches instead of publishing the same message twice. Providers without the feature fall back to the plain query, where a rare overlap between instances only means a duplicate publish.
+
+Delivery is **at-least-once** either way: a crash between publishing and marking a message processed still replays it, so consumers must be idempotent.
 
 ---
 

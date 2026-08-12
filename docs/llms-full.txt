@@ -1323,6 +1323,33 @@ app.MapCommand<CreateUser, Guid>("/users", id => $"/users/{id}");
 
 ---
 
+## The other verbs
+
+Updates and deletes have their own mappings:
+
+| Mapping | Verb | Success response |
+|---|---|---|
+| `MapPutCommand<TCommand>(pattern)` | PUT | 204 No Content |
+| `MapPutCommand<TCommand, TResult>(pattern)` | PUT | 200 OK with the result |
+| `MapPatchCommand<TCommand>(pattern)` | PATCH | 204 No Content |
+| `MapPatchCommand<TCommand, TResult>(pattern)` | PATCH | 200 OK with the result |
+| `MapDeleteCommand<TCommand>(pattern)` | DELETE | 204 No Content |
+
+PUT and PATCH bind the body and then copy route values over it, so the command carries the resource id without asking the client to repeat it in the JSON:
+
+```csharp
+public sealed record RenameProduct(Guid Id, string Name) : ICommand;
+
+app.MapPutCommand<RenameProduct>("/products/{id}");
+// PUT /products/7d9f...  body: { "name": "Espresso" }
+```
+
+The URL always wins. A body that does carry `id` cannot redirect the command to a different resource, and a malformed route value comes back as a 400 ProblemDetails instead of a 500. Route parameters are matched to command properties by name, case-insensitively; a route value with no matching property is ignored.
+
+DELETE carries no body, so `MapDeleteCommand` binds the command from route values and the query string, exactly like a query. A delete that must return data is unusual enough to be mapped by hand with `AddTrussErrorHandling`.
+
+---
+
 ## Queries that may find nothing
 
 A query declared as `IQuery<T?>` answers "not found" with null, and `MapQuery` turns that into a 404. Returning 200 with an empty body would make every client check twice.
@@ -1331,13 +1358,13 @@ A query declared as `IQuery<T?>` answers "not found" with null, and `MapQuery` t
 
 ## Endpoints you map by hand
 
-`MapCommand` maps POST and `MapQuery` maps GET. Any other verb is a plain minimal API endpoint, and one call gives it the same error translation:
+Anything the mappings above do not cover is a plain minimal API endpoint, and one call gives it the same error translation:
 
 ```csharp
-app.MapDelete("/diary/{date}/items/{itemId}", async (DateOnly date, Guid itemId, IDispatcher dispatcher, CancellationToken ct) =>
+app.MapDelete("/cart/items/{itemId}", async (Guid itemId, IDispatcher dispatcher, CancellationToken ct) =>
 {
-    await dispatcher.Send(new RemoveDiaryItem(date, itemId), ct);
-    return Results.NoContent();
+    var remaining = await dispatcher.Send(new RemoveCartItem(itemId), ct);
+    return Results.Ok(remaining);
 })
 .AddTrussErrorHandling();
 ```
@@ -1587,7 +1614,9 @@ With the outbox configured, `Publish` does not touch the broker. The event is st
 
 Delivery starts immediately: every commit that stores outbox messages wakes the processor in-process, so events reach the transport right after the transaction, not on the next poll. Polling (15 seconds by default) remains only as the safety net for retries and for messages written by other application instances.
 
-Delivery is **at-least-once**: consumers must be idempotent.
+Running more than one instance is fine. On PostgreSQL and SQL Server each fetch claims its batch with SKIP LOCKED semantics, so instances that wake up together pick disjoint batches instead of publishing the same message twice. Providers without the feature fall back to the plain query, where a rare overlap between instances only means a duplicate publish.
+
+Delivery is **at-least-once** either way: a crash between publishing and marking a message processed still replays it, so consumers must be idempotent.
 
 ---
 
@@ -2112,7 +2141,16 @@ POST /auth/login     {"email": "joao@example.com", "password": "..."}      -> ac
 POST /auth/refresh   {"refreshToken": "..."}                               -> rotated tokens
 ```
 
-With the [email module](email.md) installed before auth, the scaffold also carries the account flows: password reset, email confirmation and two factor login by email. Install email first to get them.
+With the [email module](email.md) installed before auth, the scaffold also carries the account flows: password reset, email confirmation and two factor login by email.
+
+If auth came first, the flows are not lost. Install email and retrofit them:
+
+```bash
+truss add email --provider smtp
+truss add auth --flows
+```
+
+The retrofit writes the flow slices, registers their stores, swaps `Login` and `RegisterUser` for the flow-aware variants and rewires the auth routes. The account slice is your code, so any file you edited since scaffolding is left alone and listed for you to port by hand; `Login` and its handler change contract together (`AuthTokensDto` becomes `LoginResult`), so that pair is only swapped when both are untouched, and the login route keeps its old contract otherwise.
 
 ---
 
@@ -2678,7 +2716,7 @@ Installs a module into an existing project: adds the package references to the c
 | `jobs` | | Requires messaging |
 | `observability` | `--dashboard aspire`, `grafana`, `seq` | Logging, tracing and correlation; the dashboard option wires OTLP export and the compose service |
 | `mapping` | | Compile-time DTO mappers, added to the application layer |
-| `auth` | `--provider jwt`, `identity`; `--bind-user <Aggregate>` with `--bind-mode reference`, `merge`; `--external google,microsoft,github` | Scaffolds the editable Accounts context and wires JWT authentication; the identity provider runs credentials through ASP.NET Core Identity; the binding connects the account to an existing aggregate and the external option wires OAuth login providers (addable later too); requires a database |
+| `auth` | `--provider jwt`, `identity`; `--bind-user <Aggregate>` with `--bind-mode reference`, `merge`; `--external google,microsoft,github`; `--flows` | Scaffolds the editable Accounts context and wires JWT authentication; the identity provider runs credentials through ASP.NET Core Identity; the binding connects the account to an existing aggregate and the external option wires OAuth login providers (addable later too); `--flows` retrofits the account flows when email was installed after auth, never overwriting files you edited; requires a database |
 | `email` | `--provider console`, `smtp`, `resend` | IEmailSender for the application layer; smtp brings Mailpit to the compose file, resend delivers through the API |
 | `tenancy` | | Row-level tenant isolation: ambient resolution, query filtering and stamping; requires a database |
 | `rbac` | | Roles in code, permissions on endpoints and assignments in the database; requires a database |
