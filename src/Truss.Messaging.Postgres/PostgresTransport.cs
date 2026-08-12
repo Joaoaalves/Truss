@@ -11,8 +11,8 @@ namespace Truss.Messaging.Postgres
     public sealed class PostgresTransport : IMessageTransport
     {
         private const string InsertSql = $"""
-            INSERT INTO {PostgresSchema.MessagesTable} (message_id, name, version, occurred_on, payload)
-            VALUES (@messageId, @name, @version, @occurredOn, @payload);
+            INSERT INTO {PostgresSchema.MessagesTable} (message_id, name, version, occurred_on, payload, trace_parent)
+            VALUES (@messageId, @name, @version, @occurredOn, @payload, @traceParent);
             SELECT pg_notify(@channel, '');
             """;
 
@@ -54,6 +54,7 @@ namespace Truss.Messaging.Postgres
             command.Parameters.AddWithValue("version", envelope.Version);
             command.Parameters.AddWithValue("occurredOn", envelope.OccurredOn);
             command.Parameters.AddWithValue("payload", envelope.Payload);
+            command.Parameters.AddWithValue("traceParent", (object?)envelope.TraceParent ?? DBNull.Value);
             command.Parameters.AddWithValue("channel", _options.Channel);
 
             await command.ExecuteNonQueryAsync(cancellationToken);

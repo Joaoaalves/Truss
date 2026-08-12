@@ -29,6 +29,7 @@ namespace Microsoft.EntityFrameworkCore
                 builder.Property(message => message.Version).IsRequired();
                 builder.Property(message => message.Payload).IsRequired();
                 builder.Property(message => message.Status).HasConversion<int>();
+                builder.Property(message => message.TraceParent).HasMaxLength(128);
 
                 builder.Property(message => message.OccurredOn)
                     .HasConversion(value => value.UtcTicks, value => new DateTimeOffset(value, TimeSpan.Zero));

@@ -1,9 +1,13 @@
+using System.Diagnostics;
+
 namespace Truss.Messaging
 {
     /// <summary>
     /// Publishes integration events through the outbox.
     /// The event is stored in the same transaction as the current command and delivered
     /// to the transport by the outbox processor after the commit.
+    /// The current trace is captured with the message, so the consumer's span joins
+    /// the trace of the command that raised the event, not the outbox poll loop's.
     /// </summary>
     public class OutboxIntegrationEventPublisher(
         IOutboxStore store,
@@ -24,7 +28,8 @@ namespace Truss.Messaging
                 envelope.Name,
                 envelope.Version,
                 envelope.Payload,
-                envelope.OccurredOn);
+                envelope.OccurredOn,
+                Activity.Current?.Id);
 
             return _store.Add(message, cancellationToken);
         }

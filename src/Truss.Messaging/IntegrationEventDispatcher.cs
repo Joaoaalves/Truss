@@ -27,7 +27,12 @@ namespace Truss.Messaging
         {
             ArgumentNullException.ThrowIfNull(envelope);
 
-            using var activity = Source.StartActivity($"consume {envelope.Name}");
+            // The traceparent carried on the envelope makes this span a child of
+            // the operation that published the event, across the transport.
+            using var activity = envelope.TraceParent is null
+                ? Source.StartActivity($"consume {envelope.Name}", ActivityKind.Consumer)
+                : Source.StartActivity($"consume {envelope.Name}", ActivityKind.Consumer, envelope.TraceParent);
+
             activity?.SetTag("truss.event", envelope.Name);
             activity?.SetTag("truss.event.version", envelope.Version);
             activity?.SetTag("truss.message_id", envelope.MessageId);

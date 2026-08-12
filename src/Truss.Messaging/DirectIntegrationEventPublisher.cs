@@ -1,3 +1,5 @@
+using System.Diagnostics;
+
 namespace Truss.Messaging
 {
     /// <summary>
@@ -17,7 +19,9 @@ namespace Truss.Messaging
         {
             ArgumentNullException.ThrowIfNull(integrationEvent);
 
-            return _transport.Publish(_serializer.Serialize(integrationEvent), cancellationToken);
+            var envelope = _serializer.Serialize(integrationEvent) with { TraceParent = Activity.Current?.Id };
+
+            return _transport.Publish(envelope, cancellationToken);
         }
     }
 }

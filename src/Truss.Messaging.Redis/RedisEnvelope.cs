@@ -7,7 +7,7 @@ namespace Truss.Messaging.Redis
     {
         public static NameValueEntry[] ToFields(IntegrationEventEnvelope envelope)
         {
-            return
+            NameValueEntry[] fields =
             [
                 new NameValueEntry("id", envelope.MessageId.ToString()),
                 new NameValueEntry("name", envelope.Name),
@@ -15,11 +15,15 @@ namespace Truss.Messaging.Redis
                 new NameValueEntry("occurred", envelope.OccurredOn.ToString("O", CultureInfo.InvariantCulture)),
                 new NameValueEntry("payload", envelope.Payload)
             ];
+
+            return envelope.TraceParent is null
+                ? fields
+                : [.. fields, new NameValueEntry("traceparent", envelope.TraceParent)];
         }
 
         public static IntegrationEventEnvelope? FromEntry(StreamEntry entry)
         {
-            string? id = null, name = null, occurred = null, payload = null;
+            string? id = null, name = null, occurred = null, payload = null, traceParent = null;
             int? version = null;
 
             foreach (var field in entry.Values)
@@ -31,6 +35,7 @@ namespace Truss.Messaging.Redis
                     case "version": version = (int)field.Value; break;
                     case "occurred": occurred = field.Value; break;
                     case "payload": payload = field.Value; break;
+                    case "traceparent": traceParent = field.Value; break;
                 }
             }
 
@@ -42,7 +47,8 @@ namespace Truss.Messaging.Redis
                 name,
                 version.Value,
                 DateTimeOffset.Parse(occurred, CultureInfo.InvariantCulture),
-                payload);
+                payload,
+                traceParent);
         }
     }
 }

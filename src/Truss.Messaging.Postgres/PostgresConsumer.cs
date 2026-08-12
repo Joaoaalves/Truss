@@ -11,7 +11,7 @@ namespace Truss.Messaging.Postgres
         ILogger<PostgresConsumer> logger) : BackgroundService
     {
         private const string FetchSql = $"""
-            SELECT sequence, message_id, name, version, occurred_on, payload, attempts
+            SELECT sequence, message_id, name, version, occurred_on, payload, attempts, trace_parent
             FROM {PostgresSchema.MessagesTable}
             WHERE visible_on <= now()
             ORDER BY sequence
@@ -30,8 +30,8 @@ namespace Truss.Messaging.Postgres
 
         private const string DeadLetterSql = $"""
             INSERT INTO {PostgresSchema.DeadLetterTable}
-                (sequence, message_id, name, version, occurred_on, payload, attempts, error, failed_on)
-            SELECT sequence, message_id, name, version, occurred_on, payload, @attempts, @error, now()
+                (sequence, message_id, name, version, occurred_on, payload, attempts, error, failed_on, trace_parent)
+            SELECT sequence, message_id, name, version, occurred_on, payload, @attempts, @error, now(), trace_parent
             FROM {PostgresSchema.MessagesTable}
             WHERE sequence = @sequence;
             DELETE FROM {PostgresSchema.MessagesTable} WHERE sequence = @sequence;
@@ -108,7 +108,8 @@ namespace Truss.Messaging.Postgres
                             reader.GetString(2),
                             reader.GetInt32(3),
                             reader.GetFieldValue<DateTimeOffset>(4),
-                            reader.GetString(5))));
+                            reader.GetString(5),
+                            reader.IsDBNull(7) ? null : reader.GetString(7))));
                 }
             }
 

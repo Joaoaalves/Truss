@@ -34,13 +34,15 @@ namespace Truss.Messaging
         /// <param name="version">The version of the event contract.</param>
         /// <param name="payload">The JSON payload of the event.</param>
         /// <param name="occurredOn">The timestamp of the event.</param>
-        public OutboxMessage(Guid id, string name, int version, string payload, DateTimeOffset occurredOn)
+        /// <param name="traceParent">The W3C traceparent of the publishing operation, when tracing was active.</param>
+        public OutboxMessage(Guid id, string name, int version, string payload, DateTimeOffset occurredOn, string? traceParent = null)
         {
             Id = id;
             Name = name;
             Version = version;
             Payload = payload;
             OccurredOn = occurredOn;
+            TraceParent = traceParent;
         }
 
         /// <summary>Gets the identifier of the event instance.</summary>
@@ -57,6 +59,9 @@ namespace Truss.Messaging
 
         /// <summary>Gets the timestamp of the event.</summary>
         public DateTimeOffset OccurredOn { get; private set; }
+
+        /// <summary>Gets the W3C traceparent of the publishing operation, when tracing was active.</summary>
+        public string? TraceParent { get; private set; }
 
         /// <summary>Gets the delivery status of the message.</summary>
         public OutboxMessageStatus Status { get; private set; } = OutboxMessageStatus.Pending;
@@ -78,7 +83,7 @@ namespace Truss.Messaging
         /// </summary>
         public IntegrationEventEnvelope ToEnvelope()
         {
-            return new IntegrationEventEnvelope(Id, Name, Version, OccurredOn, Payload);
+            return new IntegrationEventEnvelope(Id, Name, Version, OccurredOn, Payload, TraceParent);
         }
 
         /// <summary>
