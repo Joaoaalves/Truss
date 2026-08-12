@@ -47,7 +47,16 @@ POST /auth/login     {"email": "joao@example.com", "password": "..."}      -> ac
 POST /auth/refresh   {"refreshToken": "..."}                               -> rotated tokens
 ```
 
-With the [email module](email.md) installed before auth, the scaffold also carries the account flows: password reset, email confirmation and two factor login by email. Install email first to get them.
+With the [email module](email.md) installed before auth, the scaffold also carries the account flows: password reset, email confirmation and two factor login by email.
+
+If auth came first, the flows are not lost. Install email and retrofit them:
+
+```bash
+truss add email --provider smtp
+truss add auth --flows
+```
+
+The retrofit writes the flow slices, registers their stores, swaps `Login` and `RegisterUser` for the flow-aware variants and rewires the auth routes. The account slice is your code, so any file you edited since scaffolding is left alone and listed for you to port by hand; `Login` and its handler change contract together (`AuthTokensDto` becomes `LoginResult`), so that pair is only swapped when both are untouched, and the login route keeps its old contract otherwise.
 
 ---
 

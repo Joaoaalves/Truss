@@ -229,6 +229,71 @@ namespace Truss.Cli.Tests
         }
 
         [Fact]
+        public void AddAuthFlows_RetrofitsAFlowlessInstallation()
+        {
+            var root = ScaffoldShop();
+
+            Assert.Equal(0, _workspace.Run("add", "auth", "--project", root));
+            Assert.Equal(1, _workspace.Run("add", "auth", "--flows", "--project", root));
+            Assert.Equal(0, _workspace.Run("add", "email", "--project", root));
+            Assert.Equal(0, _workspace.Run("add", "auth", "--flows", "--project", root));
+
+            Assert.True(_workspace.FileExists("Shop", "src", "Shop.Application", "Accounts", "VerifyTwoFactor", "VerifyTwoFactorHandler.cs"));
+            Assert.True(_workspace.FileExists("Shop", "src", "Shop.Application", "Accounts", "ResetPassword", "ResetPasswordHandler.cs"));
+            Assert.True(_workspace.FileExists("Shop", "src", "Shop.Application", "Accounts", "DTOs", "LoginResult.cs"));
+            Assert.True(_workspace.FileExists("Shop", "src", "Shop.Infrastructure", "Accounts", "EfAccountTokenStore.cs"));
+
+            var login = _workspace.ReadFile("Shop", "src", "Shop.Application", "Accounts", "Login", "Login.cs");
+            Assert.Contains("LoginResult", login);
+
+            var accountsModule = _workspace.ReadFile("Shop", "src", "Shop.Infrastructure", "AccountsModule.cs");
+            Assert.Contains("IAccountTokenStore", accountsModule);
+            Assert.Contains("EfAccountSecurityStore", accountsModule);
+
+            var program = _workspace.ReadFile("Shop", "src", "Shop.Api", "Program.cs");
+            Assert.Contains("MapCommand<Login, LoginResult>", program);
+            Assert.DoesNotContain("MapCommand<Login, AuthTokensDto>", program);
+            Assert.Contains("/auth/password/request-reset", program);
+            Assert.Contains("using Shop.Application.Accounts.VerifyTwoFactor;", program);
+
+            var tests = _workspace.ReadFile("Shop", "tests", "Shop.IntegrationTests", "Accounts", "AccountsTests.cs");
+            Assert.Contains("AddTrussConsoleEmail", tests);
+
+            var manifest = TrussManifest.Load(root);
+            Assert.Equal("true", manifest!.Settings["auth.flows"]);
+
+            Assert.Equal(0, _workspace.Run("add", "auth", "--flows", "--project", root));
+        }
+
+        [Fact]
+        public void AddAuthFlows_LeavesAnEditedLoginPairAlone()
+        {
+            var root = ScaffoldShop();
+
+            Assert.Equal(0, _workspace.Run("add", "auth", "--project", root));
+            Assert.Equal(0, _workspace.Run("add", "email", "--project", root));
+
+            var handlerPath = Path.Combine(root, "src", "Shop.Application", "Accounts", "Login", "LoginHandler.cs");
+            File.AppendAllText(handlerPath, "// custom lockout policy" + Environment.NewLine);
+
+            var output = _workspace.Capture("add", "auth", "--flows", "--project", root);
+
+            Assert.Contains("left alone", output);
+
+            var login = _workspace.ReadFile("Shop", "src", "Shop.Application", "Accounts", "Login", "Login.cs");
+            Assert.Contains("AuthTokensDto", login);
+
+            var handler = _workspace.ReadFile("Shop", "src", "Shop.Application", "Accounts", "Login", "LoginHandler.cs");
+            Assert.Contains("custom lockout policy", handler);
+
+            var program = _workspace.ReadFile("Shop", "src", "Shop.Api", "Program.cs");
+            Assert.Contains("MapCommand<Login, AuthTokensDto>", program);
+            Assert.Contains("/auth/password/request-reset", program);
+
+            Assert.True(_workspace.FileExists("Shop", "src", "Shop.Application", "Accounts", "VerifyTwoFactor", "VerifyTwoFactorHandler.cs"));
+        }
+
+        [Fact]
         public void AddAuth_WithIdentityProvider_ScaffoldsIdentityBackedStores()
         {
             var root = ScaffoldShop();

@@ -35,7 +35,7 @@ namespace Truss.Cli
                     return 0;
                 }
 
-                if (module == "auth" && auth is not null && (auth.BindUser is not null || auth.External.Length > 0))
+                if (module == "auth" && auth is not null && (auth.BindUser is not null || auth.External.Length > 0 || auth.Flows))
                 {
                     if (auth.BindUser is not null)
                     {
@@ -43,15 +43,26 @@ namespace Truss.Cli
                         return 1;
                     }
 
-                    var externalResult = AuthScaffolder.AddExternal(auth.External, manifest, root, log);
+                    if (auth.Flows)
+                    {
+                        var flowsResult = AuthScaffolder.AddFlows(manifest, root, log);
 
-                    if (externalResult != 0)
-                        return externalResult;
+                        if (flowsResult != 0)
+                            return flowsResult;
+                    }
+
+                    if (auth.External.Length > 0)
+                    {
+                        var externalResult = AuthScaffolder.AddExternal(auth.External, manifest, root, log);
+
+                        if (externalResult != 0)
+                            return externalResult;
+
+                        log("The external login providers were wired. Run truss doctor to verify the project.");
+                    }
 
                     AgentsGenerator.Write(manifest, root);
                     manifest.Save(root);
-
-                    log("The external login providers were wired. Run truss doctor to verify the project.");
                     return 0;
                 }
 

@@ -27,6 +27,9 @@ namespace Truss.Cli.Commands
             [CommandOption("--external <PROVIDERS>")]
             public string? External { get; init; }
 
+            [CommandOption("--flows")]
+            public bool Flows { get; init; }
+
             [CommandOption("-p|--project <PATH>")]
             public string? Project { get; init; }
         }
@@ -54,7 +57,8 @@ namespace Truss.Cli.Commands
                 ? new AuthAddOptions(
                     settings.BindUser,
                     settings.BindMode?.ToLowerInvariant(),
-                    settings.External?.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries) ?? [])
+                    settings.External?.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries) ?? [],
+                    settings.Flows)
                 : null;
 
             return ModuleInstaller.Install(

@@ -8,10 +8,11 @@ namespace Truss.Cli
 {
     /// <summary>
     /// Options gathered by truss add auth: the credential provider, the optional
-    /// binding of the account User to an existing aggregate, and the external
-    /// login providers to wire.
+    /// binding of the account User to an existing aggregate, the external login
+    /// providers to wire, and whether to retrofit the account flows into an
+    /// installation that predates the email module.
     /// </summary>
-    internal sealed record AuthAddOptions(string? BindUser, string? BindMode, string[] External)
+    internal sealed record AuthAddOptions(string? BindUser, string? BindMode, string[] External, bool Flows = false)
     {
         public static readonly AuthAddOptions None = new(null, null, []);
     }
@@ -80,6 +81,12 @@ namespace Truss.Cli
 
             var flows = manifest.Modules.Contains("email");
 
+            if (options.Flows && !flows)
+            {
+                log("The account flows send email, so the email module comes first. Run truss add email; auth then scaffolds the flows automatically.");
+                return 1;
+            }
+
             WriteScaffold(provider, flows, bind, external.Length > 0, manifest, root, log);
             WireProgram(flows, bind, manifest, root, log);
             WriteJwtSettings(manifest, root);
@@ -96,9 +103,15 @@ namespace Truss.Cli
                 WireExternal(external, bind, manifest, root, log);
 
             if (flows)
+            {
+                manifest.Settings["auth.flows"] = "true";
                 log("Account flows were scaffolded too: password reset, email confirmation and two factor login by email.");
+            }
             else
+            {
                 log("Install the email module before auth to also scaffold password reset, email confirmation and two factor login.");
+                log("They can be added later: truss add email, then truss add auth --flows.");
+            }
 
             if (bind is { Merge: true })
                 log($"The {bind.Aggregate} aggregate is the account: User and UserId in the scaffolded code are aliases to it (AccountAliases.cs).");
@@ -140,6 +153,173 @@ namespace Truss.Cli
 
             WireExternal(external, bind, manifest, root, log);
             return 0;
+        }
+
+        /// <summary>
+        /// Retrofits the account flows into a project where auth was installed
+        /// before the email module. Files the scaffold wrote are swapped for
+        /// their flow variants only while untouched; anything the user edited
+        /// is left alone and reported instead.
+        /// </summary>
+        public static int AddFlows(TrussManifest manifest, string root, Action<string> log)
+        {
+            if (!manifest.Modules.Contains("email"))
+            {
+                log("The account flows send email, so the email module comes first. Run: truss add email");
+                return 1;
+            }
+
+            if (Directory.Exists(Path.Combine(root, manifest.ApplicationProject, "Accounts", "VerifyTwoFactor")))
+            {
+                log("The account flows are already installed.");
+                return 0;
+            }
+
+            if (!manifest.Settings.TryGetValue("auth.provider", out var provider))
+                provider = "jwt";
+
+            var bind = ResolveInstalledBinding(manifest, root);
+            var application = Path.Combine(manifest.ApplicationProject, "Accounts");
+
+            SwapIfUntouched(root, Path.Combine(application, "RegisterUser", "RegisterUserHandler.cs"), AuthTemplates.RegisterUserHandler, AuthFlowTemplates.RegisterUserHandlerWithFlows, manifest, bind, log);
+            SwapIfUntouched(root, Path.Combine(application, "RegisterUser", "RegisterUserValidator.cs"), AuthTemplates.RegisterUserValidator, AuthFlowTemplates.RegisterUserValidatorWithFlows, manifest, bind, log);
+
+            // Login and its handler change contract together (AuthTokensDto becomes
+            // LoginResult), so the pair swaps atomically or not at all: swapping one
+            // half would hand the user a build that no longer compiles.
+            var login = Path.Combine(application, "Login", "Login.cs");
+            var loginHandler = Path.Combine(application, "Login", "LoginHandler.cs");
+
+            var loginSwapped = IsUntouched(root, login, AuthTemplates.Login, manifest, bind)
+                && IsUntouched(root, loginHandler, AuthTemplates.LoginHandler, manifest, bind);
+
+            if (loginSwapped)
+            {
+                Write(root, login, AuthFlowTemplates.LoginWithFlows, manifest, bind);
+                Write(root, loginHandler, AuthFlowTemplates.LoginHandlerWithFlows, manifest, bind);
+            }
+            else
+            {
+                log("Login.cs or LoginHandler.cs was edited since it was scaffolded, so the pair was left alone; port them to LoginResult by hand to enable the two factor challenge.");
+            }
+
+            WriteFlowScaffold(provider, bind, manifest, root);
+            RegisterFlowStores(provider, manifest, root, log);
+            RewireProgramForFlows(loginSwapped, manifest, root, log);
+            RetrofitAccountsTests(bind, manifest, root, log);
+
+            manifest.Settings["auth.flows"] = "true";
+
+            log("Account flows were installed: password reset, email confirmation and two factor login by email.");
+            log("Login now returns LoginResult instead of AuthTokensDto: tokens directly, or a challenge when the account has two factor enabled.");
+            return 0;
+        }
+
+        /// <summary>
+        /// Overwrites a scaffolded file with its flow variant, but only while
+        /// its content is still exactly what the scaffold wrote. The account
+        /// slice is the user's code, so an edited file is never clobbered.
+        /// </summary>
+        private static void SwapIfUntouched(string root, string relativePath, string previous, string replacement, TrussManifest manifest, BindContext? bind, Action<string> log)
+        {
+            if (!IsUntouched(root, relativePath, previous, manifest, bind))
+            {
+                log($"{relativePath} was edited since it was scaffolded, so the flow variant was not written over it; port your changes onto the flow-aware version by hand.");
+                return;
+            }
+
+            Write(root, relativePath, replacement, manifest, bind);
+        }
+
+        private static bool IsUntouched(string root, string relativePath, string template, TrussManifest manifest, BindContext? bind)
+        {
+            var path = Path.Combine(root, relativePath);
+
+            return !File.Exists(path) || File.ReadAllText(path) == Render(template, manifest, bind) + Environment.NewLine;
+        }
+
+        private static void RegisterFlowStores(string provider, TrussManifest manifest, string root, Action<string> log)
+        {
+            var securityStore = provider == "identity" ? "IdentityAccountSecurityStore" : "EfAccountSecurityStore";
+
+            var registrations = Environment.NewLine
+                + "            services.AddScoped<IAccountTokenStore, EfAccountTokenStore>();"
+                + Environment.NewLine
+                + $"            services.AddScoped<IAccountSecurityStore, {securityStore}>();";
+
+            var modulePath = Path.Combine(root, manifest.InfrastructureProject, "AccountsModule.cs");
+
+            if (File.Exists(modulePath) && File.ReadAllText(modulePath).Contains("IAccountTokenStore"))
+                return;
+
+            if (!InsertRawAfter(modulePath, "services.AddScoped<IRefreshTokenStore, EfRefreshTokenStore>();", registrations))
+                log($"Could not update AccountsModule.cs automatically. Register the stores yourself:{registrations}");
+        }
+
+        /// <summary>
+        /// Swaps the three plain auth routes for the flow-aware set and imports
+        /// the new command namespaces. When the login pair kept its old contract
+        /// the login route keeps AuthTokensDto too, so the project still builds.
+        /// The route block is one of our own, so a reformatted Program falls
+        /// back to printing what to paste.
+        /// </summary>
+        private static void RewireProgramForFlows(bool loginSwapped, TrussManifest manifest, string root, Action<string> log)
+        {
+            var endpoints = loginSwapped
+                ? AuthFlowTemplates.ProgramEndpoints
+                : AuthFlowTemplates.ProgramEndpoints.Replace(
+                    "app.MapCommand<Login, LoginResult>(\"/auth/login\");",
+                    "app.MapCommand<Login, AuthTokensDto>(\"/auth/login\");");
+
+            var program = Path.Combine(root, manifest.ApiProject, "Program.cs");
+            var content = File.Exists(program) ? File.ReadAllText(program) : null;
+
+            if (content is not null && content.Contains(AuthTemplates.ProgramEndpoints))
+            {
+                File.WriteAllText(program, content.Replace(AuthTemplates.ProgramEndpoints, endpoints));
+            }
+            else
+            {
+                log("Could not update the auth routes in Program.cs automatically. Replace the register, login and refresh mappings with:");
+                log(endpoints);
+            }
+
+            var current = File.Exists(program) ? File.ReadAllText(program) : string.Empty;
+
+            var missing = Render(AuthTemplates.ProgramUsingsWithFlows, manifest, null)
+                .Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                .Where(line => !current.Contains(line))
+                .ToArray();
+
+            if (missing.Length == 0)
+                return;
+
+            var block = string.Join(Environment.NewLine, missing);
+
+            if (!SourceEditor.InsertBefore(program, $"using {manifest.Name}.Infrastructure;", block))
+                log($"Could not update Program.cs usings automatically. Add:{Environment.NewLine}{block}");
+        }
+
+        /// <summary>
+        /// Brings the generated account tests up to the flow-aware test host,
+        /// which registers email so RegisterUserValidator can resolve the
+        /// address validator. Skipped when the user edited the tests.
+        /// </summary>
+        private static void RetrofitAccountsTests(BindContext? bind, TrussManifest manifest, string root, Action<string> log)
+        {
+            if (!manifest.Tests || bind is { Merge: true })
+                return;
+
+            var path = Path.Combine(root, manifest.IntegrationTestsProject, "Accounts", "AccountsTests.cs");
+            var previous = Render(AuthTemplates.AccountsTests.Replace("__TEST_EMAIL__", string.Empty), manifest, bind) + Environment.NewLine;
+
+            if (File.Exists(path) && File.ReadAllText(path) != previous)
+            {
+                log("AccountsTests.cs was edited since it was scaffolded, so it was left alone. Register email in its test host: services.AddTrussConsoleEmail(); services.AddTrussEmailValidation(email => email.VerifyMailServer = false);");
+                return;
+            }
+
+            WriteAccountsTests(flows: true, bind, manifest, root, log);
         }
 
         private static BindContext? ResolveBinding(string aggregate, string? mode, TrussManifest manifest, string root, Action<string> log)
