@@ -84,9 +84,12 @@ namespace Truss.Messaging.Tests
             }
 
             var received = _provider.GetRequiredService<ReceivedEvents>();
-            var deadline = DateTime.UtcNow.AddSeconds(10);
+            var deadline = DateTime.UtcNow.AddSeconds(30);
 
-            while (DateTime.UtcNow < deadline && !counters.ContainsKey("truss.outbox.published"))
+            // Publication and consumption finish on their own schedules; wait
+            // for both before asserting anything.
+            while (DateTime.UtcNow < deadline
+                && (received.Snapshot().Count == 0 || !counters.ContainsKey("truss.outbox.published")))
             {
                 listener.RecordObservableInstruments();
                 await Task.Delay(25);

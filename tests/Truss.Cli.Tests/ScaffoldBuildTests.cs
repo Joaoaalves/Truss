@@ -92,6 +92,162 @@ namespace Truss.Cli.Tests
             AssertBuildSucceeds(identityRoot, "IdShop");
         }
 
+        /// <summary>
+        /// The proof of the v1.0 promise: a scaffolded project is split, both
+        /// processes go live, and a query dispatched in the monolith is
+        /// answered by the handler now running in the service. The handler and
+        /// the calling code are ordinary Truss code; only the composition
+        /// roots know a network sits between them.
+        /// </summary>
+        [Fact]
+        public async Task SplitService_AnswersARemoteQuery_AcrossTwoLiveProcesses()
+        {
+            PackFramework();
+
+            Assert.Equal(0, _workspace.Scaffold("Duo", "sqlite", "--local-packages", _feed));
+            var root = _workspace.Root("Duo");
+
+            Assert.Equal(0, _workspace.Run("generate", "aggregate", "Shipment", "--context", "Shipping", "--crud", "--project", root));
+            Assert.Equal(0, _workspace.Run("split", "Shipping", "--project", root));
+
+            File.WriteAllText(
+                Path.Combine(root, "src", "Duo.Shipping.Contracts", "GetShipmentGreeting.cs"),
+                ContractQuery + Environment.NewLine);
+
+            Directory.CreateDirectory(Path.Combine(root, "src", "Duo.Shipping.Application", "Greetings"));
+            File.WriteAllText(
+                Path.Combine(root, "src", "Duo.Shipping.Application", "Greetings", "GetShipmentGreetingHandler.cs"),
+                ContractQueryHandler + Environment.NewLine);
+
+            var version = TrussManifest.Load(root)!.TrussVersion;
+            var apiCsproj = Path.Combine(root, "src", "Duo.Api", "Duo.Api.csproj");
+            CsprojEditor.AddPackageReference(apiCsproj, "Truss.Remote", version);
+            CsprojEditor.AddProjectReference(apiCsproj, "..\\Duo.Shipping.Contracts\\Duo.Shipping.Contracts.csproj");
+
+            var programPath = Path.Combine(root, "src", "Duo.Api", "Program.cs");
+            var program = File.ReadAllText(programPath)
+                .Replace("using Duo.Application;", "using Duo.Application;\nusing Duo.Shipping.Contracts;")
+                .Replace("// truss: services",
+                    "builder.Services.AddRemoteContext<ShippingContracts>(\"Shipping\", new Uri(\"http://localhost:5240\"));\n\n// truss: services")
+                .Replace("// truss: endpoints",
+                    "app.MapQuery<GetShipmentGreeting, string?>(\"/shipping-greetings/{id:guid}\");\n\n// truss: endpoints");
+            File.WriteAllText(programPath, program);
+
+            AssertBuildSucceeds(root, "Duo");
+
+            var (service, serviceOutput) = StartHost(Path.Combine(root, "src", "Duo.Shipping.Api"), "http://localhost:5240");
+            var (monolith, monolithOutput) = StartHost(Path.Combine(root, "src", "Duo.Api"), "http://localhost:5241");
+
+            try
+            {
+                using var client = new HttpClient();
+
+                await WaitForHealth(client, "http://localhost:5240/health", serviceOutput);
+                await WaitForHealth(client, "http://localhost:5241/health", monolithOutput);
+
+                var id = Guid.NewGuid();
+                var answer = await client.GetStringAsync($"http://localhost:5241/shipping-greetings/{id}");
+
+                Assert.Contains($"shipment:{id}", answer);
+            }
+            finally
+            {
+                Kill(service);
+                Kill(monolith);
+            }
+        }
+
+        private const string ContractQuery = """
+            using Truss.Application;
+
+            namespace Duo.Shipping.Contracts
+            {
+                public sealed record GetShipmentGreeting(Guid Id) : IQuery<string?>;
+            }
+            """;
+
+        private const string ContractQueryHandler = """
+            using Duo.Shipping.Contracts;
+            using Truss.Application;
+
+            namespace Duo.Application.Shipping.Greetings
+            {
+                public class GetShipmentGreetingHandler : IQueryHandler<GetShipmentGreeting, string?>
+                {
+                    public Task<string?> Handle(GetShipmentGreeting request, CancellationToken cancellationToken)
+                    {
+                        return Task.FromResult<string?>($"shipment:{request.Id}");
+                    }
+                }
+            }
+            """;
+
+        private (Process Process, System.Text.StringBuilder Output) StartHost(string projectDirectory, string url)
+        {
+            var start = new ProcessStartInfo("dotnet", "run -c Release --no-build --no-launch-profile")
+            {
+                WorkingDirectory = projectDirectory,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true
+            };
+
+            start.Environment["ASPNETCORE_URLS"] = url;
+            start.Environment["ASPNETCORE_ENVIRONMENT"] = "Development";
+            start.Environment["NUGET_PACKAGES"] = _packagesCache;
+            start.Environment["MSBUILDDISABLENODEREUSE"] = "1";
+
+            var output = new System.Text.StringBuilder();
+            var process = Process.Start(start)!;
+            process.OutputDataReceived += (_, args) => { if (args.Data is not null) lock (output) output.AppendLine(args.Data); };
+            process.ErrorDataReceived += (_, args) => { if (args.Data is not null) lock (output) output.AppendLine(args.Data); };
+            process.BeginOutputReadLine();
+            process.BeginErrorReadLine();
+
+            return (process, output);
+        }
+
+        private static async Task WaitForHealth(HttpClient client, string url, System.Text.StringBuilder output)
+        {
+            var deadline = DateTime.UtcNow.AddSeconds(90);
+            Exception? last = null;
+
+            while (DateTime.UtcNow < deadline)
+            {
+                try
+                {
+                    if ((await client.GetAsync(url)).IsSuccessStatusCode)
+                        return;
+                }
+                catch (HttpRequestException exception)
+                {
+                    last = exception;
+                }
+
+                await Task.Delay(500);
+            }
+
+            string captured;
+
+            lock (output)
+            {
+                captured = output.ToString();
+            }
+
+            Assert.Fail($"The host at {url} never became healthy. {last?.Message}{Environment.NewLine}{captured}");
+        }
+
+        private static void Kill(Process process)
+        {
+            try
+            {
+                process.Kill(entireProcessTree: true);
+                process.Dispose();
+            }
+            catch (InvalidOperationException)
+            {
+            }
+        }
+
         private const string MergedMemberAggregate = """
             using IdShop.Domain.Community.Member.Events;
             using IdShop.Domain.Community.Member.ValueObjects;

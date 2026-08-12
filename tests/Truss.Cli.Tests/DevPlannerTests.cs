@@ -48,6 +48,25 @@ namespace Truss.Cli.Tests
         }
 
         [Fact]
+        public void SplitProject_PlansTheWholeConstellation()
+        {
+            Assert.Equal(0, _workspace.Scaffold("Shop", "sqlite"));
+            var root = _workspace.Root("Shop");
+
+            Assert.Equal(0, _workspace.Run("add", "messaging", "--project", root));
+            Assert.Equal(0, _workspace.Run("add", "worker", "--project", root));
+            Assert.Equal(0, _workspace.Run("generate", "aggregate", "Order", "--context", "Sales", "--crud", "--project", root));
+            Assert.Equal(0, _workspace.Run("split", "Sales", "--project", root));
+
+            var (manifest, _) = Load("Shop");
+            var plan = DevPlanner.Build(manifest, root);
+
+            Assert.Equal(["api", "sales", "worker"], plan.Hosts.Select(host => host.Label));
+            Assert.EndsWith(Path.Combine("src", "Shop.Sales.Api"), plan.Hosts[1].ProjectPath);
+            Assert.Contains(plan.Urls, url => url.Label == "Sales" && url.Url == "http://localhost:5100");
+        }
+
+        [Fact]
         public void ScaffoldedProgram_ServesOpenApiAndScalar()
         {
             Assert.Equal(0, _workspace.Scaffold("Shop", "sqlite"));

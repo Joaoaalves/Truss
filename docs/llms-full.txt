@@ -3049,6 +3049,8 @@ truss dev
 
 The development loop in one command: starts the compose dependencies when the project has them (`docker compose up -d --wait`), prints the URLs that matter (API, Scalar, health, jobs, dashboard, RabbitMQ management, depending on what is installed) and runs the API through `dotnet watch` with hot reload until Ctrl+C. `--no-docker` skips the compose step.
 
+With [split services](cli.md#truss-split), the same command runs the whole constellation: the API, every service and the worker, one `dotnet watch` process each, output interleaved and prefixed with the host's name, all stopped together on Ctrl+C. Each service's URL is listed, and with observability installed, one trace follows a request across every host, so the dashboard shows the monolith calling the service as a single distributed trace.
+
 ---
 
 ## truss db

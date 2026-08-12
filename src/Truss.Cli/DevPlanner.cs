@@ -4,18 +4,23 @@ namespace Truss.Cli
 {
     internal sealed record DevUrl(string Label, string Url);
 
-    internal sealed record DevPlan(bool RunCompose, string ApiProjectPath, IReadOnlyList<DevUrl> Urls);
+    internal sealed record DevHost(string Label, string ProjectPath);
+
+    internal sealed record DevPlan(bool RunCompose, string ApiProjectPath, IReadOnlyList<DevUrl> Urls, IReadOnlyList<DevHost> Hosts);
 
     /// <summary>
     /// Computes what truss dev should do for a project: whether compose runs,
-    /// which project to watch and which URLs matter during development.
+    /// which hosts make up the constellation and which URLs matter during
+    /// development. With split services, every host runs; the trace of one
+    /// request crosses all of them.
     /// </summary>
     internal static class DevPlanner
     {
         public static DevPlan Build(TrussManifest manifest, string root)
         {
             var urls = new List<DevUrl>();
-            var applicationUrl = ReadApplicationUrl(manifest, root) ?? "http://localhost:5000";
+            var hosts = new List<DevHost> { new("api", Path.Combine(root, manifest.ApiProject)) };
+            var applicationUrl = ReadApplicationUrl(root, manifest.ApiProject) ?? "http://localhost:5000";
 
             urls.Add(new DevUrl("API", applicationUrl));
 
@@ -26,6 +31,20 @@ namespace Truss.Cli
 
             if (program.Contains("MapHealthChecks"))
                 urls.Add(new DevUrl("Health", $"{applicationUrl.TrimEnd('/')}/health"));
+
+            foreach (var directory in ServiceDirectories(manifest, root))
+            {
+                var label = ServiceLabel(manifest, directory);
+                hosts.Add(new DevHost(label.ToLowerInvariant(), directory));
+
+                if (ReadApplicationUrl(root, Path.GetRelativePath(root, directory)) is { } serviceUrl)
+                    urls.Add(new DevUrl(label, serviceUrl));
+            }
+
+            var worker = Path.Combine(root, "src", $"{manifest.Name}.Worker");
+
+            if (Directory.Exists(worker))
+                hosts.Add(new DevHost("worker", worker));
 
             if (manifest.Modules.Contains("jobs"))
                 urls.Add(new DevUrl("Jobs", $"{applicationUrl.TrimEnd('/')}/truss/jobs/{{id}}"));
@@ -53,12 +72,33 @@ namespace Truss.Cli
 
             var runCompose = manifest.Docker && File.Exists(Path.Combine(root, "docker-compose.yml"));
 
-            return new DevPlan(runCompose, Path.Combine(root, manifest.ApiProject), urls);
+            return new DevPlan(runCompose, Path.Combine(root, manifest.ApiProject), urls, hosts);
         }
 
-        private static string? ReadApplicationUrl(TrussManifest manifest, string root)
+        /// <summary>
+        /// The split services, read from the filesystem like everything else:
+        /// src/{App}.{Context}.Api directories.
+        /// </summary>
+        private static IEnumerable<string> ServiceDirectories(TrussManifest manifest, string root)
         {
-            var path = Path.Combine(root, manifest.ApiProject, "Properties", "launchSettings.json");
+            var source = Path.Combine(root, "src");
+
+            if (!Directory.Exists(source))
+                yield break;
+
+            foreach (var directory in Directory.EnumerateDirectories(source, $"{manifest.Name}.*.Api").OrderBy(name => name, StringComparer.Ordinal))
+                yield return directory;
+        }
+
+        private static string ServiceLabel(TrussManifest manifest, string directory)
+        {
+            var name = Path.GetFileName(directory);
+            return name[(manifest.Name.Length + 1)..^".Api".Length];
+        }
+
+        private static string? ReadApplicationUrl(string root, string project)
+        {
+            var path = Path.Combine(root, project, "Properties", "launchSettings.json");
 
             if (!File.Exists(path))
                 return null;

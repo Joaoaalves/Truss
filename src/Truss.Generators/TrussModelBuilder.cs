@@ -228,6 +228,12 @@ namespace Truss.Generators
 
                 if (count == 0)
                 {
+                    // A contracts assembly declares queries whose handler lives
+                    // in another service; the consuming side wires them at
+                    // runtime with AddRemoteContext.
+                    if (request.ContainingAssembly.Name.EndsWith(".Contracts", System.StringComparison.Ordinal))
+                        continue;
+
                     diagnostics.Add(Diagnostic.Create(
                         TrussDiagnostics.MissingHandler,
                         LocationOf(request),

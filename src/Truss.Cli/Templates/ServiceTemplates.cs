@@ -54,7 +54,7 @@ namespace Truss.Cli.Templates
                 /// by design; a synchronous command between services is coupling
                 /// in disguise.
                 /// </summary>
-                public static class __CONTEXT__Contracts
+                public sealed class __CONTEXT__Contracts
                 {
                 }
             }

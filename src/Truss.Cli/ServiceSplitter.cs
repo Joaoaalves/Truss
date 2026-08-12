@@ -464,10 +464,14 @@ namespace Truss.Cli
 
         private static string BuildLaunchSettings(TrussManifest manifest, string root, string context)
         {
-            var services = Directory.EnumerateDirectories(Path.Combine(root, "src"), $"{manifest.Name}.*.Api").Count();
+            // The first service answers at 5100, the next at 5101, and so on;
+            // the directory of the service being split is already on disk, so
+            // it does not count itself.
+            var others = Directory.EnumerateDirectories(Path.Combine(root, "src"), $"{manifest.Name}.*.Api")
+                .Count(directory => Path.GetFileName(directory) != $"{manifest.Name}.{context}.Api");
 
             return ServiceTemplates.LaunchSettings
-                .Replace("__PORT__", (5100 + services).ToString())
+                .Replace("__PORT__", (5100 + others).ToString())
                 .Replace("__CONTEXT__", context)
                 .Replace("__NAME__", manifest.Name);
         }
