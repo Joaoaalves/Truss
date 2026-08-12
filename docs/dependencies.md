@@ -127,6 +127,18 @@ Operational endpoints for the outbox: counters and dead-letter retry.
 
 ---
 
+## Truss.Remote
+
+**Purpose:**
+Typed forwarding of contract queries to a context hosted as another service, with local failure semantics.
+
+### Dependencies
+
+- `Truss.Application.Abstractions`
+- `Microsoft.Extensions.Http`
+
+---
+
 ## Truss.Messaging.Postgres
 
 **Purpose:**

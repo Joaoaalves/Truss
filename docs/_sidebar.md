@@ -22,6 +22,7 @@
 
 * Messaging
     - [Integration Events](messaging.md)
+    - [Remote Contexts](remote.md)
 
 * Jobs
     - [Background Jobs](jobs.md)

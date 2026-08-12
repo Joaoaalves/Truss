@@ -59,6 +59,7 @@ namespace Truss.Cli
                 log($"The service owns its database now. The monolith's next migration drops the {context} tables; move the data before applying it.");
 
             log($"The {context} service lives at src/{manifest.Name}.{context}.Api. Run it with: dotnet run --project src/{manifest.Name}.{context}.Api");
+            log($"To query it synchronously from another service, put the query in the Contracts project and register: services.AddRemoteContext<{context}Contracts>(\"{context}\", new Uri(\"http://localhost:<port>\")); (package Truss.Remote)");
             log("The handlers did not change; only the hosting did.");
 
             return 0;
@@ -235,6 +236,7 @@ namespace Truss.Cli
                 $"using {name}.Application.{context};",
                 $"using {name}.Infrastructure.{context};",
                 $"using {name}.{context}.Api;",
+                $"using {name}.{context}.Contracts;",
                 "using Microsoft.EntityFrameworkCore;",
                 "using Scalar.AspNetCore;",
                 "using Truss.Application;"
@@ -393,6 +395,8 @@ namespace Truss.Cli
             if (manifest.Modules.Contains("messaging"))
                 program.AppendLine("app.MapTrussOutbox();");
 
+            program.AppendLine($"app.MapRemoteContext(typeof({context}Contracts).Assembly);");
+
             if (moved.Endpoints.Count > 0)
             {
                 program.AppendLine();
@@ -485,7 +489,12 @@ namespace Truss.Cli
 
             Directory.CreateDirectory(directory);
 
+            var messaging = manifest.Modules.Contains("messaging")
+                ? $"{Environment.NewLine}    <PackageReference Include=\"Truss.Messaging.Abstractions\" Version=\"{manifest.TrussVersion}\" />"
+                : string.Empty;
+
             string Render(string template) => template
+                .Replace("__MESSAGING_PACKAGE__", messaging)
                 .Replace("__TRUSS_VERSION__", manifest.TrussVersion)
                 .Replace("__CONTEXTLOWER__", context.ToLowerInvariant())
                 .Replace("__CONTEXT__", context)
@@ -593,7 +602,9 @@ namespace Truss.Cli
 
         private static bool Contracts(TrussManifest manifest)
         {
-            return manifest.Modules.Contains("messaging");
+            // Events and synchronous queries both travel through the contracts
+            // project, so every service gets one.
+            return true;
         }
 
         private static HashSet<string> ContextTypes(TrussManifest manifest, string root, string context)

@@ -46,6 +46,7 @@ Truss is intentionally explicit, modular and dependency-minimal.
 | `Truss.Messaging` | Versioned JSON serialization, outbox runtime, transport seam, in-memory transport. | Infrastructure |
 | `Truss.Messaging.EntityFrameworkCore` | Transactional outbox and inbox stored through EF Core. | Infrastructure |
 | `Truss.Messaging.AspNetCore` | Operational endpoints: outbox counters and dead-letter retry. | API / Host |
+| `Truss.Remote` | Explicit synchronous queries to a context running as another service. | API / Host |
 | `Truss.Messaging.Postgres` | Durable Postgres transport: SKIP LOCKED queue with LISTEN/NOTIFY wake-up. | Infrastructure |
 | `Truss.Messaging.RabbitMq` | Durable RabbitMQ transport: quorum queues with publisher confirms and broker-side dead-lettering. | Infrastructure |
 | `Truss.Messaging.Redis` | Durable Redis transport over Streams with consumer groups. | Infrastructure |
@@ -405,6 +406,18 @@ Operational endpoints for the outbox: counters and dead-letter retry.
 
 - `Truss.Messaging`
 - ASP.NET Core shared framework (framework reference, not a package)
+
+---
+
+## Truss.Remote
+
+**Purpose:**
+Typed forwarding of contract queries to a context hosted as another service, with local failure semantics.
+
+### Dependencies
+
+- `Truss.Application.Abstractions`
+- `Microsoft.Extensions.Http`
 
 ---
 
@@ -1837,6 +1850,85 @@ Because domain event handlers run inside the transaction and the outbox stores i
 
 ---
 
+Source: https://joaoaalves.github.io/Truss/remote.md
+
+# Remote Contexts
+
+When a bounded context becomes [its own service](cli.md#truss-split), most communication should stay what it already was: integration events through the [outbox](messaging.md). Events keep services decoupled in time; a synchronous call couples your latency and your availability to someone else's. That said, a synchronous **query** between services is legitimate: showing a screen sometimes needs an answer another service owns, now.
+
+`Truss.Remote` makes that call possible without making it invisible.
+
+---
+
+## The contract
+
+What a service exposes lives in its contracts project, created by `truss split`: `src/MyShop.Sales.Contracts`. A query another service may ask goes there with its result DTO:
+
+```csharp
+namespace MyShop.Sales.Contracts;
+
+public sealed record OrderSummaryDto(Guid Id, string Name, decimal Total);
+
+public sealed record GetOrderSummary(Guid OrderId) : IQuery<OrderSummaryDto?>;
+```
+
+The Sales service keeps its handler where it always was; only the record and the DTO move to the contract. **Commands stay out by design**: a synchronous command between services is coupling in disguise; publish an integration event instead.
+
+---
+
+## Serving
+
+The split scaffolds this into the service's Program:
+
+```csharp
+app.MapRemoteContext(typeof(SalesContracts).Assembly);
+```
+
+Every `IQuery` of the contracts assembly answers at `POST /truss/remote/{query full name}`, dispatched through the service's regular pipeline: validation, business rules, unit of work. Nothing outside the declared contract is reachable. The returned group composes like any endpoint group; protect it with `.RequireAuthorization()` when the constellation is not on a private network.
+
+---
+
+## Calling
+
+The consuming service references the contracts project and declares, in its composition root, that Sales lives somewhere else:
+
+```csharp
+builder.Services.AddRemoteContext<SalesContracts>("Sales", new Uri("http://localhost:5101"), options =>
+{
+    options.Timeout = TimeSpan.FromSeconds(3);
+});
+```
+
+Callers keep dispatching as always; the handler does not know or care that the answer crossed the wire:
+
+```csharp
+var summary = await dispatcher.Send(new GetOrderSummary(orderId));
+```
+
+This is deliberate and bounded: the network is visible exactly once, in the composition root, with the timeout beside it. There is no service discovery, no proxy magic, no interface generation. The registered `HttpClient` is named `truss-remote-Sales`, so resilience policies attach the standard way:
+
+```csharp
+builder.Services.AddHttpClient("truss-remote-Sales").AddStandardResilienceHandler();
+```
+
+---
+
+## Failure semantics
+
+A remote query answers exactly like a local one:
+
+| Remote outcome | On the caller |
+|---|---|
+| Result | The result |
+| Null (query declared `IQuery<T?>`) | Null |
+| Validation failure (400) | `RequestValidationException` with the same errors |
+| Business rule violation (422) | `BusinessRuleValidationException` carrying the rule's stable `Code` |
+| Unreachable, timeout, unknown query | `RemoteContextException` |
+
+The first four mean a caller cannot tell whether the context is in-process or across the network, which is what makes extraction mechanical. The last one is the honest difference: the network is allowed to fail, and the exception names the context and the address so the failure reads like what it is.
+
+---
+
 Source: https://joaoaalves.github.io/Truss/jobs.md
 
 # Background Jobs
@@ -2930,7 +3022,7 @@ Extracts a bounded context into its own service. The context is converted to [it
 - `src/MyShop.Sales.Api` is scaffolded: a composition root with the same modules the monolith runs (transport, outbox and inbox, jobs, email, observability, and JWT auth validating with the same issuer, audience and signing key, so one login works across the whole constellation).
 - The context's routes and service registrations **move** from the monolith's `Program.cs` into the new host. The handlers, aggregates and repositories do not change; only the hosting does.
 - By default the service owns its database: `SalesDbContext` maps only the context's configurations plus its own outbox, inbox and job tables, and the connection string points at a database of its own. The monolith stops mapping the context's tables, so its next migration drops them; move the data before applying it. With `--shared-database` the service points at the monolith's database and the monolith keeps owning the schema.
-- With messaging installed, `src/MyShop.Sales.Contracts` is created and referenced by both sides: the moment another service consumes one of the context's events, the event moves there, so no service ever references another's internals.
+- `src/MyShop.Sales.Contracts` is created and referenced by both sides: the moment another service consumes one of the context's events or [queries it synchronously](remote.md), the record moves there, so no service ever references another's internals. The service already serves its contract with `MapRemoteContext`, and consumers wire it with `AddRemoteContext<SalesContracts>("Sales", url)`.
 - The context's integration tests keep passing, now booting the service's DbContext.
 
 Two honest limits: the inmemory transport does not cross processes, so a constellation needs postgres, rabbitmq or redis; and code in other contexts that references the extracted context's types directly is coupling the split cannot cut for you; the build will point at it.

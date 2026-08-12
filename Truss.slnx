@@ -14,6 +14,7 @@
     <Project Path="src/Truss.Jobs.Abstractions/Truss.Jobs.Abstractions.csproj" />
     <Project Path="src/Truss.Jobs.AspNetCore/Truss.Jobs.AspNetCore.csproj" />
     <Project Path="src/Truss.Messaging.AspNetCore/Truss.Messaging.AspNetCore.csproj" />
+    <Project Path="src/Truss.Remote/Truss.Remote.csproj" />
     <Project Path="src/Truss.Jobs.EntityFrameworkCore/Truss.Jobs.EntityFrameworkCore.csproj" />
     <Project Path="src/Truss.Jobs/Truss.Jobs.csproj" />
     <Project Path="src/Truss.Mapping/Truss.Mapping.csproj" />
@@ -46,6 +47,7 @@
     <Project Path="tests/Truss.Mapping.Tests/Truss.Mapping.Tests.csproj" />
     <Project Path="tests/Truss.Messaging.Tests/Truss.Messaging.Tests.csproj" />
     <Project Path="tests/Truss.Messaging.Transports.Tests/Truss.Messaging.Transports.Tests.csproj" />
+    <Project Path="tests/Truss.Remote.Tests/Truss.Remote.Tests.csproj" />
     <Project Path="tests/Truss.Observability.Tests/Truss.Observability.Tests.csproj" />
     <Project Path="tests/Truss.Persistence.EntityFrameworkCore.Tests/Truss.Persistence.EntityFrameworkCore.Tests.csproj" />
     <Project Path="tests/Truss.Rbac.Tests/Truss.Rbac.Tests.csproj" />

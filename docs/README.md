@@ -38,6 +38,7 @@ Truss is intentionally explicit, modular and dependency-minimal.
 | `Truss.Messaging` | Versioned JSON serialization, outbox runtime, transport seam, in-memory transport. | Infrastructure |
 | `Truss.Messaging.EntityFrameworkCore` | Transactional outbox and inbox stored through EF Core. | Infrastructure |
 | `Truss.Messaging.AspNetCore` | Operational endpoints: outbox counters and dead-letter retry. | API / Host |
+| `Truss.Remote` | Explicit synchronous queries to a context running as another service. | API / Host |
 | `Truss.Messaging.Postgres` | Durable Postgres transport: SKIP LOCKED queue with LISTEN/NOTIFY wake-up. | Infrastructure |
 | `Truss.Messaging.RabbitMq` | Durable RabbitMQ transport: quorum queues with publisher confirms and broker-side dead-lettering. | Infrastructure |
 | `Truss.Messaging.Redis` | Durable Redis transport over Streams with consumer groups. | Infrastructure |

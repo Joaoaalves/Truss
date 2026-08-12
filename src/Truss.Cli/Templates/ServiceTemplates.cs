@@ -32,7 +32,7 @@ namespace Truss.Cli.Templates
               </PropertyGroup>
 
               <ItemGroup>
-                <PackageReference Include="Truss.Messaging.Abstractions" Version="__TRUSS_VERSION__" />
+                <PackageReference Include="Truss.Application.Abstractions" Version="__TRUSS_VERSION__" />__MESSAGING_PACKAGE__
               </ItemGroup>
 
             </Project>
@@ -42,11 +42,17 @@ namespace Truss.Cli.Templates
             namespace __NAME__.__CONTEXT__.Contracts
             {
                 /// <summary>
-                /// The events other services consume from the __CONTEXT__ service
-                /// live here, so no service references another's internals. Move an
+                /// What other services are allowed to know about __CONTEXT__ lives
+                /// here, so no service references another's internals. Move an
                 /// integration event into this project the moment a second service
-                /// needs it, and give it a stable wire name with
-                /// [IntegrationEventName("__CONTEXTLOWER__.event-name")].
+                /// consumes it, with a stable wire name via
+                /// [IntegrationEventName("__CONTEXTLOWER__.event-name")]. Queries
+                /// other services may ask synchronously go here too, with their
+                /// result DTOs: the __CONTEXT__ host serves them through
+                /// MapRemoteContext and consumers wire them with
+                /// AddRemoteContext&lt;__CONTEXT__Contracts&gt;. Commands stay out
+                /// by design; a synchronous command between services is coupling
+                /// in disguise.
                 /// </summary>
                 public static class __CONTEXT__Contracts
                 {

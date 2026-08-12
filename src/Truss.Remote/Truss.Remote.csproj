@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <PackageId>Truss.Remote</PackageId>
+    <Description>Explicit synchronous access to a remote Truss context: typed query forwarding over HTTP with the failure semantics of a local dispatch.</Description>
+    <PackageTags>Microservices;RemoteContext;Query;CQRS</PackageTags>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Truss.Application.Abstractions\Truss.Application.Abstractions.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Http" Version="10.*" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Truss.Remote.Tests" />
+  </ItemGroup>
+
+</Project>
