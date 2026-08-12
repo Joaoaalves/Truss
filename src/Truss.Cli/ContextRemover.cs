@@ -24,13 +24,18 @@ namespace Truss.Cli
                 return 1;
             }
 
+            var projectContext = ContextProjects.Exists(manifest, root, context);
+
             var folders = new[]
                 {
                     Path.Combine(root, manifest.DomainProject, context),
                     Path.Combine(root, manifest.ApplicationProject, context),
                     Path.Combine(root, manifest.InfrastructureProject, context),
                     Path.Combine(root, manifest.DomainTestsProject, context),
-                    Path.Combine(root, manifest.IntegrationTestsProject, context)
+                    Path.Combine(root, manifest.IntegrationTestsProject, context),
+                    Path.Combine(root, "src", $"{manifest.Name}.{context}.Domain"),
+                    Path.Combine(root, "src", $"{manifest.Name}.{context}.Application"),
+                    Path.Combine(root, "src", $"{manifest.Name}.{context}.Infrastructure")
                 }
                 .Where(Directory.Exists)
                 .ToArray();
@@ -65,6 +70,9 @@ namespace Truss.Cli
             CleanFile(Path.Combine(root, manifest.InfrastructureProject, "AppDbContext.cs"), context, types, root, log);
             CleanFile(Path.Combine(root, manifest.InfrastructureProject, "InfrastructureModule.cs"), context, types, root, log);
 
+            if (projectContext)
+                RemoveProjectArtifacts(manifest, root, context, log);
+
             RemoveEmptyInfrastructureModule(manifest, root, log);
 
             if (manifest.Sample && context == "Catalog")
@@ -78,6 +86,41 @@ namespace Truss.Cli
 
             log("Run dotnet build; anything else that referenced the removed types will surface there.");
             return 0;
+        }
+
+        /// <summary>
+        /// Unwires a context that lived in its own projects: every solution
+        /// entry and project reference that pointed at them goes away, and the
+        /// item groups they leave behind are collapsed.
+        /// </summary>
+        private static void RemoveProjectArtifacts(TrussManifest manifest, string root, string context, Action<string> log)
+        {
+            var needle = $"{manifest.Name}.{context}.";
+
+            var files = new List<string> { Path.Combine(root, $"{manifest.Name}.slnx") };
+
+            foreach (var project in new[] { manifest.ApiProject, manifest.InfrastructureProject, manifest.DomainTestsProject, manifest.IntegrationTestsProject })
+            {
+                var directory = Path.Combine(root, project);
+
+                if (Directory.Exists(directory))
+                    files.AddRange(Directory.EnumerateFiles(directory, "*.csproj"));
+            }
+
+            foreach (var file in files.Where(File.Exists))
+            {
+                var lines = File.ReadAllLines(file);
+                var kept = lines.Where(line => !line.Contains(needle, StringComparison.Ordinal)).ToArray();
+
+                if (kept.Length == lines.Length)
+                    continue;
+
+                var content = string.Join(Environment.NewLine, kept) + Environment.NewLine;
+                content = content.Replace($"  <ItemGroup>{Environment.NewLine}  </ItemGroup>{Environment.NewLine}{Environment.NewLine}", string.Empty);
+
+                File.WriteAllText(file, content);
+                log($"Cleaned {Path.GetRelativePath(root, file)}");
+            }
         }
 
         private static void RemoveLooseFiles(

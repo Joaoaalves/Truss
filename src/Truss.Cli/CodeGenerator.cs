@@ -29,7 +29,7 @@ namespace Truss.Cli
             if (crud && fields.Any(field => field.IsReference))
                 throw new ArgumentException("--crud cannot flatten a referenced value object into the slice yet. Generate without --crud, or use primitive members.");
 
-            var folder = Path.Combine(TargetDirectory(root, manifest.DomainProject, context), name);
+            var folder = Path.Combine(TargetDirectory(manifest, root, manifest.DomainProject, context), name);
 
             var files = new List<string>
             {
@@ -45,7 +45,7 @@ namespace Truss.Cli
                 if (HasTests(manifest, root, manifest.DomainTestsProject))
                 {
                     files.Add(WriteFile(
-                        TargetDirectory(root, manifest.DomainTestsProject, context),
+                        TargetDirectory(manifest, root, manifest.DomainTestsProject, context),
                         $"{name}Tests.cs",
                         RenderTest(crud ? TestTemplates.AggregateCrudTests : TestTemplates.AggregateTests, manifest, name, context)));
                 }
@@ -57,9 +57,9 @@ namespace Truss.Cli
                     if (HasTests(manifest, root, manifest.IntegrationTestsProject))
                     {
                         files.Add(WriteFile(
-                            TargetDirectory(root, manifest.IntegrationTestsProject, context),
+                            TargetDirectory(manifest, root, manifest.IntegrationTestsProject, context),
                             $"{name}CrudTests.cs",
-                            RenderTest(TestTemplates.CrudIntegrationTests, manifest, name, context)));
+                            TestHostContent(RenderTest(TestTemplates.CrudIntegrationTests, manifest, name, context), manifest, root, context)));
                     }
                 }
 
@@ -76,7 +76,7 @@ namespace Truss.Cli
             if (HasTests(manifest, root, manifest.DomainTestsProject) && !fields.Any(field => field.IsReference))
             {
                 files.Add(WriteFile(
-                    TargetDirectory(root, manifest.DomainTestsProject, context),
+                    TargetDirectory(manifest, root, manifest.DomainTestsProject, context),
                     $"{name}Tests.cs",
                     VoAggregateTemplates.AggregateTest(model, DomainTestsNamespace(manifest, context), crud)));
             }
@@ -88,9 +88,9 @@ namespace Truss.Cli
                 if (HasTests(manifest, root, manifest.IntegrationTestsProject))
                 {
                     files.Add(WriteFile(
-                        TargetDirectory(root, manifest.IntegrationTestsProject, context),
+                        TargetDirectory(manifest, root, manifest.IntegrationTestsProject, context),
                         $"{name}CrudTests.cs",
-                        VoAggregateTemplates.IntegrationTest(model, IntegrationTestsNamespace(manifest, context), manifest.Name)));
+                        TestHostContent(VoAggregateTemplates.IntegrationTest(model, IntegrationTestsNamespace(manifest, context), manifest.Name), manifest, root, context)));
                 }
             }
 
@@ -116,13 +116,13 @@ namespace Truss.Cli
             if (aggregate is null)
             {
                 parentNs = $"{DomainNamespace(manifest, context)}.ValueObjects";
-                parentFolder = Path.Combine(TargetDirectory(root, manifest.DomainProject, context), "ValueObjects");
+                parentFolder = Path.Combine(TargetDirectory(manifest, root, manifest.DomainProject, context), "ValueObjects");
             }
             else
             {
                 ValidateType(aggregate);
 
-                var owner = Path.Combine(TargetDirectory(root, manifest.DomainProject, context), aggregate);
+                var owner = Path.Combine(TargetDirectory(manifest, root, manifest.DomainProject, context), aggregate);
 
                 if (!Directory.Exists(owner))
                     throw new ArgumentException($"No {aggregate} was found to own {name}. Generate it first: truss g agg {aggregate}{(context is null ? string.Empty : $" -c {context}")} (or g ent for an entity).");
@@ -157,7 +157,7 @@ namespace Truss.Cli
                 if (HasTests(manifest, root, manifest.DomainTestsProject))
                 {
                     files.Add(WriteFile(
-                        TargetDirectory(root, manifest.DomainTestsProject, context),
+                        TargetDirectory(manifest, root, manifest.DomainTestsProject, context),
                         $"{name}Tests.cs",
                         ValueObjectTemplates.TestFile(DomainTestsNamespace(manifest, context), ns, name, members, composite: true)));
                 }
@@ -174,7 +174,7 @@ namespace Truss.Cli
                 if (HasTests(manifest, root, manifest.DomainTestsProject))
                 {
                     files.Add(WriteFile(
-                        TargetDirectory(root, manifest.DomainTestsProject, context),
+                        TargetDirectory(manifest, root, manifest.DomainTestsProject, context),
                         $"{name}Tests.cs",
                         ValueObjectTemplates.TestFile(DomainTestsNamespace(manifest, context), ns, name, fields)));
                 }
@@ -193,7 +193,7 @@ namespace Truss.Cli
         /// </summary>
         private static void LogOwnerWiring(TrussManifest manifest, string root, string? context, string owner, string name, string ns, Action<string>? log)
         {
-            var ownerFile = Path.Combine(TargetDirectory(root, manifest.DomainProject, context), owner, $"{owner}.cs");
+            var ownerFile = Path.Combine(TargetDirectory(manifest, root, manifest.DomainProject, context), owner, $"{owner}.cs");
             var ownerSource = File.Exists(ownerFile) ? File.ReadAllText(ownerFile) : string.Empty;
 
             var entry = ownerSource.Contains("AggregateRoot<", StringComparison.Ordinal)
@@ -239,7 +239,7 @@ namespace Truss.Cli
 
             var fields = VoField.Parse(valueObjects ?? [], log, type => ResolveValueObject(manifest, root, type));
             var owner = aggregate ?? name;
-            var folder = Path.Combine(TargetDirectory(root, manifest.DomainProject, context), owner);
+            var folder = Path.Combine(TargetDirectory(manifest, root, manifest.DomainProject, context), owner);
 
             var files = new List<string>
             {
@@ -293,7 +293,7 @@ namespace Truss.Cli
                 if (HasTests(manifest, root, manifest.DomainTestsProject))
                 {
                     yield return WriteFile(
-                        TargetDirectory(root, manifest.DomainTestsProject, context),
+                        TargetDirectory(manifest, root, manifest.DomainTestsProject, context),
                         $"{voType}Tests.cs",
                         ValueObjectTemplates.TestFile(DomainTestsNamespace(manifest, context), voNs, voType, single));
                 }
@@ -307,8 +307,8 @@ namespace Truss.Cli
         /// </summary>
         private static IEnumerable<string> GenerateVoCrud(TrussManifest manifest, string root, string name, string? context, VoAggregateModel model)
         {
-            var feature = Path.Combine(TargetDirectory(root, manifest.ApplicationProject, context), name);
-            var infrastructure = TargetDirectory(root, manifest.InfrastructureProject, context);
+            var feature = Path.Combine(TargetDirectory(manifest, root, manifest.ApplicationProject, context), name);
+            var infrastructure = TargetDirectory(manifest, root, manifest.InfrastructureProject, context);
 
             yield return WriteFile(Path.Combine(feature, "DTOs"), $"{name}Dto.cs", VoAggregateTemplates.Dto(model));
             yield return WriteFile(feature, $"I{name}Repository.cs", RenderRich(GeneratorTemplates.CrudRepository, manifest, name, context));
@@ -342,8 +342,8 @@ namespace Truss.Cli
 
         private static IEnumerable<string> GenerateCrud(TrussManifest manifest, string root, string name, string? context)
         {
-            var feature = Path.Combine(TargetDirectory(root, manifest.ApplicationProject, context), name);
-            var infrastructure = TargetDirectory(root, manifest.InfrastructureProject, context);
+            var feature = Path.Combine(TargetDirectory(manifest, root, manifest.ApplicationProject, context), name);
+            var infrastructure = TargetDirectory(manifest, root, manifest.InfrastructureProject, context);
 
             yield return WriteFile(Path.Combine(feature, "DTOs"), $"{name}Dto.cs", RenderRich(GeneratorTemplates.CrudDto, manifest, name, context));
             yield return WriteFile(feature, $"I{name}Repository.cs", RenderRich(GeneratorTemplates.CrudRepository, manifest, name, context));
@@ -412,7 +412,7 @@ namespace Truss.Cli
             ValidateType(name);
 
             var ns = $"{ApplicationNamespace(manifest, context)}.{name}";
-            var directory = Path.Combine(TargetDirectory(root, manifest.ApplicationProject, context), name);
+            var directory = Path.Combine(TargetDirectory(manifest, root, manifest.ApplicationProject, context), name);
 
             return
             [
@@ -427,7 +427,7 @@ namespace Truss.Cli
             ValidateType(name);
 
             var ns = $"{ApplicationNamespace(manifest, context)}.{name}";
-            var directory = Path.Combine(TargetDirectory(root, manifest.ApplicationProject, context), name);
+            var directory = Path.Combine(TargetDirectory(manifest, root, manifest.ApplicationProject, context), name);
 
             var files = new List<string>();
             var dtoUsing = string.Empty;
@@ -439,7 +439,7 @@ namespace Truss.Cli
                 var dtoNamespace = $"{ApplicationNamespace(manifest, context)}.DTOs";
 
                 files.Add(WriteFile(
-                    Path.Combine(TargetDirectory(root, manifest.ApplicationProject, context), "DTOs"),
+                    Path.Combine(TargetDirectory(manifest, root, manifest.ApplicationProject, context), "DTOs"),
                     $"{result}.cs",
                     GeneratorTemplates.QueryDto.Replace("__NS_DTOS__", dtoNamespace).Replace("__RESULT__", result)));
 
@@ -498,14 +498,17 @@ namespace Truss.Cli
             return context is null ? $"{manifest.Name}.Application" : $"{manifest.Name}.Application.{context}";
         }
 
-        private static string TargetDirectory(string root, string project, string? context)
+        private static string TargetDirectory(TrussManifest manifest, string root, string project, string? context)
         {
-            if (context is not null)
-                ValidateType(context);
+            if (context is null)
+                return Path.Combine(root, project);
 
-            return context is null
-                ? Path.Combine(root, project)
-                : Path.Combine(root, project, context);
+            ValidateType(context);
+
+            // A context extracted to its own projects hosts the same content at
+            // the project root; the namespaces are identical in both layouts.
+            return ContextProjects.LayerDirectory(manifest, root, project, context)
+                ?? Path.Combine(root, project, context);
         }
 
         private static string InfrastructureNamespace(TrussManifest manifest, string? context)
@@ -532,6 +535,18 @@ namespace Truss.Cli
         private static bool HasTests(TrussManifest manifest, string root, string project)
         {
             return manifest.Tests && Directory.Exists(Path.Combine(root, project));
+        }
+
+        /// <summary>
+        /// Mirrors the composition root in a generated test host: a slice that
+        /// lives in a context extracted to its own projects registers that
+        /// context's assembly beside the main one.
+        /// </summary>
+        private static string TestHostContent(string content, TrussManifest manifest, string root, string? context)
+        {
+            return context is not null && ContextProjects.Exists(manifest, root, context)
+                ? ContextProjects.RegisterContextAssembly(content, manifest, context)
+                : content;
         }
 
         private static string RenderTest(string template, TrussManifest manifest, string name, string? context)

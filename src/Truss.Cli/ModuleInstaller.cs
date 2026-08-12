@@ -89,6 +89,7 @@ namespace Truss.Cli
 
             manifest.Modules.Add(module);
             WorkerScaffolder.Sync(module, manifest, root, log);
+            ContextProjects.WireHosts(manifest, root, log);
             ComposeGenerator.Write(manifest, root);
             AgentsGenerator.Write(manifest, root);
             manifest.Save(root);

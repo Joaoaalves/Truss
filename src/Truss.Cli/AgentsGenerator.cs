@@ -63,7 +63,7 @@ namespace Truss.Cli
 
                 ## Workflow
 
-                - New bounded context: truss generate context <Name>
+                - New bounded context: truss generate context <Name> (add --as-projects to give it its own Domain/Application/Infrastructure projects; running it on an existing context moves it, namespaces unchanged)
                 - New aggregate: truss generate aggregate <Name> --context <Context> (own folder and namespace with ValueObjects, Events and Rules beneath; add --crud for the full vertical slice with routes)
                 - Prefer value objects over primitives: --vo Name:string:3..120 --vo Calories:int:0..900 on aggregates and entities generates self-validating value objects with their rules (ranges are inclusive; gt=/gte=/lt=/lte=/pos also work; on strings bounds measure length). Commands stay primitive; handlers convert through Create.
                 - Compose or share value objects with truss g vo: -f for primitive fields, --vo for members that are value objects themselves, -a <Owner> to place it inside the owning aggregate's or entity's folder. Reference an existing one by naming it as the type (--vo Macros:MacroNutrients). Derived behavior on composites is written by hand, never generated.

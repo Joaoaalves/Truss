@@ -96,6 +96,85 @@ namespace Truss.Cli.Templates
             </Project>
             """;
 
+        public const string ContextDomainCsproj = """
+            <Project Sdk="Microsoft.NET.Sdk">
+
+              <PropertyGroup>
+                <RootNamespace>__NAME__.Domain.__CONTEXT__</RootNamespace>
+              </PropertyGroup>
+
+              <ItemGroup>
+                <ProjectReference Include="..\__NAME__.Domain\__NAME__.Domain.csproj" />
+              </ItemGroup>
+
+              <ItemGroup>
+                <PackageReference Include="Truss.Domain" Version="__TRUSS_VERSION__" />
+              </ItemGroup>
+
+            </Project>
+            """;
+
+        public const string ContextApplicationCsproj = """
+            <Project Sdk="Microsoft.NET.Sdk">
+
+              <PropertyGroup>
+                <RootNamespace>__NAME__.Application.__CONTEXT__</RootNamespace>
+              </PropertyGroup>
+
+              <ItemGroup>
+                <ProjectReference Include="..\__NAME__.__CONTEXT__.Domain\__NAME__.__CONTEXT__.Domain.csproj" />
+              </ItemGroup>
+
+              <ItemGroup>
+                <PackageReference Include="Truss.Application.Abstractions" Version="__TRUSS_VERSION__" />
+                <PackageReference Include="FluentValidation" Version="12.*" />__MODULE_PACKAGES__
+              </ItemGroup>
+
+            </Project>
+            """;
+
+        public const string ContextInfrastructureCsproj = """
+            <Project Sdk="Microsoft.NET.Sdk">
+
+              <PropertyGroup>
+                <RootNamespace>__NAME__.Infrastructure.__CONTEXT__</RootNamespace>
+              </PropertyGroup>
+
+              <ItemGroup>
+                <ProjectReference Include="..\__NAME__.__CONTEXT__.Application\__NAME__.__CONTEXT__.Application.csproj" />
+              </ItemGroup>
+
+              <ItemGroup>
+                <PackageReference Include="Truss.Persistence.EntityFrameworkCore" Version="__TRUSS_VERSION__" />
+              </ItemGroup>
+
+            </Project>
+            """;
+
+        public const string ContextAssemblyMarker = """
+            namespace __NAME__.Application.__CONTEXT__
+            {
+                /// <summary>
+                /// Anchors the assembly registrations of the __CONTEXT__ context.
+                /// </summary>
+                public sealed class __CONTEXT__AssemblyMarker
+                {
+                }
+            }
+            """;
+
+        public const string ContextInfrastructureMarker = """
+            namespace __NAME__.Infrastructure.__CONTEXT__
+            {
+                /// <summary>
+                /// Anchors the model configurations of the __CONTEXT__ context.
+                /// </summary>
+                public sealed class __CONTEXT__InfrastructureMarker
+                {
+                }
+            }
+            """;
+
         public const string ApiCsprojWithInfrastructure = """
             <Project Sdk="Microsoft.NET.Sdk.Web">
 

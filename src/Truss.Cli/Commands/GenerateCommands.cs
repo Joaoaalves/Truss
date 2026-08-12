@@ -50,11 +50,15 @@ namespace Truss.Cli.Commands
     {
         public sealed class Settings : GenerateSettings
         {
+            [CommandOption("--as-projects")]
+            public bool AsProjects { get; init; }
         }
 
         protected override IReadOnlyList<string> Generate(TrussManifest manifest, string root, Settings settings)
         {
-            return CodeGenerator.GenerateContext(manifest, root, settings.Name);
+            return settings.AsProjects
+                ? ContextProjects.Create(manifest, root, settings.Name, Console.WriteLine)
+                : CodeGenerator.GenerateContext(manifest, root, settings.Name);
         }
     }
 

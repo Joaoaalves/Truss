@@ -38,6 +38,16 @@ namespace Truss.Cli.Tests
             Assert.Equal(0, _workspace.Run("add", "worker", "--project", root));
             Assert.Equal(0, _workspace.Run("generate", "command", "ArchiveProduct", "--context", "Catalog", "--project", root));
 
+            // The extraction path: a context created in its own projects gets a
+            // crud slice, and a folder context with a slice moves into projects
+            // intact; both must compile and pass with the rest. The context that
+            // holds the account-bound aggregate is refused.
+            Assert.Equal(0, _workspace.Run("generate", "context", "Sales", "--as-projects", "--project", root));
+            Assert.Equal(0, _workspace.Run("generate", "aggregate", "Order", "--context", "Sales", "--crud", "--project", root));
+            Assert.Equal(0, _workspace.Run("generate", "aggregate", "Shipment", "--context", "Shipping", "--crud", "--project", root));
+            Assert.Equal(0, _workspace.Run("generate", "context", "Shipping", "--as-projects", "--project", root));
+            Assert.Equal(1, _workspace.Run("generate", "context", "Billing", "--as-projects", "--project", root));
+
             // A generated slice must unwind completely: the project has to build
             // after its context is removed.
             Assert.Equal(0, _workspace.Run("generate", "aggregate", "Coupon", "--context", "Promo", "--crud", "--project", root));

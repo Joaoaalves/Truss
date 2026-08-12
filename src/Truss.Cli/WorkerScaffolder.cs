@@ -23,11 +23,12 @@ namespace Truss.Cli
 
             Directory.CreateDirectory(directory);
 
-            File.WriteAllText(Path.Combine(directory, $"{manifest.Name}.Worker.csproj"), BuildCsproj(manifest) + Environment.NewLine);
+            File.WriteAllText(Path.Combine(directory, $"{manifest.Name}.Worker.csproj"), BuildCsproj(manifest, root) + Environment.NewLine);
             File.WriteAllText(Path.Combine(directory, "Program.cs"), BuildProgram(manifest) + Environment.NewLine);
             File.WriteAllText(Path.Combine(directory, "appsettings.json"), BuildAppSettings(manifest) + Environment.NewLine);
 
             AddToSolution(manifest, root, workerProject, log);
+            ContextProjects.WireHosts(manifest, root, log);
 
             log("The worker was scaffolded. It consumes the same messages and jobs as the API; run it with dotnet run --project " + workerProject);
 
@@ -122,7 +123,7 @@ namespace Truss.Cli
             }
         }
 
-        private static string BuildCsproj(TrussManifest manifest)
+        private static string BuildCsproj(TrussManifest manifest, string root)
         {
             var infrastructureReference = manifest.UsesEntityFramework
                 ? $"""
@@ -131,6 +132,19 @@ namespace Truss.Cli
                 : $"""
                        <ProjectReference Include="..\{manifest.Name}.Application\{manifest.Name}.Application.csproj" />
                    """;
+
+            // With a database the contexts arrive through the infrastructure;
+            // without one the worker references each context's application
+            // directly, like the API does.
+            if (!manifest.UsesEntityFramework)
+            {
+                foreach (var context in ContextProjects.All(manifest, root))
+                {
+                    infrastructureReference += Environment.NewLine + $"""
+                            <ProjectReference Include="..\{manifest.Name}.{context}.Application\{manifest.Name}.{context}.Application.csproj" />
+                        """;
+                }
+            }
 
             manifest.Settings.TryGetValue("email.provider", out var workerEmailProvider);
 

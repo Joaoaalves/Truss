@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Truss.Application;
 using Truss.Persistence.EntityFrameworkCore;
 
@@ -15,6 +16,9 @@ namespace Microsoft.Extensions.DependencyInjection
         /// Registers the EF Core unit of work for the given context and the pipeline behavior
         /// that commits it automatically after every successful command.
         /// The context itself must be registered separately with <c>AddDbContext</c>.
+        /// The context also answers for plain <see cref="DbContext"/>, so repositories in
+        /// extracted bounded contexts depend on the base type and never on the
+        /// application's concrete context.
         /// </summary>
         /// <typeparam name="TDbContext">The database context to bind the unit of work to.</typeparam>
         /// <param name="services">The service collection.</param>
@@ -24,6 +28,7 @@ namespace Microsoft.Extensions.DependencyInjection
         {
             services.AddScoped<IUnitOfWork, EfUnitOfWork<TDbContext>>();
             services.AddScoped(typeof(IPipelineBehavior<,>), typeof(UnitOfWorkBehavior<,>));
+            services.TryAddScoped<DbContext>(provider => provider.GetRequiredService<TDbContext>());
 
             return services;
         }

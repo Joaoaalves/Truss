@@ -337,7 +337,7 @@ namespace Truss.Cli.Templates
 
                 namespace {{model.InfraNs}}
                 {
-                    public class Ef{{model.Name}}Repository(AppDbContext context) : I{{model.Name}}Repository
+                    public class Ef{{model.Name}}Repository(DbContext context) : I{{model.Name}}Repository
                     {
                         public void Add({{model.Name}} {{model.Camel}})
                         {

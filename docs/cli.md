@@ -158,6 +158,20 @@ Domain/Sales/Order/
 
 `generate entity` creates an `Entity<TId>` with its typed id, in its own folder or nested inside an owning aggregate's folder (and namespace) with `--aggregate`. `generate command` and `generate query` put each command or query in its own folder with its handler and validator, under its own namespace.
 
+### Contexts as projects
+
+`generate context <Name> --as-projects` gives a bounded context its own three projects instead of folders, the first step of the extraction path:
+
+```
+src/MyShop.Sales.Domain/           references the shared domain
+src/MyShop.Sales.Application/      SalesAssemblyMarker anchors registrations
+src/MyShop.Sales.Infrastructure/   configurations found by AppDbContext
+```
+
+Namespaces do not change between the two layouts: the context keeps `MyShop.Domain.Sales` and friends, so running the command on an **existing** context is a file move and everything that referenced it compiles untouched. The CLI wires the rest: solution entries, project references, `options.AddAssembly<SalesAssemblyMarker>()` beside every registration of the main application assembly (API and worker), and the context's EF configurations into `AppDbContext`. Generators detect the layout from the filesystem, so `truss g agg Order -c Sales --crud` lands in the context's projects with no extra flag.
+
+Two things change inside a moved context, both deliberate: repositories receive `DbContext` instead of `AppDbContext` (the unit of work answers for both), which is what leaves the context one hosting decision away from owning its own database; and its integration tests register the context's assembly in their host. The context holding an account-bound aggregate is refused until the binding is undone, and `Accounts` itself belongs to the auth module and stays put.
+
 `--crud` on an aggregate generates the full vertical slice, organized the same way:
 
 ```

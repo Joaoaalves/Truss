@@ -521,7 +521,7 @@ namespace Truss.Cli.Templates
 
             namespace __NS_INFRASTRUCTURE__
             {
-                public class Ef__TYPE__Repository(AppDbContext context) : I__TYPE__Repository
+                public class Ef__TYPE__Repository(DbContext context) : I__TYPE__Repository
                 {
                     public void Add(__TYPE__ __CAMEL__)
                     {
