@@ -24,6 +24,15 @@ namespace Truss.Generators
             if (requestDefinition is null || requestHandlerDefinition is null || eventHandlerDefinition is null)
                 return TrussModel.Empty;
 
+            // The messaging and job registrations are only emitted when the
+            // runtime packages that receive them are part of this compilation;
+            // otherwise those assemblies keep their reflection fallback.
+            var integrationHandlerDefinition = compilation.GetTypeByMetadataName("Truss.Messaging.IIntegrationEventHandler`1");
+            var integrationEventInterface = compilation.GetTypeByMetadataName("Truss.Messaging.IIntegrationEvent");
+            var jobDefinition = compilation.GetTypeByMetadataName("Truss.Jobs.IJob`1");
+            var messagingRuntimePresent = compilation.GetTypeByMetadataName("Truss.Messaging.TrussMessagingGeneratedRegistry") is not null;
+            var jobsRuntimePresent = compilation.GetTypeByMetadataName("Truss.Jobs.TrussJobsGeneratedRegistry") is not null;
+
             var assemblies = CollectAssemblies(compilation);
 
             var assemblyModels = ImmutableArray.CreateBuilder<AssemblyModel>();
@@ -39,6 +48,9 @@ namespace Truss.Generators
                 var services = new List<ServiceRegistration>();
                 var requestPrimes = new Dictionary<string, RequestPrime>();
                 var eventPrimes = new HashSet<string>();
+                var messagingHandlers = new List<ServiceRegistration>();
+                var integrationEvents = new HashSet<string>();
+                var jobs = new List<JobRegistration>();
                 var hasInaccessibleImplementations = false;
                 string? anchorType = null;
 
@@ -50,12 +62,20 @@ namespace Truss.Generators
                         continue;
 
                     var isRequest = false;
+                    var isIntegrationEvent = false;
                     var trussInterfaces = new List<INamedTypeSymbol>();
+                    var messagingInterfaces = new List<INamedTypeSymbol>();
+                    var jobInterfaces = new List<INamedTypeSymbol>();
 
                     foreach (var @interface in type.AllInterfaces)
                     {
                         if (!@interface.IsGenericType)
+                        {
+                            if (integrationEventInterface is not null && SymbolEqualityComparer.Default.Equals(@interface, integrationEventInterface))
+                                isIntegrationEvent = true;
+
                             continue;
+                        }
 
                         var definition = @interface.ConstructedFrom;
 
@@ -65,13 +85,25 @@ namespace Truss.Generators
                             || SymbolEqualityComparer.Default.Equals(definition, eventHandlerDefinition)
                             || (validatorDefinition is not null && SymbolEqualityComparer.Default.Equals(definition, validatorDefinition)))
                             trussInterfaces.Add(@interface);
+                        else if (messagingRuntimePresent && integrationHandlerDefinition is not null
+                            && SymbolEqualityComparer.Default.Equals(definition, integrationHandlerDefinition))
+                            messagingInterfaces.Add(@interface);
+                        else if (jobsRuntimePresent && jobDefinition is not null
+                            && SymbolEqualityComparer.Default.Equals(definition, jobDefinition))
+                            jobInterfaces.Add(@interface);
                     }
 
                     if (isRequest && !type.IsGenericType)
                         declaredRequests.Add(type);
 
-                    if (trussInterfaces.Count == 0 || type.IsGenericType)
+                    if (type.IsGenericType)
                         continue;
+
+                    if (trussInterfaces.Count == 0 && messagingInterfaces.Count == 0 && jobInterfaces.Count == 0
+                        && !(messagingRuntimePresent && isIntegrationEvent))
+                    {
+                        continue;
+                    }
 
                     if (!isSourceAssembly && !compilation.IsSymbolAccessibleWithin(type, compilation.Assembly))
                     {
@@ -81,6 +113,15 @@ namespace Truss.Generators
 
                     var implementationType = type.ToDisplayString(FullyQualified);
                     anchorType ??= implementationType;
+
+                    if (messagingRuntimePresent && isIntegrationEvent)
+                        integrationEvents.Add(implementationType);
+
+                    foreach (var @interface in messagingInterfaces)
+                        messagingHandlers.Add(new ServiceRegistration(@interface.ToDisplayString(FullyQualified), implementationType));
+
+                    foreach (var @interface in jobInterfaces)
+                        jobs.Add(new JobRegistration(implementationType, @interface.TypeArguments[0].ToDisplayString(FullyQualified)));
 
                     foreach (var @interface in trussInterfaces)
                     {
@@ -110,7 +151,7 @@ namespace Truss.Generators
                     continue;
                 }
 
-                if (services.Count == 0 || anchorType is null)
+                if (anchorType is null || (services.Count == 0 && messagingHandlers.Count == 0 && integrationEvents.Count == 0 && jobs.Count == 0))
                     continue;
 
                 assemblyModels.Add(new AssemblyModel(
@@ -118,12 +159,15 @@ namespace Truss.Generators
                     anchorType,
                     services.Distinct().OrderBy(s => s.ServiceType).ThenBy(s => s.ImplementationType).ToImmutableArray(),
                     requestPrimes.Values.OrderBy(p => p.RequestType).ToImmutableArray(),
-                    eventPrimes.OrderBy(e => e).ToImmutableArray()));
+                    eventPrimes.OrderBy(e => e).ToImmutableArray(),
+                    messagingHandlers.Distinct().OrderBy(s => s.ServiceType).ThenBy(s => s.ImplementationType).ToImmutableArray(),
+                    integrationEvents.OrderBy(e => e).ToImmutableArray(),
+                    jobs.Distinct().OrderBy(j => j.JobType).ToImmutableArray()));
             }
 
             ReportRequestDiagnostics(declaredRequests, handlersByRequest, diagnostics);
 
-            return new TrussModel(assemblyModels.ToImmutable(), diagnostics.ToImmutable());
+            return new TrussModel(assemblyModels.ToImmutable(), diagnostics.ToImmutable(), messagingRuntimePresent, jobsRuntimePresent);
         }
 
         private static List<IAssemblySymbol> CollectAssemblies(Compilation compilation)
@@ -145,11 +189,10 @@ namespace Truss.Generators
 
         private static bool IsTrussPackage(string name)
         {
-            return name is "Truss.Domain"
-                or "Truss.Application"
-                or "Truss.Application.Abstractions"
-                or "Truss.AspNetCore"
-                or "Truss.Persistence.EntityFrameworkCore";
+            // The framework's own assemblies register themselves at runtime;
+            // scanning them would only trip over their internal handlers, such
+            // as the job runtime's own integration event handler.
+            return name == "Truss" || name.StartsWith("Truss.", System.StringComparison.Ordinal);
         }
 
         private static bool ReferencesTrussAbstractions(IAssemblySymbol assembly)

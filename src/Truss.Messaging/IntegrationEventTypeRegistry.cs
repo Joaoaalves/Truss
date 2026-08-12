@@ -20,6 +20,8 @@ namespace Truss.Messaging
 
         /// <summary>
         /// Builds a registry from every concrete integration event type found in the given assemblies.
+        /// An assembly with a compile-time registration contributes its generated
+        /// type list instead of being scanned.
         /// Types carrying <see cref="IntegrationEventNameAttribute"/> use its name and version;
         /// other types default to their full CLR name and version 1.
         /// </summary>
@@ -32,7 +34,9 @@ namespace Truss.Messaging
 
             var eventTypes = assemblies
                 .Distinct()
-                .SelectMany(assembly => assembly.GetTypes())
+                .SelectMany(assembly => TrussMessagingGeneratedRegistry.TryGetEventTypes(assembly, out var generated)
+                    ? generated
+                    : assembly.GetTypes())
                 .Where(type => type.IsClass && !type.IsAbstract && typeof(IIntegrationEvent).IsAssignableFrom(type));
 
             foreach (var type in eventTypes)

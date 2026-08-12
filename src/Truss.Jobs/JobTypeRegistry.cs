@@ -33,38 +33,51 @@ namespace Truss.Jobs
         {
             var registry = new JobTypeRegistry();
 
-            var jobTypes = assemblies
-                .Distinct()
-                .SelectMany(assembly => assembly.GetTypes())
-                .Where(type => type.IsClass && !type.IsAbstract && !type.IsGenericType);
-
-            foreach (var type in jobTypes)
+            foreach (var assembly in assemblies.Distinct())
             {
-                foreach (var @interface in type.GetInterfaces())
+                // Jobs registered at compile time arrive with their typed
+                // invoker already built; only assemblies without a generated
+                // registration are scanned.
+                if (TrussJobsGeneratedRegistry.TryGetJobs(assembly, out var generated))
                 {
-                    if (!@interface.IsGenericType || @interface.GetGenericTypeDefinition() != typeof(IJob<>))
-                        continue;
+                    foreach (var descriptor in generated)
+                        registry.Add(descriptor);
 
-                    var argsType = @interface.GetGenericArguments()[0];
-                    var name = type.GetCustomAttribute<JobNameAttribute>()?.Name ?? type.FullName!;
+                    continue;
+                }
 
-                    if (registry._byName.TryGetValue(name, out var existing))
+                foreach (var type in assembly.GetTypes().Where(type => type.IsClass && !type.IsAbstract && !type.IsGenericType))
+                {
+                    foreach (var @interface in type.GetInterfaces())
                     {
-                        throw new InvalidOperationException(
-                            $"Job name '{name}' is declared by both {existing.JobType.FullName} and {type.FullName}."
-                        );
+                        if (!@interface.IsGenericType || @interface.GetGenericTypeDefinition() != typeof(IJob<>))
+                            continue;
+
+                        var argsType = @interface.GetGenericArguments()[0];
+                        var name = type.GetCustomAttribute<JobNameAttribute>()?.Name ?? type.FullName!;
+
+                        var invoker = (JobInvoker)Activator.CreateInstance(
+                            typeof(JobInvoker<,>).MakeGenericType(type, argsType))!;
+
+                        registry.Add(new JobDescriptor(name, type, argsType, invoker));
                     }
-
-                    var invoker = (JobInvoker)Activator.CreateInstance(
-                        typeof(JobInvoker<,>).MakeGenericType(type, argsType))!;
-
-                    var descriptor = new JobDescriptor(name, type, argsType, invoker);
-                    registry._byName[name] = descriptor;
-                    registry._byType[type] = descriptor;
                 }
             }
 
             return registry;
+        }
+
+        private void Add(JobDescriptor descriptor)
+        {
+            if (_byName.TryGetValue(descriptor.Name, out var existing) && existing.JobType != descriptor.JobType)
+            {
+                throw new InvalidOperationException(
+                    $"Job name '{descriptor.Name}' is declared by both {existing.JobType.FullName} and {descriptor.JobType.FullName}."
+                );
+            }
+
+            _byName[descriptor.Name] = descriptor;
+            _byType[descriptor.JobType] = descriptor;
         }
 
         internal JobDescriptor DescriptorFor(Type jobType)

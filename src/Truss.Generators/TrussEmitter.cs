@@ -22,55 +22,114 @@ namespace Truss.Generators
 
             foreach (var assembly in model.Assemblies)
             {
-                builder.Append("            global::Truss.Application.TrussGeneratedRegistry.RegisterAssembly(typeof(")
-                    .Append(assembly.AnchorType)
-                    .Append(").Assembly, ")
-                    .Append(RegisterMethodName(assembly, model))
-                    .AppendLine(");");
+                if (assembly.Services.Length > 0)
+                {
+                    builder.Append("            global::Truss.Application.TrussGeneratedRegistry.RegisterAssembly(typeof(")
+                        .Append(assembly.AnchorType)
+                        .Append(").Assembly, ")
+                        .Append(RegisterMethodName(assembly, model))
+                        .AppendLine(");");
+                }
+
+                if (assembly.MessagingHandlers.Length > 0 || assembly.IntegrationEvents.Length > 0)
+                {
+                    builder.Append("            global::Truss.Messaging.TrussMessagingGeneratedRegistry.RegisterAssembly(typeof(")
+                        .Append(assembly.AnchorType)
+                        .Append(").Assembly, ")
+                        .Append(MessagingMethodName(assembly, model))
+                        .Append(", new global::System.Type[] { ");
+
+                    foreach (var eventType in assembly.IntegrationEvents)
+                        builder.Append("typeof(").Append(eventType).Append("), ");
+
+                    builder.AppendLine("});");
+                }
+
+                if (assembly.Jobs.Length > 0)
+                {
+                    foreach (var job in assembly.Jobs)
+                    {
+                        builder.Append("            global::Truss.Jobs.TrussJobsGeneratedRegistry.RegisterJob<")
+                            .Append(job.JobType)
+                            .Append(", ")
+                            .Append(job.ArgsType)
+                            .Append(">(typeof(")
+                            .Append(assembly.AnchorType)
+                            .AppendLine(").Assembly);");
+                    }
+                }
             }
 
             builder.AppendLine("        }");
 
             foreach (var assembly in model.Assemblies)
             {
-                builder.AppendLine();
-                builder.Append("        private static void ")
-                    .Append(RegisterMethodName(assembly, model))
-                    .AppendLine("(global::Microsoft.Extensions.DependencyInjection.IServiceCollection services)");
-                builder.AppendLine("        {");
-
-                foreach (var service in assembly.Services)
+                if (assembly.Services.Length > 0)
                 {
-                    builder.Append("            global::Microsoft.Extensions.DependencyInjection.ServiceCollectionServiceExtensions.AddTransient<")
-                        .Append(service.ServiceType)
-                        .Append(", ")
-                        .Append(service.ImplementationType)
-                        .AppendLine(">(services);");
+                    builder.AppendLine();
+                    builder.Append("        private static void ")
+                        .Append(RegisterMethodName(assembly, model))
+                        .AppendLine("(global::Microsoft.Extensions.DependencyInjection.IServiceCollection services)");
+                    builder.AppendLine("        {");
+
+                    foreach (var service in assembly.Services)
+                    {
+                        builder.Append("            global::Microsoft.Extensions.DependencyInjection.ServiceCollectionServiceExtensions.AddTransient<")
+                            .Append(service.ServiceType)
+                            .Append(", ")
+                            .Append(service.ImplementationType)
+                            .AppendLine(">(services);");
+                    }
+
+                    foreach (var prime in assembly.RequestPrimes)
+                    {
+                        builder.Append("            global::Truss.Application.TrussGeneratedRegistry.PrimeRequest<")
+                            .Append(prime.RequestType)
+                            .Append(", ")
+                            .Append(prime.ResponseType)
+                            .AppendLine(">();");
+                    }
+
+                    foreach (var eventType in assembly.DomainEventPrimes)
+                    {
+                        builder.Append("            global::Truss.Application.TrussGeneratedRegistry.PrimeDomainEvent<")
+                            .Append(eventType)
+                            .AppendLine(">();");
+                    }
+
+                    builder.AppendLine("        }");
                 }
 
-                foreach (var prime in assembly.RequestPrimes)
+                if (assembly.MessagingHandlers.Length > 0 || assembly.IntegrationEvents.Length > 0)
                 {
-                    builder.Append("            global::Truss.Application.TrussGeneratedRegistry.PrimeRequest<")
-                        .Append(prime.RequestType)
-                        .Append(", ")
-                        .Append(prime.ResponseType)
-                        .AppendLine(">();");
-                }
+                    builder.AppendLine();
+                    builder.Append("        private static void ")
+                        .Append(MessagingMethodName(assembly, model))
+                        .AppendLine("(global::Microsoft.Extensions.DependencyInjection.IServiceCollection services)");
+                    builder.AppendLine("        {");
 
-                foreach (var eventType in assembly.DomainEventPrimes)
-                {
-                    builder.Append("            global::Truss.Application.TrussGeneratedRegistry.PrimeDomainEvent<")
-                        .Append(eventType)
-                        .AppendLine(">();");
-                }
+                    foreach (var handler in assembly.MessagingHandlers)
+                    {
+                        builder.Append("            global::Microsoft.Extensions.DependencyInjection.ServiceCollectionServiceExtensions.AddTransient<")
+                            .Append(handler.ServiceType)
+                            .Append(", ")
+                            .Append(handler.ImplementationType)
+                            .AppendLine(">(services);");
+                    }
 
-                builder.AppendLine("        }");
+                    builder.AppendLine("        }");
+                }
             }
 
             builder.AppendLine("    }");
             builder.AppendLine("}");
 
             return builder.ToString();
+        }
+
+        private static string MessagingMethodName(AssemblyModel assembly, TrussModel model)
+        {
+            return RegisterMethodName(assembly, model) + "_Messaging";
         }
 
         private static string RegisterMethodName(AssemblyModel assembly, TrussModel model)

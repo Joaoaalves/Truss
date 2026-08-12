@@ -3,6 +3,8 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\Truss.Generators\Truss.Generators.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="true" />
     <ProjectReference Include="..\..\src\Truss.Application\Truss.Application.csproj" />
+    <ProjectReference Include="..\..\src\Truss.Messaging\Truss.Messaging.csproj" />
+    <ProjectReference Include="..\..\src\Truss.Jobs\Truss.Jobs.csproj" />
   </ItemGroup>
 
   <ItemGroup>

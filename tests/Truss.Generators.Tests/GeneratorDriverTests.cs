@@ -6,7 +6,7 @@ namespace Truss.Generators.Tests
 {
     public class GeneratorDriverTests
     {
-        private static CSharpCompilation CreateCompilation(string source)
+        private static CSharpCompilation CreateCompilation(string source, bool referenceMessagingAndJobs = false)
         {
             var paths = ((string)AppContext.GetData("TRUSTED_PLATFORM_ASSEMBLIES")!)
                 .Split(Path.PathSeparator)
@@ -16,6 +16,18 @@ namespace Truss.Generators.Tests
                 .Append(typeof(FluentValidation.IValidator<>).Assembly.Location)
                 .Append(typeof(Microsoft.Extensions.DependencyInjection.IServiceCollection).Assembly.Location)
                 .Distinct();
+
+            if (referenceMessagingAndJobs)
+            {
+                paths = paths
+                    .Append(typeof(Truss.Messaging.IIntegrationEvent).Assembly.Location)
+                    .Append(typeof(Truss.Messaging.IntegrationEventTypeRegistry).Assembly.Location)
+                    .Append(typeof(Truss.Jobs.IJob<>).Assembly.Location)
+                    .Append(typeof(Truss.Jobs.JobTypeRegistry).Assembly.Location)
+                    .Append(typeof(Microsoft.Extensions.Logging.ILogger).Assembly.Location)
+                    .Append(typeof(Microsoft.Extensions.Logging.Abstractions.NullLogger).Assembly.Location)
+                    .Distinct();
+            }
 
             var references = paths
                 .Select(path => (MetadataReference)MetadataReference.CreateFromFile(path))
@@ -28,9 +40,9 @@ namespace Truss.Generators.Tests
                 new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
         }
 
-        private static (GeneratorDriverRunResult Result, Compilation Output) RunGenerator(string source)
+        private static (GeneratorDriverRunResult Result, Compilation Output) RunGenerator(string source, bool referenceMessagingAndJobs = false)
         {
-            var compilation = CreateCompilation(source);
+            var compilation = CreateCompilation(source, referenceMessagingAndJobs);
             var driver = CSharpGeneratorDriver.Create(new TrussSourceGenerator());
 
             driver = (CSharpGeneratorDriver)driver.RunGeneratorsAndUpdateCompilation(
@@ -76,6 +88,61 @@ namespace Truss.Generators.Tests
             var errors = output.GetDiagnostics().Where(d => d.Severity == DiagnosticSeverity.Error).ToList();
 
             Assert.Empty(errors);
+        }
+
+        private const string MessagingAndJobs = """
+            using System;
+            using System.Threading;
+            using System.Threading.Tasks;
+            using Truss.Jobs;
+            using Truss.Messaging;
+
+            namespace TestApp
+            {
+                [IntegrationEventName("test.item-created")]
+                public sealed record ItemCreated(Guid ItemId) : IntegrationEvent;
+
+                public sealed class ItemCreatedHandler : IIntegrationEventHandler<ItemCreated>
+                {
+                    public Task Handle(ItemCreated integrationEvent, CancellationToken cancellationToken)
+                        => Task.CompletedTask;
+                }
+
+                public sealed record ReportArgs(string Target);
+
+                public sealed class ReportJob : IJob<ReportArgs>
+                {
+                    public Task Execute(ReportArgs args, JobContext context, CancellationToken cancellationToken)
+                        => Task.CompletedTask;
+                }
+            }
+            """;
+
+        [Fact]
+        public void Generator_EmitsMessagingAndJobRegistrations()
+        {
+            var (result, output) = RunGenerator(MessagingAndJobs, referenceMessagingAndJobs: true);
+
+            var generated = Assert.Single(result.Results[0].GeneratedSources).SourceText.ToString();
+
+            Assert.Contains("Truss.Messaging.TrussMessagingGeneratedRegistry.RegisterAssembly", generated);
+            Assert.Contains("AddTransient<global::Truss.Messaging.IIntegrationEventHandler<global::TestApp.ItemCreated>, global::TestApp.ItemCreatedHandler>", generated);
+            Assert.Contains("typeof(global::TestApp.ItemCreated)", generated);
+            Assert.Contains("Truss.Jobs.TrussJobsGeneratedRegistry.RegisterJob<global::TestApp.ReportJob, global::TestApp.ReportArgs>", generated);
+
+            var errors = output.GetDiagnostics().Where(d => d.Severity == DiagnosticSeverity.Error).ToList();
+            Assert.Empty(errors);
+        }
+
+        [Fact]
+        public void Generator_WithoutTheMessagingRuntime_LeavesTheSliceToTheScan()
+        {
+            var (result, _) = RunGenerator(CommandWithHandler);
+
+            var generated = Assert.Single(result.Results[0].GeneratedSources).SourceText.ToString();
+
+            Assert.DoesNotContain("TrussMessagingGeneratedRegistry", generated);
+            Assert.DoesNotContain("TrussJobsGeneratedRegistry", generated);
         }
 
         [Fact]

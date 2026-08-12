@@ -44,6 +44,41 @@ namespace Truss.Generators.Tests
         }
 
         [Fact]
+        public void GeneratedModule_RegistersTheMessagingSliceAtStartup()
+        {
+            var assembly = typeof(GenItemCreated).Assembly;
+
+            Assert.True(Truss.Messaging.TrussMessagingGeneratedRegistry.TryGetHandlers(assembly, out _));
+            Assert.True(Truss.Messaging.TrussMessagingGeneratedRegistry.TryGetEventTypes(assembly, out var eventTypes));
+            Assert.Contains(typeof(GenItemCreated), eventTypes);
+        }
+
+        [Fact]
+        public void AddTrussMessaging_UsesTheGeneratedRegistration_ToResolveHandlers()
+        {
+            var services = new ServiceCollection();
+            services.AddTrussMessaging(options => options.AddAssembly<GenItemCreated>());
+
+            using var provider = services.BuildServiceProvider();
+
+            Assert.IsType<GenItemCreatedHandler>(
+                Assert.Single(provider.GetServices<Truss.Messaging.IIntegrationEventHandler<GenItemCreated>>()));
+
+            var registry = provider.GetRequiredService<Truss.Messaging.IntegrationEventTypeRegistry>();
+            Assert.Equal("gen.item-created", registry.DescriptorFor(typeof(GenItemCreated)).Name);
+        }
+
+        [Fact]
+        public void GeneratedModule_RegistersJobsWithTheirTypedInvokers()
+        {
+            Assert.True(Truss.Jobs.TrussJobsGeneratedRegistry.TryGetJobs(typeof(GenReportJob).Assembly, out var jobs));
+
+            var descriptor = Assert.Single(jobs, job => job.JobType == typeof(GenReportJob));
+            Assert.Equal(typeof(GenReportArgs), descriptor.ArgsType);
+            Assert.Equal(typeof(GenReportJob).FullName, descriptor.Name);
+        }
+
+        [Fact]
         public async Task AddTruss_UsesGeneratedRegistration_ToDispatchDomainEvents()
         {
             var recorder = new GenEventRecorder();

@@ -1,9 +1,32 @@
 using FluentValidation;
 using Truss.Application;
 using Truss.Domain;
+using Truss.Jobs;
+using Truss.Messaging;
 
 namespace Truss.Generators.Tests.Fakes
 {
+    [IntegrationEventName("gen.item-created")]
+    public sealed record GenItemCreated(Guid ItemId) : IntegrationEvent;
+
+    public class GenItemCreatedHandler : IIntegrationEventHandler<GenItemCreated>
+    {
+        public Task Handle(GenItemCreated integrationEvent, CancellationToken cancellationToken)
+        {
+            return Task.CompletedTask;
+        }
+    }
+
+    public sealed record GenReportArgs(string Target);
+
+    public class GenReportJob : IJob<GenReportArgs>
+    {
+        public Task Execute(GenReportArgs args, JobContext context, CancellationToken cancellationToken)
+        {
+            return Task.CompletedTask;
+        }
+    }
+
     public sealed record GenPingCommand(string Value) : ICommand<string>;
 
     public class GenPingCommandHandler : ICommandHandler<GenPingCommand, string>
