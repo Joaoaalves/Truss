@@ -72,6 +72,19 @@ namespace Truss.Messaging.EntityFrameworkCore
         }
 
         /// <inheritdoc />
+        public Task<int> RetryDeadLettered(CancellationToken cancellationToken = default)
+        {
+            return _context.Set<OutboxMessage>()
+                .Where(message => message.Status == OutboxMessageStatus.Failed)
+                .ExecuteUpdateAsync(setters => setters
+                    .SetProperty(message => message.Status, OutboxMessageStatus.Pending)
+                    .SetProperty(message => message.Attempts, 0)
+                    .SetProperty(message => message.NextAttemptOn, (DateTimeOffset?)null)
+                    .SetProperty(message => message.Error, (string?)null),
+                    cancellationToken);
+        }
+
+        /// <inheritdoc />
         public async Task<OutboxStatistics> GetStatistics(CancellationToken cancellationToken = default)
         {
             var pending = _context.Set<OutboxMessage>().Where(message => message.Status == OutboxMessageStatus.Pending);

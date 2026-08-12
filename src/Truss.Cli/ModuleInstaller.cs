@@ -122,7 +122,10 @@ namespace Truss.Cli
                 CsprojEditor.AddPackageReference(hostCsproj, "Truss.Messaging.Redis", version);
 
             if (manifest.UsesEntityFramework)
+            {
                 CsprojEditor.AddPackageReference(hostCsproj, "Truss.Messaging.EntityFrameworkCore", version);
+                CsprojEditor.AddPackageReference(CsprojPath(root, manifest.ApiProject), "Truss.Messaging.AspNetCore", version);
+            }
 
             var registration = $$"""
                 builder.Services.AddTrussMessaging(options =>
@@ -134,12 +137,22 @@ namespace Truss.Cli
                 """;
 
             if (manifest.UsesEntityFramework)
-                registration += $"{Environment.NewLine}{Environment.NewLine}builder.Services.AddTrussOutbox<AppDbContext>();";
+            {
+                registration += $"{Environment.NewLine}{Environment.NewLine}builder.Services.AddTrussOutbox<AppDbContext>();"
+                    + $"{Environment.NewLine}builder.Services.AddTrussInbox<AppDbContext>();";
+            }
 
             InsertServices(root, manifest, registration, log);
 
             if (manifest.UsesEntityFramework)
+            {
                 InsertModelConfiguration(root, manifest, "modelBuilder.ApplyTrussOutbox();", log);
+                InsertModelConfiguration(root, manifest, "modelBuilder.ApplyTrussInbox();", log);
+                InsertEndpoint(root, manifest, "app.MapTrussOutbox();", log);
+
+                log("Consumers are idempotent through the inbox: a redelivered message is skipped, and its record commits with the handler's changes.");
+                log("Outbox operations live at GET /truss/outbox and POST /truss/outbox/retry; protect them like any admin surface once auth exists.");
+            }
 
             manifest.Settings["messaging.transport"] = transport;
             return 0;

@@ -13,6 +13,7 @@
     <Project Path="src/Truss.Generators/Truss.Generators.csproj" />
     <Project Path="src/Truss.Jobs.Abstractions/Truss.Jobs.Abstractions.csproj" />
     <Project Path="src/Truss.Jobs.AspNetCore/Truss.Jobs.AspNetCore.csproj" />
+    <Project Path="src/Truss.Messaging.AspNetCore/Truss.Messaging.AspNetCore.csproj" />
     <Project Path="src/Truss.Jobs.EntityFrameworkCore/Truss.Jobs.EntityFrameworkCore.csproj" />
     <Project Path="src/Truss.Jobs/Truss.Jobs.csproj" />
     <Project Path="src/Truss.Mapping/Truss.Mapping.csproj" />

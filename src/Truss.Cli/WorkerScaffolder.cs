@@ -229,6 +229,7 @@ namespace Truss.Cli
             {
                 program.AppendLine();
                 program.AppendLine("builder.Services.AddTrussOutbox<AppDbContext>();");
+                program.AppendLine("builder.Services.AddTrussInbox<AppDbContext>();");
             }
 
             if (manifest.Modules.Contains("jobs"))

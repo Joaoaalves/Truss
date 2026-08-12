@@ -44,7 +44,8 @@ Truss is intentionally explicit, modular and dependency-minimal.
 | `Truss.Generators` | Compile-time handler discovery and dispatch, missing handlers as build diagnostics. | Build (dev dependency) |
 | `Truss.Messaging.Abstractions` | Contracts for integration events, handlers and the publisher. | Application |
 | `Truss.Messaging` | Versioned JSON serialization, outbox runtime, transport seam, in-memory transport. | Infrastructure |
-| `Truss.Messaging.EntityFrameworkCore` | Transactional outbox stored through EF Core. | Infrastructure |
+| `Truss.Messaging.EntityFrameworkCore` | Transactional outbox and inbox stored through EF Core. | Infrastructure |
+| `Truss.Messaging.AspNetCore` | Operational endpoints: outbox counters and dead-letter retry. | API / Host |
 | `Truss.Messaging.Postgres` | Durable Postgres transport: SKIP LOCKED queue with LISTEN/NOTIFY wake-up. | Infrastructure |
 | `Truss.Messaging.RabbitMq` | Durable RabbitMQ transport: quorum queues with publisher confirms and broker-side dead-lettering. | Infrastructure |
 | `Truss.Messaging.Redis` | Durable Redis transport over Streams with consumer groups. | Infrastructure |
@@ -386,12 +387,24 @@ Integration event runtime: versioned JSON serialization, outbox model and proces
 ## Truss.Messaging.EntityFrameworkCore
 
 **Purpose:**
-Outbox persistence through EF Core: the model configuration and a store that joins the command's unit of work.
+Outbox and inbox persistence through EF Core: the model configurations and stores that join the message's unit of work.
 
 ### Dependencies
 
 - `Truss.Messaging`
 - `Microsoft.EntityFrameworkCore.Relational`
+
+---
+
+## Truss.Messaging.AspNetCore
+
+**Purpose:**
+Operational endpoints for the outbox: counters and dead-letter retry.
+
+### Dependencies
+
+- `Truss.Messaging`
+- ASP.NET Core shared framework (framework reference, not a package)
 
 ---
 
@@ -1616,7 +1629,36 @@ Delivery starts immediately: every commit that stores outbox messages wakes the 
 
 Running more than one instance is fine. On PostgreSQL and SQL Server each fetch claims its batch with SKIP LOCKED semantics, so instances that wake up together pick disjoint batches instead of publishing the same message twice. Providers without the feature fall back to the plain query, where a rare overlap between instances only means a duplicate publish.
 
-Delivery is **at-least-once** either way: a crash between publishing and marking a message processed still replays it, so consumers must be idempotent.
+Delivery is **at-least-once** either way: a crash between publishing and marking a message processed still replays it. The inbox below is what turns that into exactly-once side effects on the consumer.
+
+### The inbox: exactly-once side effects
+
+The outbox makes publishing transactional; the inbox does the same for consuming. With it registered, the dispatcher checks each incoming message id against a table of processed messages, skips the ones already handled, and commits the processing record inside the same unit of work as the handler's changes:
+
+```csharp
+services.AddTrussInbox<AppDbContext>();
+```
+
+```csharp
+protected override void OnModelCreating(ModelBuilder modelBuilder)
+{
+    modelBuilder.ApplyTrussInbox();
+}
+```
+
+The guarantee holds even under concurrency: two instances handling the same duplicate at once both reach the commit, but the second violates the inbox primary key and rolls back with all of its handler's changes. A failed handling also leaves no record, so the retry is not mistaken for a duplicate. Records are swept after `TrussInboxOptions.RetentionPeriod` (7 days by default), which comfortably outlives every redelivery window.
+
+`truss add messaging` wires the inbox automatically when the project has a database. Handlers whose side effects do not go through the same DbContext (sending an email, calling an external API) remain at-least-once for that part; keep those idempotent.
+
+### Dead letters and the retry
+
+A message that exhausts its attempts is dead-lettered with its error preserved, and the health check degrades. Once the underlying failure is fixed, return everything to the queue with the operational endpoints of `Truss.Messaging.AspNetCore`:
+
+```csharp
+app.MapTrussOutbox();
+```
+
+`GET /truss/outbox` returns the counters and `POST /truss/outbox/retry` moves every dead-lettered message back to pending with a clean attempt counter and wakes the processor. These operate on your infrastructure: protect them like any admin surface, for example with `.RequireAuthorization()` on the returned group. In code, the same operation is `IOutboxStore.RetryDeadLettered`.
 
 ### The trace crosses the transport
 
@@ -1888,7 +1930,7 @@ All settings bind from configuration, for example `Truss__Jobs__MaxAttempts=5`.
 
 ### Multiple instances
 
-With the EF store, the schedulers elect a leader through a lease-based lock stored next to the job records, so `EnableSchedulers` can stay enabled everywhere: one instance sweeps scheduled and recurring jobs at a time, and when it stops, another takes over once the lease expires. Execution itself is already distributed by the transport; the lock only covers who enqueues.
+With the EF store, the schedulers elect a leader through a lease-based lock stored next to the job records, so `EnableSchedulers` can stay enabled everywhere: one instance sweeps scheduled and recurring jobs at a time. A graceful shutdown releases the lease, so during a rolling deploy the next instance takes over immediately; only a crash makes the successor wait out the lease. Execution itself is already distributed by the transport; the lock only covers who enqueues.
 
 ---
 

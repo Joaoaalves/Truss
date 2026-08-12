@@ -106,12 +106,24 @@ Integration event runtime: versioned JSON serialization, outbox model and proces
 ## Truss.Messaging.EntityFrameworkCore
 
 **Purpose:**
-Outbox persistence through EF Core: the model configuration and a store that joins the command's unit of work.
+Outbox and inbox persistence through EF Core: the model configurations and stores that join the message's unit of work.
 
 ### Dependencies
 
 - `Truss.Messaging`
 - `Microsoft.EntityFrameworkCore.Relational`
+
+---
+
+## Truss.Messaging.AspNetCore
+
+**Purpose:**
+Operational endpoints for the outbox: counters and dead-letter retry.
+
+### Dependencies
+
+- `Truss.Messaging`
+- ASP.NET Core shared framework (framework reference, not a package)
 
 ---
 

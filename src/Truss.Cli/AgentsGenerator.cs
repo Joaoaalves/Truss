@@ -118,7 +118,7 @@ namespace Truss.Cli
                 switch (module)
                 {
                     case "messaging":
-                        block.AppendLine($"- Messaging ({transport ?? "inmemory"} transport): publish integration events with IIntegrationEventPublisher inside command handlers; the outbox stores them atomically with the command. Consume with IIntegrationEventHandler<TEvent>. Give every cross-context event a stable name with [IntegrationEventName(\"context.event-name\")]. Delivery is at-least-once; make handlers idempotent.");
+                        block.AppendLine($"- Messaging ({transport ?? "inmemory"} transport): publish integration events with IIntegrationEventPublisher inside command handlers; the outbox stores them atomically with the command. Consume with IIntegrationEventHandler<TEvent>. Give every cross-context event a stable name with [IntegrationEventName(\"context.event-name\")]. The inbox makes database side effects of handlers exactly-once; effects outside the DbContext (email, external APIs) must stay idempotent. Dead letters are retried with POST /truss/outbox/retry.");
                         break;
 
                     case "jobs":

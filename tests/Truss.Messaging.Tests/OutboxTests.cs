@@ -222,6 +222,35 @@ namespace Truss.Messaging.Tests
             Assert.Empty(_transport.Published);
         }
 
+        [Fact]
+        public async Task RetryDeadLettered_ReturnsTheMessageToTheQueue_AndItDelivers()
+        {
+            await SendAsync(new CreateItemCommand(Guid.NewGuid()));
+            _transport.Fail = true;
+
+            var processor = _provider.GetRequiredService<OutboxProcessor>();
+            await processor.ProcessPendingAsync();
+            await Task.Delay(20);
+            await processor.ProcessPendingAsync();
+
+            Assert.Equal(OutboxMessageStatus.Failed, SingleStoredMessage().Status);
+
+            _transport.Fail = false;
+
+            using (var scope = _provider.CreateScope())
+            {
+                var store = scope.ServiceProvider.GetRequiredService<IOutboxStore>();
+                Assert.Equal(1, await store.RetryDeadLettered());
+                Assert.Equal(0, await store.RetryDeadLettered());
+            }
+
+            await processor.ProcessPendingAsync();
+
+            var message = SingleStoredMessage();
+            Assert.Equal(OutboxMessageStatus.Processed, message.Status);
+            Assert.Single(_transport.Published);
+        }
+
         public void Dispose()
         {
             _provider.Dispose();

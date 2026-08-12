@@ -39,6 +39,15 @@ namespace Truss.Messaging
         Task<int> DeleteProcessedBefore(DateTimeOffset threshold, CancellationToken cancellationToken = default);
 
         /// <summary>
+        /// Returns every dead-lettered message to the pending queue with a
+        /// clean attempt counter, so the processor delivers it again. Meant for
+        /// the moment after the underlying failure was fixed.
+        /// </summary>
+        /// <param name="cancellationToken">The cancellation token.</param>
+        /// <returns>The number of messages returned to the queue.</returns>
+        Task<int> RetryDeadLettered(CancellationToken cancellationToken = default);
+
+        /// <summary>
         /// Returns the outbox counters used by health checks and diagnostics.
         /// </summary>
         /// <param name="cancellationToken">The cancellation token.</param>

@@ -32,9 +32,15 @@ namespace Truss.Cli.Tests
             Assert.Contains("AddTrussMessaging", program);
             Assert.Contains("AddTrussRedisTransport", program);
             Assert.Contains("AddTrussOutbox<AppDbContext>", program);
+            Assert.Contains("AddTrussInbox<AppDbContext>", program);
+            Assert.Contains("app.MapTrussOutbox();", program);
+
+            var apiCsproj = _workspace.ReadFile("Shop", "src", "Shop.Api", "Shop.Api.csproj");
+            Assert.Contains("Truss.Messaging.AspNetCore", apiCsproj);
 
             var dbContext = _workspace.ReadFile("Shop", "src", "Shop.Infrastructure", "AppDbContext.cs");
             Assert.Contains("ApplyTrussOutbox", dbContext);
+            Assert.Contains("ApplyTrussInbox", dbContext);
 
             var manifest = TrussManifest.Load(root);
             Assert.Contains("messaging", manifest!.Modules);
