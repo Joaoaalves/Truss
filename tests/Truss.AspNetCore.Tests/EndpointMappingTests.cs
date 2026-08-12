@@ -19,6 +19,7 @@ namespace Truss.AspNetCore.Tests
             var builder = WebApplication.CreateBuilder();
             builder.WebHost.UseTestServer();
             builder.Logging.ClearProviders();
+            builder.Services.AddSingleton<CommandRecorder>();
             builder.Services.AddTruss(options => options.AddAssembly<PingCommand>());
 
             var app = builder.Build();
@@ -38,6 +39,69 @@ namespace Truss.AspNetCore.Tests
 
             Assert.Equal(HttpStatusCode.OK, response.StatusCode);
             Assert.Equal("pong:abc", await response.Content.ReadFromJsonAsync<string>());
+        }
+
+        [Fact]
+        public async Task MapPutCommand_TheRouteIdWinsOverTheBody()
+        {
+            var (app, client) = await StartAppAsync(app => app.MapPutCommand<RenameItemCommand, string>("/items/{id}"));
+            await using var _ = app;
+
+            var routeId = Guid.NewGuid();
+            var response = await client.PutAsJsonAsync($"/items/{routeId}", new RenameItemCommand(Guid.NewGuid(), "renamed"));
+
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            Assert.Equal($"{routeId}:renamed", await response.Content.ReadFromJsonAsync<string>());
+        }
+
+        [Fact]
+        public async Task MapPutCommand_TheBodyMayOmitTheRouteId()
+        {
+            var (app, client) = await StartAppAsync(app => app.MapPutCommand<RenameItemCommand, string>("/items/{id}"));
+            await using var _ = app;
+
+            var routeId = Guid.NewGuid();
+            var response = await client.PutAsJsonAsync($"/items/{routeId}", new { Name = "renamed" });
+
+            Assert.Equal($"{routeId}:renamed", await response.Content.ReadFromJsonAsync<string>());
+        }
+
+        [Fact]
+        public async Task MapPutCommand_WithAMalformedRouteValue_ReturnsBadRequest()
+        {
+            var (app, client) = await StartAppAsync(app => app.MapPutCommand<RenameItemCommand, string>("/items/{id}"));
+            await using var _ = app;
+
+            var response = await client.PutAsJsonAsync("/items/not-a-guid", new { Name = "renamed" });
+
+            Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        }
+
+        [Fact]
+        public async Task MapPatchCommand_MergesTheRouteLikePut()
+        {
+            var (app, client) = await StartAppAsync(app => app.MapPatchCommand<RenameItemCommand, string>("/items/{id}"));
+            await using var _ = app;
+
+            var routeId = Guid.NewGuid();
+            var response = await client.PatchAsJsonAsync($"/items/{routeId}", new { Name = "patched" });
+
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            Assert.Equal($"{routeId}:patched", await response.Content.ReadFromJsonAsync<string>());
+        }
+
+        [Fact]
+        public async Task MapDeleteCommand_BindsTheRouteWithoutABody()
+        {
+            var (app, client) = await StartAppAsync(app => app.MapDeleteCommand<DeleteItemCommand>("/items/{id}"));
+            await using var _ = app;
+
+            var routeId = Guid.NewGuid();
+            var response = await client.DeleteAsync($"/items/{routeId}");
+
+            Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
+            var recorded = Assert.IsType<DeleteItemCommand>(app.Services.GetRequiredService<CommandRecorder>().Last);
+            Assert.Equal(routeId, recorded.Id);
         }
 
         [Fact]

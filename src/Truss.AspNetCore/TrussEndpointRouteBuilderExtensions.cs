@@ -84,6 +84,117 @@ namespace Microsoft.AspNetCore.Builder
         }
 
         /// <summary>
+        /// Maps a PUT endpoint that binds the request body to the command, copies route
+        /// values over it, dispatches it and returns 204 No Content on success.
+        /// Route values win over the body, so the JSON may omit the resource id
+        /// and cannot contradict the URL.
+        /// </summary>
+        /// <typeparam name="TCommand">The command type bound from the request body and the route.</typeparam>
+        /// <param name="endpoints">The endpoint route builder.</param>
+        /// <param name="pattern">The route pattern.</param>
+        /// <returns>A builder that can be used to further customize the endpoint.</returns>
+        public static RouteHandlerBuilder MapPutCommand<TCommand>(this IEndpointRouteBuilder endpoints, string pattern)
+            where TCommand : ICommand
+        {
+            return endpoints
+                .MapPut(pattern, async (TCommand command, HttpContext httpContext, IDispatcher dispatcher, CancellationToken cancellationToken) =>
+                {
+                    await dispatcher.Send(RouteValueMerger.Merge(command, httpContext), cancellationToken);
+                    return Results.NoContent();
+                })
+                .AddTrussErrorHandling()
+                .Produces(StatusCodes.Status204NoContent);
+        }
+
+        /// <summary>
+        /// Maps a PUT endpoint that binds the request body to the command, copies route
+        /// values over it, dispatches it and returns 200 OK with the command result.
+        /// </summary>
+        /// <typeparam name="TCommand">The command type bound from the request body and the route.</typeparam>
+        /// <typeparam name="TResult">The result type returned by the command.</typeparam>
+        /// <param name="endpoints">The endpoint route builder.</param>
+        /// <param name="pattern">The route pattern.</param>
+        /// <returns>A builder that can be used to further customize the endpoint.</returns>
+        public static RouteHandlerBuilder MapPutCommand<TCommand, TResult>(this IEndpointRouteBuilder endpoints, string pattern)
+            where TCommand : ICommand<TResult>
+        {
+            return endpoints
+                .MapPut(pattern, async (TCommand command, HttpContext httpContext, IDispatcher dispatcher, CancellationToken cancellationToken) =>
+                {
+                    var result = await dispatcher.Send(RouteValueMerger.Merge(command, httpContext), cancellationToken);
+                    return Results.Ok(result);
+                })
+                .AddTrussErrorHandling()
+                .Produces<TResult>(StatusCodes.Status200OK);
+        }
+
+        /// <summary>
+        /// Maps a PATCH endpoint that binds the request body to the command, copies route
+        /// values over it, dispatches it and returns 204 No Content on success.
+        /// </summary>
+        /// <typeparam name="TCommand">The command type bound from the request body and the route.</typeparam>
+        /// <param name="endpoints">The endpoint route builder.</param>
+        /// <param name="pattern">The route pattern.</param>
+        /// <returns>A builder that can be used to further customize the endpoint.</returns>
+        public static RouteHandlerBuilder MapPatchCommand<TCommand>(this IEndpointRouteBuilder endpoints, string pattern)
+            where TCommand : ICommand
+        {
+            return endpoints
+                .MapPatch(pattern, async (TCommand command, HttpContext httpContext, IDispatcher dispatcher, CancellationToken cancellationToken) =>
+                {
+                    await dispatcher.Send(RouteValueMerger.Merge(command, httpContext), cancellationToken);
+                    return Results.NoContent();
+                })
+                .AddTrussErrorHandling()
+                .Produces(StatusCodes.Status204NoContent);
+        }
+
+        /// <summary>
+        /// Maps a PATCH endpoint that binds the request body to the command, copies route
+        /// values over it, dispatches it and returns 200 OK with the command result.
+        /// </summary>
+        /// <typeparam name="TCommand">The command type bound from the request body and the route.</typeparam>
+        /// <typeparam name="TResult">The result type returned by the command.</typeparam>
+        /// <param name="endpoints">The endpoint route builder.</param>
+        /// <param name="pattern">The route pattern.</param>
+        /// <returns>A builder that can be used to further customize the endpoint.</returns>
+        public static RouteHandlerBuilder MapPatchCommand<TCommand, TResult>(this IEndpointRouteBuilder endpoints, string pattern)
+            where TCommand : ICommand<TResult>
+        {
+            return endpoints
+                .MapPatch(pattern, async (TCommand command, HttpContext httpContext, IDispatcher dispatcher, CancellationToken cancellationToken) =>
+                {
+                    var result = await dispatcher.Send(RouteValueMerger.Merge(command, httpContext), cancellationToken);
+                    return Results.Ok(result);
+                })
+                .AddTrussErrorHandling()
+                .Produces<TResult>(StatusCodes.Status200OK);
+        }
+
+        /// <summary>
+        /// Maps a DELETE endpoint that binds route values and the query string to the
+        /// command, dispatches it and returns 204 No Content on success. A delete
+        /// carries no body; a delete that must return data is unusual enough to be
+        /// mapped by hand with <see cref="AddTrussErrorHandling"/>.
+        /// </summary>
+        /// <typeparam name="TCommand">The command type bound from route values and the query string.</typeparam>
+        /// <param name="endpoints">The endpoint route builder.</param>
+        /// <param name="pattern">The route pattern.</param>
+        /// <returns>A builder that can be used to further customize the endpoint.</returns>
+        public static RouteHandlerBuilder MapDeleteCommand<TCommand>(this IEndpointRouteBuilder endpoints, string pattern)
+            where TCommand : ICommand
+        {
+            return endpoints
+                .MapDelete(pattern, async ([AsParameters] TCommand command, IDispatcher dispatcher, CancellationToken cancellationToken) =>
+                {
+                    await dispatcher.Send(command, cancellationToken);
+                    return Results.NoContent();
+                })
+                .AddTrussErrorHandling()
+                .Produces(StatusCodes.Status204NoContent);
+        }
+
+        /// <summary>
         /// Maps a GET endpoint that binds route values and the query string to the query,
         /// dispatches it and returns 200 OK with the result.
         /// </summary>

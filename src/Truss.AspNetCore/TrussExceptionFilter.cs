@@ -22,6 +22,13 @@ namespace Truss.AspNetCore
             {
                 return Results.ValidationProblem(ToErrorDictionary(exception));
             }
+            catch (BadHttpRequestException exception)
+            {
+                return Results.Problem(
+                    title: "The request could not be read.",
+                    detail: exception.Message,
+                    statusCode: exception.StatusCode);
+            }
             catch (BusinessRuleValidationException exception)
             {
                 return Results.Problem(

@@ -69,6 +69,32 @@ namespace Truss.AspNetCore.Tests.Fakes
         }
     }
 
+    public sealed record RenameItemCommand(Guid Id, string Name) : ICommand<string>;
+
+    public class RenameItemCommandHandler : ICommandHandler<RenameItemCommand, string>
+    {
+        public Task<string> Handle(RenameItemCommand request, CancellationToken cancellationToken)
+        {
+            return Task.FromResult($"{request.Id}:{request.Name}");
+        }
+    }
+
+    public sealed class CommandRecorder
+    {
+        public object? Last { get; set; }
+    }
+
+    public sealed record DeleteItemCommand(Guid Id) : ICommand;
+
+    public class DeleteItemCommandHandler(CommandRecorder recorder) : ICommandHandler<DeleteItemCommand>
+    {
+        public Task<Unit> Handle(DeleteItemCommand request, CancellationToken cancellationToken)
+        {
+            recorder.Last = request;
+            return Task.FromResult(Unit.Value);
+        }
+    }
+
     public sealed record GetGreetingQuery(string Name) : IQuery<string>;
 
     public class GetGreetingQueryHandler : IQueryHandler<GetGreetingQuery, string>

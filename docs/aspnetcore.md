@@ -28,6 +28,33 @@ app.MapCommand<CreateUser, Guid>("/users", id => $"/users/{id}");
 
 ---
 
+## The other verbs
+
+Updates and deletes have their own mappings:
+
+| Mapping | Verb | Success response |
+|---|---|---|
+| `MapPutCommand<TCommand>(pattern)` | PUT | 204 No Content |
+| `MapPutCommand<TCommand, TResult>(pattern)` | PUT | 200 OK with the result |
+| `MapPatchCommand<TCommand>(pattern)` | PATCH | 204 No Content |
+| `MapPatchCommand<TCommand, TResult>(pattern)` | PATCH | 200 OK with the result |
+| `MapDeleteCommand<TCommand>(pattern)` | DELETE | 204 No Content |
+
+PUT and PATCH bind the body and then copy route values over it, so the command carries the resource id without asking the client to repeat it in the JSON:
+
+```csharp
+public sealed record RenameProduct(Guid Id, string Name) : ICommand;
+
+app.MapPutCommand<RenameProduct>("/products/{id}");
+// PUT /products/7d9f...  body: { "name": "Espresso" }
+```
+
+The URL always wins. A body that does carry `id` cannot redirect the command to a different resource, and a malformed route value comes back as a 400 ProblemDetails instead of a 500. Route parameters are matched to command properties by name, case-insensitively; a route value with no matching property is ignored.
+
+DELETE carries no body, so `MapDeleteCommand` binds the command from route values and the query string, exactly like a query. A delete that must return data is unusual enough to be mapped by hand with `AddTrussErrorHandling`.
+
+---
+
 ## Queries that may find nothing
 
 A query declared as `IQuery<T?>` answers "not found" with null, and `MapQuery` turns that into a 404. Returning 200 with an empty body would make every client check twice.
@@ -36,13 +63,13 @@ A query declared as `IQuery<T?>` answers "not found" with null, and `MapQuery` t
 
 ## Endpoints you map by hand
 
-`MapCommand` maps POST and `MapQuery` maps GET. Any other verb is a plain minimal API endpoint, and one call gives it the same error translation:
+Anything the mappings above do not cover is a plain minimal API endpoint, and one call gives it the same error translation:
 
 ```csharp
-app.MapDelete("/diary/{date}/items/{itemId}", async (DateOnly date, Guid itemId, IDispatcher dispatcher, CancellationToken ct) =>
+app.MapDelete("/cart/items/{itemId}", async (Guid itemId, IDispatcher dispatcher, CancellationToken ct) =>
 {
-    await dispatcher.Send(new RemoveDiaryItem(date, itemId), ct);
-    return Results.NoContent();
+    var remaining = await dispatcher.Send(new RemoveCartItem(itemId), ct);
+    return Results.Ok(remaining);
 })
 .AddTrussErrorHandling();
 ```

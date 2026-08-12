@@ -55,7 +55,7 @@ namespace Truss.Cli
                 ## Rules that gate every change
 
                 - Handlers orchestrate; aggregates decide. Enforce invariants with business rules inside the domain (CheckRule), not in handlers.
-                - Commands and queries are records dispatched through the pipeline. Map them to routes with MapCommand and MapQuery; routes are always explicit.
+                - Commands and queries are records dispatched through the pipeline. Map them to routes with MapCommand (POST), MapPutCommand, MapPatchCommand, MapDeleteCommand and MapQuery; routes are always explicit, and PUT/PATCH copy route values over the body.
                 - Never inject IUnitOfWork into handlers. The pipeline commits after the handler succeeds; a thrown exception rolls everything back.
                 - Validators check input shape and become 400 responses with every failure listed. Business rule violations become 422. Do not convert one into the other.
                 - Authentication state (hashes, tokens) never lives on domain entities; it belongs to infrastructure models behind application store interfaces.
