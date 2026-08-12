@@ -1,3 +1,4 @@
+using System.Diagnostics.Metrics;
 using System.Reflection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Truss.Messaging;
@@ -43,6 +44,7 @@ namespace Microsoft.Extensions.DependencyInjection
             services.TryAddSingleton<IIntegrationEventDispatcher, IntegrationEventDispatcher>();
             services.TryAddSingleton(TimeProvider.System);
             services.TryAddSingleton<OutboxSignal>();
+            services.TryAddSingleton(provider => new OutboxMetrics(provider.GetService<IMeterFactory>()));
             services.TryAddScoped<IIntegrationEventPublisher, DirectIntegrationEventPublisher>();
 
             foreach (var assembly in options.Assemblies.Distinct())
@@ -69,6 +71,13 @@ namespace Microsoft.Extensions.DependencyInjection
                 return services;
 
             assemblyList.Add(assembly);
+
+            // A registration generated at compile time replaces the scan.
+            if (TrussMessagingGeneratedRegistry.TryGetHandlers(assembly, out var generated))
+            {
+                generated(services);
+                return services;
+            }
 
             var types = assembly.GetTypes().Where(type => type.IsClass && !type.IsAbstract);
 

@@ -17,7 +17,8 @@ namespace Truss.Messaging
         OutboxSignal signal,
         IOptions<TrussOutboxOptions> options,
         ILogger<OutboxProcessor> logger,
-        TimeProvider timeProvider) : BackgroundService
+        TimeProvider timeProvider,
+        OutboxMetrics metrics) : BackgroundService
     {
         private static readonly ActivitySource Source = new("Truss.Messaging");
 
@@ -26,7 +27,9 @@ namespace Truss.Messaging
         private readonly TrussOutboxOptions _options = options.Value;
         private readonly ILogger<OutboxProcessor> _logger = logger;
         private readonly TimeProvider _timeProvider = timeProvider;
+        private readonly OutboxMetrics _metrics = metrics;
         private DateTimeOffset _nextCleanup = DateTimeOffset.MinValue;
+        private DateTimeOffset _nextStatisticsSample = DateTimeOffset.MinValue;
 
         /// <summary>
         /// Publishes every due message once and persists the outcome.
@@ -44,14 +47,20 @@ namespace Truss.Messaging
 
             foreach (var message in messages)
             {
-                using var activity = Source.StartActivity($"publish {message.Name}");
+                using var activity = message.TraceParent is null
+                    ? Source.StartActivity($"publish {message.Name}", ActivityKind.Producer)
+                    : Source.StartActivity($"publish {message.Name}", ActivityKind.Producer, message.TraceParent);
+
                 activity?.SetTag("truss.event", message.Name);
                 activity?.SetTag("truss.message_id", message.Id);
 
                 try
                 {
                     await _transport.Publish(message.ToEnvelope(), cancellationToken);
-                    message.MarkProcessed(_timeProvider.GetUtcNow());
+
+                    var processedOn = _timeProvider.GetUtcNow();
+                    message.MarkProcessed(processedOn);
+                    _metrics.Published(processedOn - message.OccurredOn);
                 }
                 catch (Exception exception) when (exception is not OperationCanceledException)
                 {
@@ -62,6 +71,8 @@ namespace Truss.Messaging
                         _timeProvider.GetUtcNow(),
                         RetryDelayFor(message.Attempts),
                         _options.MaxAttempts);
+
+                    _metrics.PublishFailed(message.Status == OutboxMessageStatus.Failed);
 
                     if (message.Status == OutboxMessageStatus.Failed)
                         _logger.LogError(exception, "Outbox message {MessageId} ({Name} v{Version}) was dead-lettered after {Attempts} attempts.", message.Id, message.Name, message.Version, message.Attempts);
@@ -74,8 +85,24 @@ namespace Truss.Messaging
                 await store.Save(cancellationToken);
 
             await CleanupIfDue(store, cancellationToken);
+            await SampleStatisticsIfDue(store, cancellationToken);
 
             return messages.Count;
+        }
+
+        /// <summary>
+        /// Refreshes the depth gauges from the store, at most once per statistics
+        /// interval, so the gauges cost one count query and not one per loop.
+        /// </summary>
+        private async Task SampleStatisticsIfDue(IOutboxStore store, CancellationToken cancellationToken)
+        {
+            var now = _timeProvider.GetUtcNow();
+
+            if (now < _nextStatisticsSample)
+                return;
+
+            _nextStatisticsSample = now + _options.StatisticsInterval;
+            _metrics.DepthSampled(await store.GetStatistics(cancellationToken));
         }
 
         /// <summary>

@@ -47,5 +47,11 @@ namespace Truss.Messaging
         /// their retention. Defaults to 1 hour.
         /// </summary>
         public TimeSpan CleanupInterval { get; set; } = TimeSpan.FromHours(1);
+
+        /// <summary>
+        /// Gets or sets how often the processor refreshes the depth gauges of
+        /// the "Truss.Messaging" meter from the store. Defaults to 30 seconds.
+        /// </summary>
+        public TimeSpan StatisticsInterval { get; set; } = TimeSpan.FromSeconds(30);
     }
 }

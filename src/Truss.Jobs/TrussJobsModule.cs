@@ -1,3 +1,4 @@
+using System.Diagnostics.Metrics;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Truss.Jobs;
 using Truss.Messaging;
@@ -68,6 +69,7 @@ namespace Microsoft.Extensions.DependencyInjection
             });
 
             services.TryAddSingleton(TimeProvider.System);
+            services.TryAddSingleton(provider => new JobMetrics(provider.GetService<IMeterFactory>()));
             services.AddScoped<IJobScheduler, JobScheduler>();
             services.AddScoped<IJobMonitor, JobMonitor>();
 

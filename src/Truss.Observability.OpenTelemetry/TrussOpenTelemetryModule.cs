@@ -54,7 +54,7 @@ namespace Microsoft.Extensions.DependencyInjection
             if (options.EnableMetrics)
             {
                 builder.WithMetrics(metrics => metrics
-                    .AddMeter("Truss")
+                    .AddMeter("Truss", "Truss.Messaging", "Truss.Jobs")
                     .AddAspNetCoreInstrumentation()
                     .AddOtlpExporter(exporter =>
                     {

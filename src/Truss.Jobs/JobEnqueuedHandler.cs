@@ -14,7 +14,8 @@ namespace Truss.Jobs
         IServiceScopeFactory scopeFactory,
         IOptions<TrussJobsOptions> options,
         ILogger<JobEnqueuedHandler> logger,
-        TimeProvider timeProvider) : IIntegrationEventHandler<JobEnqueued>
+        TimeProvider timeProvider,
+        JobMetrics metrics) : IIntegrationEventHandler<JobEnqueued>
     {
         private static readonly ActivitySource Source = new("Truss.Jobs");
 
@@ -67,6 +68,7 @@ namespace Truss.Jobs
             using var executionSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             using var watcherSource = new CancellationTokenSource();
             var watcher = WatchForCancellation(record.Id, executionSource, watcherSource.Token);
+            var startedAt = timeProvider.GetTimestamp();
 
             try
             {
@@ -74,6 +76,8 @@ namespace Truss.Jobs
 
                 record.MarkSucceeded(timeProvider.GetUtcNow());
                 await store.Save(cancellationToken);
+
+                metrics.Executed("succeeded", record.Name, timeProvider.GetElapsedTime(startedAt));
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {
@@ -86,12 +90,14 @@ namespace Truss.Jobs
                 record.MarkCancelled(timeProvider.GetUtcNow());
                 await store.Save(cancellationToken);
 
+                metrics.Executed("cancelled", record.Name, timeProvider.GetElapsedTime(startedAt));
                 logger.LogInformation("Job {JobId} ({Name}) was cancelled during attempt {Attempts}.", record.Id, record.Name, record.Attempts);
             }
             catch (Exception exception)
             {
                 activity?.SetStatus(ActivityStatusCode.Error, exception.Message);
                 await RegisterFailure(record, exception, cancellationToken);
+                metrics.Executed(record.Status == JobStatus.Failed ? "failed" : "retried", record.Name, timeProvider.GetElapsedTime(startedAt));
             }
             finally
             {

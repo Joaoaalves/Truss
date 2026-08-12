@@ -10,11 +10,13 @@ namespace Truss.Jobs
         IServiceScopeFactory scopeFactory,
         IOptions<TrussJobsOptions> options,
         ILogger<ScheduledJobsPoller> logger,
-        TimeProvider timeProvider) : BackgroundService
+        TimeProvider timeProvider,
+        JobMetrics metrics) : BackgroundService
     {
         private readonly TrussJobsOptions _options = options.Value;
         private readonly string _owner = $"{Environment.MachineName}-{Guid.NewGuid():N}";
         private DateTimeOffset _nextCleanup = DateTimeOffset.MinValue;
+        private DateTimeOffset _nextStatisticsSample = DateTimeOffset.MinValue;
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
@@ -78,8 +80,24 @@ namespace Truss.Jobs
                 await JobScopeCommitter.Commit(scope.ServiceProvider, cancellationToken);
 
             await CleanupIfDue(store, cancellationToken);
+            await SampleStatisticsIfDue(store, cancellationToken);
 
             return due.Count;
+        }
+
+        /// <summary>
+        /// Refreshes the queue gauges from the store, at most every 30 seconds,
+        /// so the gauges cost one count query and not one per poll.
+        /// </summary>
+        private async Task SampleStatisticsIfDue(IJobStore store, CancellationToken cancellationToken)
+        {
+            var now = timeProvider.GetUtcNow();
+
+            if (now < _nextStatisticsSample)
+                return;
+
+            _nextStatisticsSample = now + TimeSpan.FromSeconds(30);
+            metrics.DepthSampled(await store.GetStatistics(cancellationToken));
         }
 
         /// <summary>
