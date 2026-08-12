@@ -182,7 +182,7 @@ namespace Truss.Cli
                 .Replace("__CONNECTION_STRING__", ConnectionString(manifest));
         }
 
-        private static string ProviderPackage(string database) => database switch
+        internal static string ProviderPackage(string database) => database switch
         {
             "postgres" => "Npgsql.EntityFrameworkCore.PostgreSQL",
             "sqlserver" => "Microsoft.EntityFrameworkCore.SqlServer",
@@ -190,7 +190,7 @@ namespace Truss.Cli
             _ => string.Empty
         };
 
-        private static string ProviderMethod(string database) => database switch
+        internal static string ProviderMethod(string database) => database switch
         {
             "postgres" => "UseNpgsql",
             "sqlserver" => "UseSqlServer",

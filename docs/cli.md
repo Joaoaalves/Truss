@@ -194,6 +194,25 @@ Existing files are never overwritten.
 
 ---
 
+## truss split
+
+```
+truss split Sales
+truss split Sales --shared-database
+```
+
+Extracts a bounded context into its own service. The context is converted to [its own projects](#contexts-as-projects) first when it still lives in folders, and then:
+
+- `src/MyShop.Sales.Api` is scaffolded: a composition root with the same modules the monolith runs (transport, outbox and inbox, jobs, email, observability, and JWT auth validating with the same issuer, audience and signing key, so one login works across the whole constellation).
+- The context's routes and service registrations **move** from the monolith's `Program.cs` into the new host. The handlers, aggregates and repositories do not change; only the hosting does.
+- By default the service owns its database: `SalesDbContext` maps only the context's configurations plus its own outbox, inbox and job tables, and the connection string points at a database of its own. The monolith stops mapping the context's tables, so its next migration drops them; move the data before applying it. With `--shared-database` the service points at the monolith's database and the monolith keeps owning the schema.
+- With messaging installed, `src/MyShop.Sales.Contracts` is created and referenced by both sides: the moment another service consumes one of the context's events, the event moves there, so no service ever references another's internals.
+- The context's integration tests keep passing, now booting the service's DbContext.
+
+Two honest limits: the inmemory transport does not cross processes, so a constellation needs postgres, rabbitmq or redis; and code in other contexts that references the extracted context's types directly is coupling the split cannot cut for you; the build will point at it.
+
+---
+
 ## truss remove
 
 ```

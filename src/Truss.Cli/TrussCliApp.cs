@@ -72,6 +72,10 @@ namespace Truss.Cli
                 })
                 .WithAlias("rm");
 
+                config.AddCommand<SplitCommand>("split")
+                    .WithDescription("Extract a bounded context into its own service with its own database (--shared-database to share the monolith's).")
+                    .WithExample("split", "Sales");
+
                 config.AddCommand<DevCommand>("dev")
                     .WithDescription("Start the local dependencies and run the API with hot reload.");
 

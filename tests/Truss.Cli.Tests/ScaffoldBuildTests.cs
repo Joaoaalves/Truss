@@ -48,6 +48,13 @@ namespace Truss.Cli.Tests
             Assert.Equal(0, _workspace.Run("generate", "context", "Shipping", "--as-projects", "--project", root));
             Assert.Equal(1, _workspace.Run("generate", "context", "Billing", "--as-projects", "--project", root));
 
+            // The v1.0 promise: splitting the context into its own service with
+            // its own database is mechanical. The handlers do not change, the
+            // service hosts the moved routes, and the whole solution still
+            // builds and passes, including the context's tests on the service's
+            // DbContext.
+            Assert.Equal(0, _workspace.Run("split", "Shipping", "--project", root));
+
             // A generated slice must unwind completely: the project has to build
             // after its context is removed.
             Assert.Equal(0, _workspace.Run("generate", "aggregate", "Coupon", "--context", "Promo", "--crud", "--project", root));
