@@ -63,6 +63,26 @@ Running more than one instance is fine. On PostgreSQL and SQL Server each fetch 
 
 Delivery is **at-least-once** either way: a crash between publishing and marking a message processed still replays it, so consumers must be idempotent.
 
+### The trace crosses the transport
+
+When tracing is active, `Publish` captures the current W3C traceparent with the message and it travels on the envelope through every transport. The consumer's span becomes a child of the command that raised the event, not of the outbox poll loop, so one distributed trace covers the request, the publish and the handling on the other side, even across processes.
+
+The outbox table gained a nullable `TraceParent` column for this. Projects using EF migrations pick it up with the next `truss db add`; the Postgres transport adds its own column automatically.
+
+### Metrics
+
+The runtime reports its operability through the `Truss.Messaging` meter:
+
+| Instrument | Kind | Meaning |
+|---|---|---|
+| `truss.outbox.published` | counter | Messages published to the transport |
+| `truss.outbox.publish_failures` | counter | Failed attempts; the `dead_lettered` tag marks final ones |
+| `truss.outbox.publish_lag` | histogram | Seconds between an event occurring and its publish |
+| `truss.outbox.pending` | gauge | Messages waiting, sampled by the processor |
+| `truss.outbox.dead_lettered` | gauge | Dead-lettered messages, sampled by the processor |
+
+With the [observability module](observability.md), `AddTrussOpenTelemetry` exports them automatically. The gauges are refreshed from the store at most once per `StatisticsInterval` (30 seconds by default), so they cost one count query, not one per loop.
+
 ---
 
 ## Consuming
@@ -166,6 +186,8 @@ protected override void OnModelCreating(ModelBuilder modelBuilder)
 ```
 
 `AddTrussMessaging` scans the registered assemblies for event types and handlers. `AddTrussOutbox` binds the store to the context, starts the processor and switches the publisher to transactional mode. Without it, a direct publisher sends straight to the transport, best effort.
+
+With the `Truss.Generators` package referenced (scaffolded projects have it), the scan never actually runs: handler registrations and the event type list are generated at compile time and the runtime uses them assembly by assembly, the same way commands and queries already work. Assemblies without a generated registration keep the reflection fallback.
 
 ---
 

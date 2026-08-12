@@ -63,7 +63,9 @@ truss add jobs
 truss add observability
 ```
 
-Installs a module into an existing project: adds the package references to the correct layer, wires the registrations into `Program.cs` and the model configuration into `AppDbContext.cs`, updates `docker-compose.yml` when infrastructure is needed, and records everything in the manifest. When a file was restructured and the anchor cannot be found, the CLI prints exactly what to paste instead of guessing.
+Installs a module into an existing project: adds the package references to the correct layer, wires the registrations into `Program.cs` and the model configuration into `AppDbContext.cs`, updates `docker-compose.yml` when infrastructure is needed, and records everything in the manifest. When the worker project exists, modules it also runs (jobs, email) are wired into its `Program.cs` in the same command.
+
+Insertions target the comment markers the scaffold leaves behind (`// truss: services`, `// truss: middleware`, `// truss: endpoints` in Program.cs, `// truss: model` in AppDbContext.cs), so reformatting the surrounding code does not break `truss add`; keep the markers where you want generated wiring to land. Older scaffolds without markers fall back to the original anchor lines, and when neither can be found the CLI prints exactly what to paste instead of guessing.
 
 | Module | Options | Notes |
 |---|---|---|
@@ -220,6 +222,8 @@ truss update
 ```
 
 Points every `Truss.*` package reference in the project at the CLI's own version, records it in the manifest, and restores with `--no-http-cache`. Update the CLI first (`dotnet tool update -g Truss.Cli`), run `truss update`, build, and review the release notes for behavior changes.
+
+Projects scaffolded before the wiring markers existed get them retrofitted here: each `// truss:` marker is placed at the anchor line it replaces, so from then on `truss add` no longer depends on those lines staying untouched.
 
 The restore skips the http cache on purpose: NuGet caches the list of versions of a package for half an hour, so a release published minutes ago is invisible to a plain restore and fails with `NU1102` even though the package is already indexed. `--no-restore` skips the step and prints the command to run yourself.
 

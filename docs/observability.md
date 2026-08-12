@@ -64,18 +64,19 @@ The middleware reads `X-Correlation-Id` from the request (or creates one), makes
 
 ## Traces and Metrics
 
-Truss emits spans through three activity sources and metrics through one meter, all BCL primitives with negligible cost when nothing listens:
+Truss emits spans through three activity sources and metrics through three meters, all BCL primitives with negligible cost when nothing listens:
 
 | Source | Spans |
 |---|---|
 | `Truss.Application` | One per request, tagged with name and kind, error status on failure |
-| `Truss.Messaging` | One per outbox publish and one per consumed message |
+| `Truss.Messaging` | One per outbox publish and one per consumed message; both join the trace of the command that published the event, across the transport |
 | `Truss.Jobs` | One per job execution, tagged with job name, id and attempt |
 
-| Metric | Type | Tags |
-|---|---|---|
-| `truss.requests` | Counter | request, kind, outcome (success, rejected, failure) |
-| `truss.request.duration` | Histogram (ms) | request, kind, outcome |
+| Meter | Metrics |
+|---|---|
+| `Truss` | `truss.requests` counter and `truss.request.duration` histogram, tagged with request, kind and outcome |
+| `Truss.Messaging` | Outbox counters, publish lag and depth gauges; see [messaging](messaging.md) |
+| `Truss.Jobs` | Execution counter by outcome, duration and queue gauges; see [jobs](jobs.md) |
 
 `Truss.Observability.OpenTelemetry` exports everything over OTLP with one registration:
 
@@ -83,7 +84,7 @@ Truss emits spans through three activity sources and metrics through one meter, 
 builder.Services.AddTrussOpenTelemetry();
 ```
 
-It subscribes to the three Truss sources and the Truss meter, adds the ASP.NET Core and HttpClient instrumentation, exports the application logs, and reports the service name from the entry assembly. The destination follows the standard environment variables (`OTEL_EXPORTER_OTLP_ENDPOINT`, `OTEL_EXPORTER_OTLP_PROTOCOL`), so any OTLP backend works without code changes; the options type overrides the endpoint, the service name, or disables individual signals. Applications that need instrumentation beyond what the bridge covers can keep using the OpenTelemetry SDK directly; the package is a convenience, not a wall.
+It subscribes to the three Truss sources and the three Truss meters, adds the ASP.NET Core and HttpClient instrumentation, exports the application logs, and reports the service name from the entry assembly. The destination follows the standard environment variables (`OTEL_EXPORTER_OTLP_ENDPOINT`, `OTEL_EXPORTER_OTLP_PROTOCOL`), so any OTLP backend works without code changes; the options type overrides the endpoint, the service name, or disables individual signals. Applications that need instrumentation beyond what the bridge covers can keep using the OpenTelemetry SDK directly; the package is a convenience, not a wall.
 
 ---
 

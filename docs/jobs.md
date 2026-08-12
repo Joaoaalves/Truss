@@ -111,6 +111,22 @@ Succeeded and cancelled jobs are deleted after `RetentionPeriod`, 7 days by defa
 
 ---
 
+## Metrics
+
+The runtime reports itself through the `Truss.Jobs` meter:
+
+| Instrument | Kind | Meaning |
+|---|---|---|
+| `truss.jobs.executed` | counter | Executions, tagged with `job` and `outcome`: succeeded, failed, retried or cancelled |
+| `truss.jobs.duration` | histogram | Seconds an execution took, tagged with `job` |
+| `truss.jobs.queued` | gauge | Jobs waiting to run, sampled by the scheduler poller |
+| `truss.jobs.running` | gauge | Jobs currently running, sampled by the scheduler poller |
+| `truss.jobs.failed` | gauge | Jobs failed permanently, sampled by the scheduler poller |
+
+With the [observability module](observability.md), `AddTrussOpenTelemetry` exports them automatically. A queue that only ever increments `retried` is the first sign of a poisoned job, well before the health check degrades.
+
+---
+
 ## Tracking Progress
 
 Inside the job, report progress through the context; each report is persisted immediately:

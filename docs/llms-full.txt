@@ -1618,6 +1618,26 @@ Running more than one instance is fine. On PostgreSQL and SQL Server each fetch 
 
 Delivery is **at-least-once** either way: a crash between publishing and marking a message processed still replays it, so consumers must be idempotent.
 
+### The trace crosses the transport
+
+When tracing is active, `Publish` captures the current W3C traceparent with the message and it travels on the envelope through every transport. The consumer's span becomes a child of the command that raised the event, not of the outbox poll loop, so one distributed trace covers the request, the publish and the handling on the other side, even across processes.
+
+The outbox table gained a nullable `TraceParent` column for this. Projects using EF migrations pick it up with the next `truss db add`; the Postgres transport adds its own column automatically.
+
+### Metrics
+
+The runtime reports its operability through the `Truss.Messaging` meter:
+
+| Instrument | Kind | Meaning |
+|---|---|---|
+| `truss.outbox.published` | counter | Messages published to the transport |
+| `truss.outbox.publish_failures` | counter | Failed attempts; the `dead_lettered` tag marks final ones |
+| `truss.outbox.publish_lag` | histogram | Seconds between an event occurring and its publish |
+| `truss.outbox.pending` | gauge | Messages waiting, sampled by the processor |
+| `truss.outbox.dead_lettered` | gauge | Dead-lettered messages, sampled by the processor |
+
+With the [observability module](observability.md), `AddTrussOpenTelemetry` exports them automatically. The gauges are refreshed from the store at most once per `StatisticsInterval` (30 seconds by default), so they cost one count query, not one per loop.
+
 ---
 
 ## Consuming
@@ -1721,6 +1741,8 @@ protected override void OnModelCreating(ModelBuilder modelBuilder)
 ```
 
 `AddTrussMessaging` scans the registered assemblies for event types and handlers. `AddTrussOutbox` binds the store to the context, starts the processor and switches the publisher to transactional mode. Without it, a direct publisher sends straight to the transport, best effort.
+
+With the `Truss.Generators` package referenced (scaffolded projects have it), the scan never actually runs: handler registrations and the event type list are generated at compile time and the runtime uses them assembly by assembly, the same way commands and queries already work. Assemblies without a generated registration keep the reflection fallback.
 
 ---
 
@@ -1890,6 +1912,22 @@ Succeeded and cancelled jobs are deleted after `RetentionPeriod`, 7 days by defa
 
 ---
 
+## Metrics
+
+The runtime reports itself through the `Truss.Jobs` meter:
+
+| Instrument | Kind | Meaning |
+|---|---|---|
+| `truss.jobs.executed` | counter | Executions, tagged with `job` and `outcome`: succeeded, failed, retried or cancelled |
+| `truss.jobs.duration` | histogram | Seconds an execution took, tagged with `job` |
+| `truss.jobs.queued` | gauge | Jobs waiting to run, sampled by the scheduler poller |
+| `truss.jobs.running` | gauge | Jobs currently running, sampled by the scheduler poller |
+| `truss.jobs.failed` | gauge | Jobs failed permanently, sampled by the scheduler poller |
+
+With the [observability module](observability.md), `AddTrussOpenTelemetry` exports them automatically. A queue that only ever increments `retried` is the first sign of a poisoned job, well before the health check degrades.
+
+---
+
 ## Tracking Progress
 
 Inside the job, report progress through the context; each report is persisted immediately:
@@ -2022,18 +2060,19 @@ The middleware reads `X-Correlation-Id` from the request (or creates one), makes
 
 ## Traces and Metrics
 
-Truss emits spans through three activity sources and metrics through one meter, all BCL primitives with negligible cost when nothing listens:
+Truss emits spans through three activity sources and metrics through three meters, all BCL primitives with negligible cost when nothing listens:
 
 | Source | Spans |
 |---|---|
 | `Truss.Application` | One per request, tagged with name and kind, error status on failure |
-| `Truss.Messaging` | One per outbox publish and one per consumed message |
+| `Truss.Messaging` | One per outbox publish and one per consumed message; both join the trace of the command that published the event, across the transport |
 | `Truss.Jobs` | One per job execution, tagged with job name, id and attempt |
 
-| Metric | Type | Tags |
-|---|---|---|
-| `truss.requests` | Counter | request, kind, outcome (success, rejected, failure) |
-| `truss.request.duration` | Histogram (ms) | request, kind, outcome |
+| Meter | Metrics |
+|---|---|
+| `Truss` | `truss.requests` counter and `truss.request.duration` histogram, tagged with request, kind and outcome |
+| `Truss.Messaging` | Outbox counters, publish lag and depth gauges; see [messaging](messaging.md) |
+| `Truss.Jobs` | Execution counter by outcome, duration and queue gauges; see [jobs](jobs.md) |
 
 `Truss.Observability.OpenTelemetry` exports everything over OTLP with one registration:
 
@@ -2041,7 +2080,7 @@ Truss emits spans through three activity sources and metrics through one meter, 
 builder.Services.AddTrussOpenTelemetry();
 ```
 
-It subscribes to the three Truss sources and the Truss meter, adds the ASP.NET Core and HttpClient instrumentation, exports the application logs, and reports the service name from the entry assembly. The destination follows the standard environment variables (`OTEL_EXPORTER_OTLP_ENDPOINT`, `OTEL_EXPORTER_OTLP_PROTOCOL`), so any OTLP backend works without code changes; the options type overrides the endpoint, the service name, or disables individual signals. Applications that need instrumentation beyond what the bridge covers can keep using the OpenTelemetry SDK directly; the package is a convenience, not a wall.
+It subscribes to the three Truss sources and the three Truss meters, adds the ASP.NET Core and HttpClient instrumentation, exports the application logs, and reports the service name from the entry assembly. The destination follows the standard environment variables (`OTEL_EXPORTER_OTLP_ENDPOINT`, `OTEL_EXPORTER_OTLP_PROTOCOL`), so any OTLP backend works without code changes; the options type overrides the endpoint, the service name, or disables individual signals. Applications that need instrumentation beyond what the bridge covers can keep using the OpenTelemetry SDK directly; the package is a convenience, not a wall.
 
 ---
 
@@ -2708,7 +2747,9 @@ truss add jobs
 truss add observability
 ```
 
-Installs a module into an existing project: adds the package references to the correct layer, wires the registrations into `Program.cs` and the model configuration into `AppDbContext.cs`, updates `docker-compose.yml` when infrastructure is needed, and records everything in the manifest. When a file was restructured and the anchor cannot be found, the CLI prints exactly what to paste instead of guessing.
+Installs a module into an existing project: adds the package references to the correct layer, wires the registrations into `Program.cs` and the model configuration into `AppDbContext.cs`, updates `docker-compose.yml` when infrastructure is needed, and records everything in the manifest. When the worker project exists, modules it also runs (jobs, email) are wired into its `Program.cs` in the same command.
+
+Insertions target the comment markers the scaffold leaves behind (`// truss: services`, `// truss: middleware`, `// truss: endpoints` in Program.cs, `// truss: model` in AppDbContext.cs), so reformatting the surrounding code does not break `truss add`; keep the markers where you want generated wiring to land. Older scaffolds without markers fall back to the original anchor lines, and when neither can be found the CLI prints exactly what to paste instead of guessing.
 
 | Module | Options | Notes |
 |---|---|---|
@@ -2865,6 +2906,8 @@ truss update
 ```
 
 Points every `Truss.*` package reference in the project at the CLI's own version, records it in the manifest, and restores with `--no-http-cache`. Update the CLI first (`dotnet tool update -g Truss.Cli`), run `truss update`, build, and review the release notes for behavior changes.
+
+Projects scaffolded before the wiring markers existed get them retrofitted here: each `// truss:` marker is placed at the anchor line it replaces, so from then on `truss add` no longer depends on those lines staying untouched.
 
 The restore skips the http cache on purpose: NuGet caches the list of versions of a package for half an hour, so a release published minutes ago is invisible to a plain restore and fails with `NU1102` even though the package is already indexed. `--no-restore` skips the step and prints the command to run yourself.
 
