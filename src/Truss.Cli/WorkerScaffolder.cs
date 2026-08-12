@@ -37,6 +37,91 @@ namespace Truss.Cli
             return 0;
         }
 
+        /// <summary>
+        /// Brings the worker's composition root up to date after truss add
+        /// installs a module the worker also runs. The worker is born from the
+        /// manifest, so a module installed later would otherwise exist only in
+        /// the API process.
+        /// </summary>
+        public static void Sync(string module, TrussManifest manifest, string root, Action<string> log)
+        {
+            var workerProject = Path.Combine("src", $"{manifest.Name}.Worker");
+            var program = Path.Combine(root, workerProject, "Program.cs");
+
+            if (!File.Exists(program))
+                return;
+
+            switch (module)
+            {
+                case "email":
+                    SyncEmail(manifest, root, workerProject, program, log);
+                    break;
+
+                case "jobs":
+                    SyncJobs(manifest, program, log);
+                    break;
+
+                default:
+                    return;
+            }
+
+            log("The worker's Program.cs was updated too.");
+        }
+
+        private static void SyncEmail(TrussManifest manifest, string root, string workerProject, string program, Action<string> log)
+        {
+            manifest.Settings.TryGetValue("email.provider", out var provider);
+            provider ??= "console";
+
+            var registration = ModuleInstaller.EmailRegistration(provider)
+                + Environment.NewLine
+                + "builder.Services.AddTrussEmailValidation(options => builder.Configuration.GetSection(\"Truss:Email:Validation\").Bind(options));";
+
+            InsertServices(program, registration, log);
+
+            var csproj = Path.Combine(root, workerProject, $"{manifest.Name}.Worker.csproj");
+            CsprojEditor.AddPackageReference(csproj, "Truss.Email", manifest.TrussVersion);
+
+            if (provider == "resend")
+                CsprojEditor.AddPackageReference(csproj, "Truss.Email.Resend", manifest.TrussVersion);
+
+            if (provider == "smtp")
+            {
+                AppSettingsEditor.SetSection(Path.Combine(root, workerProject, "appsettings.json"), "Truss:Email:Smtp", new Dictionary<string, object>
+                {
+                    ["Host"] = "localhost",
+                    ["Port"] = 1025,
+                    ["From"] = $"noreply@{manifest.Name.ToLowerInvariant()}.dev",
+                    ["UseStartTls"] = false
+                }, log);
+            }
+        }
+
+        private static void SyncJobs(TrussManifest manifest, string program, Action<string> log)
+        {
+            var registration = """
+                builder.Services.AddTrussJobs(options =>
+                {
+                    options.AddAssembly<ApplicationAssemblyMarker>();
+                });
+                """;
+
+            if (manifest.UsesEntityFramework)
+                registration += Environment.NewLine + Environment.NewLine + "builder.Services.AddTrussJobsEntityFramework<AppDbContext>();";
+
+            InsertServices(program, registration, log);
+        }
+
+        private static void InsertServices(string program, string registration, Action<string> log)
+        {
+            if (!SourceEditor.InsertAtMarker(program, Markers.Services, registration)
+                && !SourceEditor.InsertBefore(program, "builder.Build().Run();", registration))
+            {
+                log("Could not update the worker's Program.cs automatically. Add before builder.Build().Run():");
+                log(registration);
+            }
+        }
+
         private static string BuildCsproj(TrussManifest manifest)
         {
             var infrastructureReference = manifest.UsesEntityFramework
@@ -163,6 +248,8 @@ namespace Truss.Cli
                 }
             }
 
+            program.AppendLine();
+            program.AppendLine("// truss: services");
             program.AppendLine();
             program.Append("builder.Build().Run();");
 

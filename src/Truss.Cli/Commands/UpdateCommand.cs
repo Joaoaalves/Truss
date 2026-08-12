@@ -48,6 +48,8 @@ namespace Truss.Cli.Commands
             project.Manifest.TrussVersion = version;
             project.Manifest.Save(project.Root);
 
+            RetrofitMarkers(project.Manifest, project.Root);
+
             Console.WriteLine(updated == 0
                 ? $"Every Truss package already targets {version}."
                 : $"Truss packages now target {version}.");
@@ -59,6 +61,63 @@ namespace Truss.Cli.Commands
             }
 
             return Restore(project.Root, version, cancellationToken);
+        }
+
+        /// <summary>
+        /// Brings the scaffold markers to projects created before they existed,
+        /// placing each one at the literal anchor line it replaces. From then on
+        /// truss add no longer depends on those lines staying untouched. A file
+        /// where neither marker nor anchor can be found is reported, not guessed
+        /// at.
+        /// </summary>
+        private static void RetrofitMarkers(TrussManifest manifest, string root)
+        {
+            var programs = new List<string> { Path.Combine(root, manifest.ApiProject, "Program.cs") };
+            var worker = Path.Combine(root, "src", $"{manifest.Name}.Worker", "Program.cs");
+
+            if (File.Exists(worker))
+                programs.Add(worker);
+
+            foreach (var program in programs)
+            {
+                var isWorker = program == worker;
+                var buildLine = isWorker ? "builder.Build().Run();" : "var app = builder.Build();";
+
+                Retrofit(program, Markers.Services, marker => SourceEditor.InsertBefore(program, buildLine, marker));
+
+                if (!isWorker)
+                {
+                    // The marker closes the middleware region, so it goes after the
+                    // last middleware this scaffold could have written; new blocks
+                    // then land below what is already installed.
+                    Retrofit(program, Markers.Middleware, marker =>
+                        SourceEditor.InsertAfter(program, "app.UseTrussTenancy();", marker)
+                        || SourceEditor.InsertAfter(program, "app.UseAuthorization();", marker)
+                        || SourceEditor.InsertAfter(program, "app.UseTrussCorrelation();", marker)
+                        || SourceEditor.InsertAfter(program, "var app = builder.Build();", marker));
+
+                    Retrofit(program, Markers.Endpoints, marker => SourceEditor.InsertBefore(program, "app.Run();", marker));
+                }
+            }
+
+            if (manifest.UsesEntityFramework)
+            {
+                var contextPath = Path.Combine(root, manifest.InfrastructureProject, "AppDbContext.cs");
+                var anchor = "modelBuilder.ApplyConfigurationsFromAssembly(typeof(AppDbContext).Assembly);";
+
+                Retrofit(contextPath, $"            {Markers.Model}", marker => SourceEditor.InsertAfter(contextPath, anchor, marker));
+            }
+        }
+
+        private static void Retrofit(string path, string marker, Func<string, bool> insert)
+        {
+            if (!File.Exists(path) || File.ReadAllText(path).Contains(marker.Trim()))
+                return;
+
+            if (insert(marker))
+                Console.WriteLine($"Added the {marker.Trim()} marker to {Path.GetFileName(path)}.");
+            else
+                Console.WriteLine($"Could not place the {marker.Trim()} marker in {path}; add the comment yourself where truss add should insert code.");
         }
 
         /// <summary>

@@ -88,6 +88,7 @@ namespace Truss.Cli
                 return result;
 
             manifest.Modules.Add(module);
+            WorkerScaffolder.Sync(module, manifest, root, log);
             ComposeGenerator.Write(manifest, root);
             AgentsGenerator.Write(manifest, root);
             manifest.Save(root);
@@ -290,7 +291,8 @@ namespace Truss.Cli
 
             var program = ProgramPath(root, manifest);
 
-            if (!SourceEditor.InsertAfter(program, "app.UseAuthorization();", "app.UseTrussTenancy();")
+            if (!SourceEditor.InsertAtMarker(program, Markers.Middleware, "app.UseTrussTenancy();")
+                && !SourceEditor.InsertAfter(program, "app.UseAuthorization();", "app.UseTrussTenancy();")
                 && !SourceEditor.InsertAfter(program, "var app = builder.Build();", "app.UseTrussTenancy();"))
             {
                 log("Could not update Program.cs automatically. Add after authentication: app.UseTrussTenancy();");
@@ -415,8 +417,13 @@ namespace Truss.Cli
 
             var programPath = ProgramPath(root, manifest);
 
-            if (!SourceEditor.InsertAfter(programPath, "var app = builder.Build();", "app.UseTrussCorrelation();"))
+            // Correlation wraps the whole pipeline, so it goes right below the
+            // build line, ahead of whatever the middleware region accumulated.
+            if (!SourceEditor.InsertAfter(programPath, "var app = builder.Build();", "app.UseTrussCorrelation();")
+                && !SourceEditor.InsertAtMarker(programPath, Markers.Middleware, "app.UseTrussCorrelation();"))
+            {
                 log("Could not update Program.cs automatically. Add after building the app: app.UseTrussCorrelation();");
+            }
 
             if (dashboard is not null)
                 return InstallDashboard(dashboard, manifest, root, log);
@@ -461,7 +468,10 @@ namespace Truss.Cli
 
         private static void InsertServices(string root, TrussManifest manifest, string registration, Action<string> log)
         {
-            if (!SourceEditor.InsertBefore(ProgramPath(root, manifest), "var app = builder.Build();", registration))
+            var program = ProgramPath(root, manifest);
+
+            if (!SourceEditor.InsertAtMarker(program, Markers.Services, registration)
+                && !SourceEditor.InsertBefore(program, "var app = builder.Build();", registration))
             {
                 log("Could not update Program.cs automatically. Add before building the app:");
                 log(registration);
@@ -470,8 +480,13 @@ namespace Truss.Cli
 
         private static void InsertEndpoint(string root, TrussManifest manifest, string endpoint, Action<string> log)
         {
-            if (!SourceEditor.InsertBefore(ProgramPath(root, manifest), "app.Run();", endpoint))
+            var program = ProgramPath(root, manifest);
+
+            if (!SourceEditor.InsertAtMarker(program, Markers.Endpoints, endpoint)
+                && !SourceEditor.InsertBefore(program, "app.Run();", endpoint))
+            {
                 log($"Could not update Program.cs automatically. Add before app.Run(): {endpoint}");
+            }
         }
 
         private static void InsertModelConfiguration(string root, TrussManifest manifest, string line, Action<string> log)
@@ -479,8 +494,11 @@ namespace Truss.Cli
             var contextPath = Path.Combine(root, manifest.InfrastructureProject, "AppDbContext.cs");
             var anchor = "modelBuilder.ApplyConfigurationsFromAssembly(typeof(AppDbContext).Assembly);";
 
-            if (!SourceEditor.InsertAfter(contextPath, anchor, $"            {line}"))
+            if (!SourceEditor.InsertAtMarker(contextPath, Markers.Model, $"            {line}")
+                && !SourceEditor.InsertAfter(contextPath, anchor, $"            {line}"))
+            {
                 log($"Could not update AppDbContext.cs automatically. Add to OnModelCreating: {line}");
+            }
         }
 
         private static string ProgramPath(string root, TrussManifest manifest)

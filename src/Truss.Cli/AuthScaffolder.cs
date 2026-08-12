@@ -644,7 +644,8 @@ namespace Truss.Cli
                 var block = AuthBindingTemplates.ProgramAuthenticationBlock
                     .Replace("__PROVIDERS__", string.Concat(providers.Select(AuthBindingTemplates.ProviderRegistration)));
 
-                if (!SourceEditor.InsertBefore(program, "var app = builder.Build();", block))
+                if (!SourceEditor.InsertAtMarker(program, Markers.Services, block)
+                    && !SourceEditor.InsertBefore(program, "var app = builder.Build();", block))
                 {
                     log("Could not update Program.cs automatically. Add before building the app:");
                     log(block);
@@ -665,8 +666,11 @@ namespace Truss.Cli
             if (!SourceEditor.InsertBefore(program, $"using {manifest.Name}.Application;", $"using {manifest.Name}.Api;"))
                 log($"Could not update Program.cs usings automatically. Add: using {manifest.Name}.Api;");
 
-            if (!SourceEditor.InsertBefore(program, "app.Run();", AuthBindingTemplates.ProgramEndpoint))
+            if (!SourceEditor.InsertAtMarker(program, Markers.Endpoints, AuthBindingTemplates.ProgramEndpoint)
+                && !SourceEditor.InsertBefore(program, "app.Run();", AuthBindingTemplates.ProgramEndpoint))
+            {
                 log($"Could not update Program.cs automatically. Add before app.Run(): {AuthBindingTemplates.ProgramEndpoint}");
+            }
 
             var installed = manifest.Settings.TryGetValue("auth.external", out var existing)
                 ? existing.Split(',', StringSplitOptions.RemoveEmptyEntries)
@@ -738,18 +742,29 @@ namespace Truss.Cli
             if (!SourceEditor.InsertBefore(program, $"using {manifest.Name}.Infrastructure;", usings))
                 log($"Could not update Program.cs usings automatically. Add:{Environment.NewLine}{usings}");
 
-            if (!SourceEditor.InsertBefore(program, "var app = builder.Build();", Render(AuthTemplates.ProgramServices, manifest, bind)))
+            var services = Render(AuthTemplates.ProgramServices, manifest, bind);
+
+            if (!SourceEditor.InsertAtMarker(program, Markers.Services, services)
+                && !SourceEditor.InsertBefore(program, "var app = builder.Build();", services))
             {
                 log("Could not update Program.cs automatically. Add before building the app:");
-                log(Render(AuthTemplates.ProgramServices, manifest, bind));
+                log(services);
             }
 
-            if (!SourceEditor.InsertAfter(program, "var app = builder.Build();", AuthTemplates.ProgramMiddleware))
+            // Authentication belongs at the top of the middleware region, before
+            // anything that reads the identity (tenancy resolves the tenant from
+            // a claim), so the build line comes first and the marker is the
+            // fallback for a reformatted Program.
+            if (!SourceEditor.InsertAfter(program, "var app = builder.Build();", AuthTemplates.ProgramMiddleware)
+                && !SourceEditor.InsertAtMarker(program, Markers.Middleware, AuthTemplates.ProgramMiddleware))
+            {
                 log("Could not update Program.cs automatically. Add after building the app: app.UseAuthentication(); app.UseAuthorization();");
+            }
 
             var endpoints = flows ? AuthFlowTemplates.ProgramEndpoints : AuthTemplates.ProgramEndpoints;
 
-            if (!SourceEditor.InsertBefore(program, "app.Run();", endpoints))
+            if (!SourceEditor.InsertAtMarker(program, Markers.Endpoints, endpoints)
+                && !SourceEditor.InsertBefore(program, "app.Run();", endpoints))
             {
                 log("Could not update Program.cs automatically. Add before app.Run():");
                 log(endpoints);

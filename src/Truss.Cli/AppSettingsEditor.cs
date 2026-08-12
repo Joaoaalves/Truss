@@ -7,8 +7,11 @@ namespace Truss.Cli
     {
         public static void SetSection(string root, TrussManifest manifest, string colonPath, Dictionary<string, object> values, Action<string> log)
         {
-            var path = Path.Combine(root, manifest.ApiProject, "appsettings.json");
+            SetSection(Path.Combine(root, manifest.ApiProject, "appsettings.json"), colonPath, values, log);
+        }
 
+        public static void SetSection(string path, string colonPath, Dictionary<string, object> values, Action<string> log)
+        {
             if (!File.Exists(path) || JsonNode.Parse(File.ReadAllText(path)) is not JsonObject settings)
             {
                 log($"Could not update appsettings.json; add the {colonPath} section yourself.");

@@ -389,8 +389,11 @@ namespace Truss.Cli
 
             var registration = $"builder.Services.AddScoped<I{name}Repository, Ef{name}Repository>();";
 
-            if (!SourceEditor.InsertBefore(program, "var app = builder.Build();", registration))
+            if (!SourceEditor.InsertAtMarker(program, Markers.Services, registration)
+                && !SourceEditor.InsertBefore(program, "var app = builder.Build();", registration))
+            {
                 log($"Could not update Program.cs automatically. Add before building the app: {registration}");
+            }
 
             var routes = $$"""
                 app.MapCommand<Create{{name}}, Guid>("{{route}}", id => $"{{route}}/{id}");
@@ -400,7 +403,8 @@ namespace Truss.Cli
                 app.MapCommand<Delete{{name}}>("{{route}}/delete");
                 """;
 
-            if (!SourceEditor.InsertBefore(program, "app.Run();", routes))
+            if (!SourceEditor.InsertAtMarker(program, Markers.Endpoints, routes)
+                && !SourceEditor.InsertBefore(program, "app.Run();", routes))
             {
                 log("Could not update Program.cs automatically. Add before app.Run():");
                 log(routes);

@@ -155,6 +155,7 @@ namespace Truss.Cli.Templates
                     protected override void OnModelCreating(ModelBuilder modelBuilder)
                     {
                         modelBuilder.ApplyConfigurationsFromAssembly(typeof(AppDbContext).Assembly);
+                        // truss: model
                     }
                 }
             }
@@ -173,6 +174,7 @@ namespace Truss.Cli.Templates
                     protected override void OnModelCreating(ModelBuilder modelBuilder)
                     {
                         modelBuilder.ApplyConfigurationsFromAssembly(typeof(AppDbContext).Assembly);
+                        // truss: model
                     }
                 }
             }
@@ -198,7 +200,11 @@ namespace Truss.Cli.Templates
             builder.Services.AddOpenApi();
             builder.Services.AddHealthChecks().AddTrussDatabase<AppDbContext>();
 
+            // truss: services
+
             var app = builder.Build();
+
+            // truss: middleware
 
             if (app.Environment.IsDevelopment())
             {
@@ -219,6 +225,8 @@ namespace Truss.Cli.Templates
             app.MapHealthChecks("/health");
             app.MapGet("/", () => "__NAME__ is running.");
 
+            // truss: endpoints
+
             app.Run();
             """;
 
@@ -236,7 +244,11 @@ namespace Truss.Cli.Templates
             builder.Services.AddOpenApi();
             builder.Services.AddHealthChecks();
 
+            // truss: services
+
             var app = builder.Build();
+
+            // truss: middleware
 
             if (app.Environment.IsDevelopment())
             {
@@ -246,6 +258,8 @@ namespace Truss.Cli.Templates
 
             app.MapHealthChecks("/health");
             app.MapGet("/", () => "__NAME__ is running.");
+
+            // truss: endpoints
 
             app.Run();
             """;

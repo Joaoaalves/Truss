@@ -152,6 +152,29 @@ namespace Truss.Cli.Tests
         }
 
         [Fact]
+        public void AddModule_AfterTheWorkerExists_SyncsItsProgram()
+        {
+            var root = ScaffoldShop();
+
+            Assert.Equal(0, _workspace.Run("add", "messaging", "--project", root));
+            Assert.Equal(0, _workspace.Run("add", "worker", "--project", root));
+            Assert.Equal(0, _workspace.Run("add", "jobs", "--project", root));
+            Assert.Equal(0, _workspace.Run("add", "email", "--provider", "smtp", "--project", root));
+
+            var program = _workspace.ReadFile("Shop", "src", "Shop.Worker", "Program.cs");
+            Assert.Contains("AddTrussJobs", program);
+            Assert.Contains("AddTrussJobsEntityFramework<AppDbContext>", program);
+            Assert.Contains("AddTrussSmtpEmail", program);
+            Assert.Contains("AddTrussEmailValidation", program);
+
+            var csproj = _workspace.ReadFile("Shop", "src", "Shop.Worker", "Shop.Worker.csproj");
+            Assert.Contains("Truss.Email", csproj);
+
+            var settings = _workspace.ReadFile("Shop", "src", "Shop.Worker", "appsettings.json");
+            Assert.Contains("\"Smtp\"", settings);
+        }
+
+        [Fact]
         public void AddAuth_ScaffoldsEditableAccountsContext()
         {
             var root = ScaffoldShop();
