@@ -5,8 +5,8 @@ namespace Truss.Cli
         /// <summary>
         /// Inserts a block above a scaffold marker, keeping the marker in place
         /// so later installs keep landing in the same region, in install order.
-        /// Returns false when the file has no marker, so callers can fall back
-        /// to the literal anchors of scaffolds that predate the markers.
+        /// Returns false when the file has no marker, in which case the caller
+        /// prints what to paste instead of guessing at a location.
         /// </summary>
         public static bool InsertAtMarker(string filePath, string marker, string block)
         {

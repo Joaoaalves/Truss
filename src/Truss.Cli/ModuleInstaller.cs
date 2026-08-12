@@ -289,14 +289,10 @@ namespace Truss.Cli
 
             InsertServices(root, manifest, "builder.Services.AddTrussTenancy<AppDbContext>();", log);
 
-            var program = ProgramPath(root, manifest);
-
-            if (!SourceEditor.InsertAtMarker(program, Markers.Middleware, "app.UseTrussTenancy();")
-                && !SourceEditor.InsertAfter(program, "app.UseAuthorization();", "app.UseTrussTenancy();")
-                && !SourceEditor.InsertAfter(program, "var app = builder.Build();", "app.UseTrussTenancy();"))
-            {
-                log("Could not update Program.cs automatically. Add after authentication: app.UseTrussTenancy();");
-            }
+            // Appending at the marker lands after whatever middleware is already
+            // installed, so the tenant is resolved with authentication in place.
+            if (!SourceEditor.InsertAtMarker(ProgramPath(root, manifest), Markers.Middleware, "app.UseTrussTenancy();"))
+                log($"Could not find the {Markers.Middleware} marker in Program.cs. Add after authentication: app.UseTrussTenancy();");
 
             InsertModelConfiguration(root, manifest, "modelBuilder.ApplyTrussTenancy(this);", log);
 
@@ -417,7 +413,7 @@ namespace Truss.Cli
 
             var programPath = ProgramPath(root, manifest);
 
-            // Correlation wraps the whole pipeline, so it goes right below the
+            // Correlation wraps the whole pipeline, so it anchors right below the
             // build line, ahead of whatever the middleware region accumulated.
             if (!SourceEditor.InsertAfter(programPath, "var app = builder.Build();", "app.UseTrussCorrelation();")
                 && !SourceEditor.InsertAtMarker(programPath, Markers.Middleware, "app.UseTrussCorrelation();"))
@@ -468,37 +464,25 @@ namespace Truss.Cli
 
         private static void InsertServices(string root, TrussManifest manifest, string registration, Action<string> log)
         {
-            var program = ProgramPath(root, manifest);
-
-            if (!SourceEditor.InsertAtMarker(program, Markers.Services, registration)
-                && !SourceEditor.InsertBefore(program, "var app = builder.Build();", registration))
+            if (!SourceEditor.InsertAtMarker(ProgramPath(root, manifest), Markers.Services, registration))
             {
-                log("Could not update Program.cs automatically. Add before building the app:");
+                log($"Could not find the {Markers.Services} marker in Program.cs. Add before building the app:");
                 log(registration);
             }
         }
 
         private static void InsertEndpoint(string root, TrussManifest manifest, string endpoint, Action<string> log)
         {
-            var program = ProgramPath(root, manifest);
-
-            if (!SourceEditor.InsertAtMarker(program, Markers.Endpoints, endpoint)
-                && !SourceEditor.InsertBefore(program, "app.Run();", endpoint))
-            {
-                log($"Could not update Program.cs automatically. Add before app.Run(): {endpoint}");
-            }
+            if (!SourceEditor.InsertAtMarker(ProgramPath(root, manifest), Markers.Endpoints, endpoint))
+                log($"Could not find the {Markers.Endpoints} marker in Program.cs. Add before app.Run(): {endpoint}");
         }
 
         private static void InsertModelConfiguration(string root, TrussManifest manifest, string line, Action<string> log)
         {
             var contextPath = Path.Combine(root, manifest.InfrastructureProject, "AppDbContext.cs");
-            var anchor = "modelBuilder.ApplyConfigurationsFromAssembly(typeof(AppDbContext).Assembly);";
 
-            if (!SourceEditor.InsertAtMarker(contextPath, Markers.Model, $"            {line}")
-                && !SourceEditor.InsertAfter(contextPath, anchor, $"            {line}"))
-            {
-                log($"Could not update AppDbContext.cs automatically. Add to OnModelCreating: {line}");
-            }
+            if (!SourceEditor.InsertAtMarker(contextPath, Markers.Model, $"            {line}"))
+                log($"Could not find the {Markers.Model} marker in AppDbContext.cs. Add to OnModelCreating: {line}");
         }
 
         private static string ProgramPath(string root, TrussManifest manifest)

@@ -69,27 +69,19 @@ namespace Truss.Cli.Tests
         }
 
         [Fact]
-        public void Update_RetrofitsTheMarkersIntoAnOlderScaffold()
+        public void AddModule_WithoutTheMarker_PrintsWhatToPasteInsteadOfGuessing()
         {
             Assert.Equal(0, _workspace.Scaffold("Shop", "sqlite"));
             var root = _workspace.Root("Shop");
 
             var programPath = Path.Combine(root, "src", "Shop.Api", "Program.cs");
-            var contextPath = Path.Combine(root, "src", "Shop.Infrastructure", "AppDbContext.cs");
-
             Strip(programPath);
-            Strip(contextPath);
 
-            Assert.Equal(0, _workspace.Run("update", "--no-restore", "--project", root));
+            var output = _workspace.Capture("add", "messaging", "--project", root);
 
-            var program = File.ReadAllText(programPath);
-            Assert.Contains("// truss: services", program);
-            Assert.Contains("// truss: middleware", program);
-            Assert.Contains("// truss: endpoints", program);
-            Assert.Contains("// truss: model", File.ReadAllText(contextPath));
-
-            Assert.Equal(0, _workspace.Run("add", "messaging", "--project", root));
-            Assert.Contains("AddTrussMessaging", File.ReadAllText(programPath));
+            Assert.Contains("// truss: services", output);
+            Assert.Contains("AddTrussMessaging", output);
+            Assert.DoesNotContain("AddTrussMessaging", File.ReadAllText(programPath));
         }
 
         private static void Strip(string path)

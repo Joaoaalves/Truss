@@ -2,9 +2,9 @@ namespace Truss.Cli
 {
     /// <summary>
     /// The comment markers the scaffold leaves in composition roots. Every
-    /// insertion targets a marker first and falls back to the literal anchor
-    /// lines of older scaffolds, so a reformatted Program.cs stops breaking
-    /// truss add. Blocks accumulate above their marker, so the order in the
+    /// insertion targets its marker, so the user can reformat everything else
+    /// freely; deleting a marker makes truss add print what to paste instead
+    /// of guessing. Blocks accumulate above their marker, so the order in the
     /// file is the order the modules were installed.
     /// </summary>
     internal static class Markers

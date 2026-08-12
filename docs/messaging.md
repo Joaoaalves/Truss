@@ -67,8 +67,6 @@ Delivery is **at-least-once** either way: a crash between publishing and marking
 
 When tracing is active, `Publish` captures the current W3C traceparent with the message and it travels on the envelope through every transport. The consumer's span becomes a child of the command that raised the event, not of the outbox poll loop, so one distributed trace covers the request, the publish and the handling on the other side, even across processes.
 
-The outbox table gained a nullable `TraceParent` column for this. Projects using EF migrations pick it up with the next `truss db add`; the Postgres transport adds its own column automatically.
-
 ### Metrics
 
 The runtime reports its operability through the `Truss.Messaging` meter:

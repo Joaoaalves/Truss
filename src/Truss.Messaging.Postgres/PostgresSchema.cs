@@ -7,10 +7,10 @@ namespace Truss.Messaging.Postgres
         public const string MessagesTable = "truss_messages";
         public const string DeadLetterTable = "truss_messages_dead";
 
-        // One DO block, one transaction: the advisory lock serializes every
-        // instance racing to create or migrate the schema, and the column
-        // checks keep the steady state free of ALTER TABLE, whose exclusive
-        // lock would deadlock against consumers holding row locks.
+        // One DO block, one transaction: the advisory lock serializes instances
+        // racing to create the schema on first boot, and the steady state takes
+        // no exclusive lock that could deadlock against consumers holding row
+        // locks.
         private const string CreateSql = $"""
             DO $truss_schema$
             BEGIN
@@ -42,20 +42,6 @@ namespace Truss.Messaging.Postgres
                     failed_on timestamptz NOT NULL,
                     trace_parent text
                 );
-
-                IF NOT EXISTS (
-                    SELECT 1 FROM information_schema.columns
-                    WHERE table_schema = current_schema() AND table_name = '{MessagesTable}' AND column_name = 'trace_parent'
-                ) THEN
-                    ALTER TABLE {MessagesTable} ADD COLUMN trace_parent text;
-                END IF;
-
-                IF NOT EXISTS (
-                    SELECT 1 FROM information_schema.columns
-                    WHERE table_schema = current_schema() AND table_name = '{DeadLetterTable}' AND column_name = 'trace_parent'
-                ) THEN
-                    ALTER TABLE {DeadLetterTable} ADD COLUMN trace_parent text;
-                END IF;
             END $truss_schema$;
             """;
 

@@ -644,10 +644,9 @@ namespace Truss.Cli
                 var block = AuthBindingTemplates.ProgramAuthenticationBlock
                     .Replace("__PROVIDERS__", string.Concat(providers.Select(AuthBindingTemplates.ProviderRegistration)));
 
-                if (!SourceEditor.InsertAtMarker(program, Markers.Services, block)
-                    && !SourceEditor.InsertBefore(program, "var app = builder.Build();", block))
+                if (!SourceEditor.InsertAtMarker(program, Markers.Services, block))
                 {
-                    log("Could not update Program.cs automatically. Add before building the app:");
+                    log($"Could not find the {Markers.Services} marker in Program.cs. Add before building the app:");
                     log(block);
                 }
             }
@@ -666,11 +665,8 @@ namespace Truss.Cli
             if (!SourceEditor.InsertBefore(program, $"using {manifest.Name}.Application;", $"using {manifest.Name}.Api;"))
                 log($"Could not update Program.cs usings automatically. Add: using {manifest.Name}.Api;");
 
-            if (!SourceEditor.InsertAtMarker(program, Markers.Endpoints, AuthBindingTemplates.ProgramEndpoint)
-                && !SourceEditor.InsertBefore(program, "app.Run();", AuthBindingTemplates.ProgramEndpoint))
-            {
-                log($"Could not update Program.cs automatically. Add before app.Run(): {AuthBindingTemplates.ProgramEndpoint}");
-            }
+            if (!SourceEditor.InsertAtMarker(program, Markers.Endpoints, AuthBindingTemplates.ProgramEndpoint))
+                log($"Could not find the {Markers.Endpoints} marker in Program.cs. Add before app.Run(): {AuthBindingTemplates.ProgramEndpoint}");
 
             var installed = manifest.Settings.TryGetValue("auth.external", out var existing)
                 ? existing.Split(',', StringSplitOptions.RemoveEmptyEntries)
@@ -744,17 +740,16 @@ namespace Truss.Cli
 
             var services = Render(AuthTemplates.ProgramServices, manifest, bind);
 
-            if (!SourceEditor.InsertAtMarker(program, Markers.Services, services)
-                && !SourceEditor.InsertBefore(program, "var app = builder.Build();", services))
+            if (!SourceEditor.InsertAtMarker(program, Markers.Services, services))
             {
-                log("Could not update Program.cs automatically. Add before building the app:");
+                log($"Could not find the {Markers.Services} marker in Program.cs. Add before building the app:");
                 log(services);
             }
 
             // Authentication belongs at the top of the middleware region, before
             // anything that reads the identity (tenancy resolves the tenant from
-            // a claim), so the build line comes first and the marker is the
-            // fallback for a reformatted Program.
+            // a claim), so it anchors on the build line instead of appending at
+            // the marker like the others.
             if (!SourceEditor.InsertAfter(program, "var app = builder.Build();", AuthTemplates.ProgramMiddleware)
                 && !SourceEditor.InsertAtMarker(program, Markers.Middleware, AuthTemplates.ProgramMiddleware))
             {
@@ -763,10 +758,9 @@ namespace Truss.Cli
 
             var endpoints = flows ? AuthFlowTemplates.ProgramEndpoints : AuthTemplates.ProgramEndpoints;
 
-            if (!SourceEditor.InsertAtMarker(program, Markers.Endpoints, endpoints)
-                && !SourceEditor.InsertBefore(program, "app.Run();", endpoints))
+            if (!SourceEditor.InsertAtMarker(program, Markers.Endpoints, endpoints))
             {
-                log("Could not update Program.cs automatically. Add before app.Run():");
+                log($"Could not find the {Markers.Endpoints} marker in Program.cs. Add before app.Run():");
                 log(endpoints);
             }
         }
