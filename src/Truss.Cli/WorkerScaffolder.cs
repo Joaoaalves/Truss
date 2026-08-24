@@ -29,6 +29,7 @@ namespace Truss.Cli
 
             AddToSolution(manifest, root, workerProject, log);
             ContextProjects.WireHosts(manifest, root, log);
+            DockerScaffolder.WriteHostDockerfiles(manifest, root, log);
 
             log("The worker was scaffolded. It consumes the same messages and jobs as the API; run it with dotnet run --project " + workerProject);
 

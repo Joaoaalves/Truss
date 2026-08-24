@@ -79,6 +79,17 @@ namespace Truss.Cli
                 config.AddCommand<DevCommand>("dev")
                     .WithDescription("Start the local dependencies and run the API with hot reload.");
 
+                config.AddBranch("deploy", deploy =>
+                {
+                    deploy.SetDescription("Deployment artifacts and preflight checks.");
+                    deploy.AddCommand<DeployCheckCommand>("check")
+                        .WithDescription("Verify a target environment carries every value the installed modules demand at boot.")
+                        .WithExample("deploy", "check", "--env-file", ".env.production");
+                    deploy.AddCommand<DeployInitCommand>("init")
+                        .WithDescription("Generate the deployment artifacts of a target (ssh: compose over SSH with build, push, migrate and rollback).")
+                        .WithExample("deploy", "init", "ssh");
+                });
+
                 config.AddBranch("db", db =>
                 {
                     db.SetDescription("Manage the database schema through EF Core migrations.");

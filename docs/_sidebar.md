@@ -48,6 +48,7 @@
 * Tooling
     - [The truss CLI](cli.md)
     - [Source Generators](generators.md)
+    - [Deploy](deploy.md)
 
 * Reference
     - [Design Guidelines](design-guidelines.md)

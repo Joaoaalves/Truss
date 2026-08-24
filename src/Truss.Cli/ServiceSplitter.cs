@@ -48,6 +48,7 @@ namespace Truss.Cli
 
             manifest.Settings[$"service.{context}"] = sharedDatabase ? "shared-db" : "own-db";
             manifest.Save(root);
+            DockerScaffolder.WriteHostDockerfiles(manifest, root, log);
             AgentsGenerator.Write(manifest, root);
 
             manifest.Settings.TryGetValue("messaging.transport", out var transport);

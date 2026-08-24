@@ -4,7 +4,7 @@ namespace Truss.Cli
 {
     internal static class ModuleInstaller
     {
-        public static readonly string[] Modules = ["email", "messaging", "jobs", "observability", "mapping", "auth", "rbac", "tenancy", "tests", "worker"];
+        public static readonly string[] Modules = ["email", "messaging", "jobs", "observability", "mapping", "auth", "rbac", "tenancy", "tests", "worker", "docker"];
 
         public static readonly string[] Transports = ["inmemory", "postgres", "rabbitmq", "redis"];
 
@@ -81,6 +81,7 @@ namespace Truss.Cli
                 "email" => InstallEmail(transport, manifest, root, log),
                 "tenancy" => InstallTenancy(manifest, root, log),
                 "rbac" => InstallRbac(manifest, root, log),
+                "docker" => InstallDocker(manifest, root, log),
                 _ => InstallObservability(transport, manifest, root, log)
             };
 
@@ -344,6 +345,11 @@ namespace Truss.Cli
             log("Define your roles and permissions in AddTrussRbac, protect endpoints with .RequirePermission(\"...\"), and grant roles through IRoleAssignments (a seeder works well).");
 
             return 0;
+        }
+
+        private static int InstallDocker(TrussManifest manifest, string root, Action<string> log)
+        {
+            return DockerScaffolder.Install(manifest, root, log);
         }
 
         private static int InstallEmail(string? provider, TrussManifest manifest, string root, Action<string> log)

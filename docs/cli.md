@@ -79,6 +79,7 @@ Insertions target the comment markers the scaffold leaves behind (`// truss: ser
 | `rbac` | | Roles in code, permissions on endpoints and assignments in the database; requires a database |
 | `tests` | | Scaffolds the two test projects into an existing project and adds them to the solution; with the sample present, its tests come too |
 | `worker` | | Scaffolds src/Name.Worker, a separate consumer process wired with the installed modules; requires messaging |
+| `docker` | | Production Dockerfile per host (multi-stage, non-root, healthcheck) and .dockerignore; hosts created later get theirs automatically; see [deploy](deploy.md) |
 
 ---
 
@@ -259,6 +260,17 @@ truss update
 Points every `Truss.*` package reference in the project at the CLI's own version, records it in the manifest, and restores with `--no-http-cache`. Update the CLI first (`dotnet tool update -g Truss.Cli`), run `truss update`, build, and review the release notes for behavior changes.
 
 The restore skips the http cache on purpose: NuGet caches the list of versions of a package for half an hour, so a release published minutes ago is invisible to a plain restore and fails with `NU1102` even though the package is already indexed. `--no-restore` skips the step and prints the command to run yourself.
+
+---
+
+## truss deploy
+
+```
+truss deploy check --env-file .env.production
+truss deploy init ssh
+```
+
+`check` verifies a target environment against the manifest before anything ships, and `init` generates deployment artifacts. Both are covered in [the deploy guide](deploy.md).
 
 ---
 
