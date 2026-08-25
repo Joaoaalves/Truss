@@ -51,6 +51,7 @@
     - [Deploy](deploy.md)
 
 * Reference
+    - [Benchmarks](benchmarks.md)
     - [Design Guidelines](design-guidelines.md)
     - [Common Pitfalls](pitfalls.md)
 

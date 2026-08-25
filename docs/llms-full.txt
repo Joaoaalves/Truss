@@ -278,6 +278,20 @@ Side effects that must only happen after a successful commit, such as publishing
 
 ---
 
+## The Extraction Path
+
+A bounded context in Truss is a service waiting to be born, and the architecture is shaped so the birth is mechanical, never a rewrite.
+
+The path has three explicit steps, each useful on its own:
+
+1. **Folders**, the default: contexts live as folders inside the four layer projects, sharing one process and one database. Most applications live their whole lives here, well.
+2. **Projects**: `truss g context --as-projects` gives a context its own Domain, Application and Infrastructure projects, with the compiler enforcing the layering. Namespaces do not change between the layouts, so moving an existing context moves files and nothing else.
+3. **A service**: `truss split` gives the context its own host and, by default, its own database. Its routes move out of the monolith, its events keep flowing through the same outbox and transport, other services query it explicitly through [its contract](remote.md), and `truss dev` runs the whole constellation with one trace crossing every host.
+
+What makes each step cheap is decided long before it happens: namespaces mirror folders and never change, repositories depend on `DbContext` rather than the application's concrete context, integration events are the default relationship between contexts, and everything a service exposes lives in a contracts project instead of its internals. The [deploy artifacts](deploy.md) then ship each host as its own image.
+
+---
+
 Source: https://joaoaalves.github.io/Truss/dependencies.md
 
 # Dependencies
@@ -3248,6 +3262,55 @@ The script assumes a server with docker and an SSH key, and nothing else. When t
 
 ---
 
+Source: https://joaoaalves.github.io/Truss/benchmarks.md
+
+# Benchmarks
+
+Measured with BenchmarkDotNet on .NET 10, comparing Truss's dispatcher with MediatR 12, the most common alternative. The benchmark project lives in `benchmarks/` in the repository; reproduce everything with:
+
+```
+dotnet run -c Release --project benchmarks/Truss.Benchmarks -- --filter "*"
+```
+
+The comparison is deliberately level: Truss always ships its FluentValidation behavior in the pipeline, so MediatR runs with the identical validation behavior registered, written the same way. Nobody runs MediatR bare in a real application either.
+
+---
+
+## Dispatching a command
+
+One command through the whole pipeline, handler resolved from the scope, steady state:
+
+| Scenario | Truss | MediatR |
+|---|---|---|
+| Command through the pipeline | **147 ns, 328 B** | 159 ns, 464 B |
+| Command with an active validator | **686 ns, 1.7 KB** | 1962 ns, 4.1 KB |
+
+Same work, same validation passenger: Truss dispatches with about 30 percent less allocation, and validated commands run close to three times faster. Both are, to be clear, noise next to a single database call; the number that matters is that the abstraction costs nanoseconds, not that it wins them.
+
+---
+
+## Cold start
+
+Registering the application assembly, building the container and answering the first dispatch:
+
+| Path | Time | Allocated |
+|---|---|---|
+| Compile-time registrations (Truss.Generators) | **6.6 us** | 12.1 KB |
+| Runtime reflection scan | 7.4 us | 12.3 KB |
+
+The benchmark assembly holds a handful of handlers, so the absolute gap is small here and grows with every type the scan would have to walk. The generator's real value is not the microseconds: it is `TRUSS001` failing the build when a request has no handler, duplicate handlers failing it too, and no reflection left between your code and Native AOT.
+
+---
+
+## Method
+
+- BenchmarkDotNet, Release, one process per benchmark, memory diagnoser on.
+- Handlers do no work, so the numbers isolate dispatch overhead and nothing else.
+- MediatR runs with the same FluentValidation open behavior Truss ships, registered the standard way.
+- Numbers from an AMD Ryzen 7 5700G under WSL2; run the project on your machine for yours.
+
+---
+
 Source: https://joaoaalves.github.io/Truss/design-guidelines.md
 
 # Design Guidelines
@@ -3338,12 +3401,22 @@ Truss is built module by module, each one opt-in. The framework never installs a
 - Value objects with invariants: --vo on aggregates and entities wraps every primitive in a self-validating value object with its rules, tests and EF conversion, and truss g vo builds shared multi-member ones. Short aliases for every generator and its frequent options.
 - Rule segments and composition: inclusive ranges and REST-style comparators on any --vo member (Name:string:3..120, Calories:int:0..900, pos), composite value objects built from members that guard themselves, -a to place one inside its owning aggregate, and references to existing value objects by name.
 - Fewer first-hour surprises: the scaffold pins the solution for editors, and truss update restores without the http cache so a version published minutes ago is not reported as missing.
+- Real-world hardening: Identity stores joined to the request's unit of work so domain events can roll an account back, value object types flattened into shared namespaces that always resolve, PUT, PATCH and DELETE command mappings with route values winning over the body, null query results as 404, TimeProvider injected everywhere, and generated aggregate rules carrying stable codes.
+- Wiring markers: `// truss:` comments in every composition root are where truss add inserts code, so reformatting Program.cs never breaks the CLI, and the worker's Program stays in sync when modules arrive later.
+- Compile-time everything: the source generators register integration event handlers, event types and jobs too, each job with its typed invoker, so no assembly scan or MakeGenericType runs at startup and Native AOT stays honest.
+- Distributed tracing across the transport: the publisher's traceparent travels with the message, so the consumer's span is a child of the command that raised the event, in another process included.
+- Operable messaging: outbox and job metrics through standard meters, SKIP LOCKED claims so concurrent instances publish disjoint batches, the inbox making consumer side effects exactly-once, dead letters returned to the queue with one POST, and the scheduler lease released on graceful shutdown.
+- Contexts as projects: `truss g context --as-projects` gives a bounded context its own compiler-enforced layer projects, moving an existing one without changing a single namespace; generators follow automatically.
+- Services: `truss split` extracts a context into its own host with its own database by default (`--shared-database` to share), moving its routes out of the monolith while every handler stays untouched; contracts live in a project both sides reference.
+- Remote contexts: `AddRemoteContext` wires a service's contract queries across the network explicitly, with local failure semantics, timeouts in the composition root and commands deliberately excluded.
+- The constellation: `truss dev` runs the API, every service and the worker together with interleaved output, and an end-to-end test proves a query dispatched in one process is answered by the handler running in another.
+- Deploy artifacts: a production Dockerfile per host, `truss deploy check` deriving the exact environment the modules demand from the manifest, and `truss deploy init ssh` generating compose-over-SSH with a migration bundle and one-command rollback.
 
 ---
 
 ## Next
 
-Further providers (login and transactional email) land by demand.
+The v1.0 launch line: benchmarks, the interactive domain map, and the landing site. Kubernetes artifacts, further login and email providers, and a jobs dashboard land by demand.
 
 ---
 

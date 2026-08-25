@@ -63,3 +63,17 @@ IDispatcher.Send(request)
 Domain events are raised inside aggregates and dispatched by the unit of work inside the transactional boundary, before persistence. Handlers may modify other aggregates, and every change is committed atomically in a single save.
 
 Side effects that must only happen after a successful commit, such as publishing to a message broker or sending e-mail, belong to [integration events](messaging.md): stored transactionally through the outbox and delivered by a background processor after the commit.
+
+---
+
+## The Extraction Path
+
+A bounded context in Truss is a service waiting to be born, and the architecture is shaped so the birth is mechanical, never a rewrite.
+
+The path has three explicit steps, each useful on its own:
+
+1. **Folders**, the default: contexts live as folders inside the four layer projects, sharing one process and one database. Most applications live their whole lives here, well.
+2. **Projects**: `truss g context --as-projects` gives a context its own Domain, Application and Infrastructure projects, with the compiler enforcing the layering. Namespaces do not change between the layouts, so moving an existing context moves files and nothing else.
+3. **A service**: `truss split` gives the context its own host and, by default, its own database. Its routes move out of the monolith, its events keep flowing through the same outbox and transport, other services query it explicitly through [its contract](remote.md), and `truss dev` runs the whole constellation with one trace crossing every host.
+
+What makes each step cheap is decided long before it happens: namespaces mirror folders and never change, repositories depend on `DbContext` rather than the application's concrete context, integration events are the default relationship between contexts, and everything a service exposes lives in a contracts project instead of its internals. The [deploy artifacts](deploy.md) then ship each host as its own image.

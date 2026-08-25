@@ -54,12 +54,22 @@ Truss is built module by module, each one opt-in. The framework never installs a
 - Value objects with invariants: --vo on aggregates and entities wraps every primitive in a self-validating value object with its rules, tests and EF conversion, and truss g vo builds shared multi-member ones. Short aliases for every generator and its frequent options.
 - Rule segments and composition: inclusive ranges and REST-style comparators on any --vo member (Name:string:3..120, Calories:int:0..900, pos), composite value objects built from members that guard themselves, -a to place one inside its owning aggregate, and references to existing value objects by name.
 - Fewer first-hour surprises: the scaffold pins the solution for editors, and truss update restores without the http cache so a version published minutes ago is not reported as missing.
+- Real-world hardening: Identity stores joined to the request's unit of work so domain events can roll an account back, value object types flattened into shared namespaces that always resolve, PUT, PATCH and DELETE command mappings with route values winning over the body, null query results as 404, TimeProvider injected everywhere, and generated aggregate rules carrying stable codes.
+- Wiring markers: `// truss:` comments in every composition root are where truss add inserts code, so reformatting Program.cs never breaks the CLI, and the worker's Program stays in sync when modules arrive later.
+- Compile-time everything: the source generators register integration event handlers, event types and jobs too, each job with its typed invoker, so no assembly scan or MakeGenericType runs at startup and Native AOT stays honest.
+- Distributed tracing across the transport: the publisher's traceparent travels with the message, so the consumer's span is a child of the command that raised the event, in another process included.
+- Operable messaging: outbox and job metrics through standard meters, SKIP LOCKED claims so concurrent instances publish disjoint batches, the inbox making consumer side effects exactly-once, dead letters returned to the queue with one POST, and the scheduler lease released on graceful shutdown.
+- Contexts as projects: `truss g context --as-projects` gives a bounded context its own compiler-enforced layer projects, moving an existing one without changing a single namespace; generators follow automatically.
+- Services: `truss split` extracts a context into its own host with its own database by default (`--shared-database` to share), moving its routes out of the monolith while every handler stays untouched; contracts live in a project both sides reference.
+- Remote contexts: `AddRemoteContext` wires a service's contract queries across the network explicitly, with local failure semantics, timeouts in the composition root and commands deliberately excluded.
+- The constellation: `truss dev` runs the API, every service and the worker together with interleaved output, and an end-to-end test proves a query dispatched in one process is answered by the handler running in another.
+- Deploy artifacts: a production Dockerfile per host, `truss deploy check` deriving the exact environment the modules demand from the manifest, and `truss deploy init ssh` generating compose-over-SSH with a migration bundle and one-command rollback.
 
 ---
 
 ## Next
 
-Further providers (login and transactional email) land by demand.
+The v1.0 launch line: benchmarks, the interactive domain map, and the landing site. Kubernetes artifacts, further login and email providers, and a jobs dashboard land by demand.
 
 ---
 
