@@ -30,8 +30,8 @@ namespace Truss.Generators
             var integrationHandlerDefinition = compilation.GetTypeByMetadataName("Truss.Messaging.IIntegrationEventHandler`1");
             var integrationEventInterface = compilation.GetTypeByMetadataName("Truss.Messaging.IIntegrationEvent");
             var jobDefinition = compilation.GetTypeByMetadataName("Truss.Jobs.IJob`1");
-            var messagingRuntimePresent = compilation.GetTypeByMetadataName("Truss.Messaging.TrussMessagingGeneratedRegistry") is not null;
-            var jobsRuntimePresent = compilation.GetTypeByMetadataName("Truss.Jobs.TrussJobsGeneratedRegistry") is not null;
+            var messagingRuntimePresent = compilation.GetTypeByMetadataName("Truss.Messaging.Dispatch.TrussMessagingGeneratedRegistry") is not null;
+            var jobsRuntimePresent = compilation.GetTypeByMetadataName("Truss.Jobs.Runtime.TrussJobsGeneratedRegistry") is not null;
 
             var assemblies = CollectAssemblies(compilation);
 
@@ -198,7 +198,7 @@ namespace Truss.Generators
         private static bool ReferencesTrussAbstractions(IAssemblySymbol assembly)
         {
             return assembly.Modules.Any(module => module.ReferencedAssemblies.Any(
-                identity => identity.Name is "Truss.Application.Abstractions" or "Truss.Application"));
+                identity => identity.Name == "Truss.Application"));
         }
 
         private static void TrackHandler(

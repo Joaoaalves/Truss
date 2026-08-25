@@ -1,9 +1,0 @@
-<Project Sdk="Microsoft.NET.Sdk">
-
-  <PropertyGroup>
-    <PackageId>Truss.Tenancy.Abstractions</PackageId>
-    <Description>Contracts for multi-tenant Truss applications: the ambient tenant of the current request, readable anywhere, with zero dependencies.</Description>
-    <PackageTags>Tenancy;MultiTenant;Abstractions</PackageTags>
-  </PropertyGroup>
-
-</Project>

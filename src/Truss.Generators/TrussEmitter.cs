@@ -24,7 +24,7 @@ namespace Truss.Generators
             {
                 if (assembly.Services.Length > 0)
                 {
-                    builder.Append("            global::Truss.Application.TrussGeneratedRegistry.RegisterAssembly(typeof(")
+                    builder.Append("            global::Truss.Application.Pipeline.TrussGeneratedRegistry.RegisterAssembly(typeof(")
                         .Append(assembly.AnchorType)
                         .Append(").Assembly, ")
                         .Append(RegisterMethodName(assembly, model))
@@ -33,7 +33,7 @@ namespace Truss.Generators
 
                 if (assembly.MessagingHandlers.Length > 0 || assembly.IntegrationEvents.Length > 0)
                 {
-                    builder.Append("            global::Truss.Messaging.TrussMessagingGeneratedRegistry.RegisterAssembly(typeof(")
+                    builder.Append("            global::Truss.Messaging.Dispatch.TrussMessagingGeneratedRegistry.RegisterAssembly(typeof(")
                         .Append(assembly.AnchorType)
                         .Append(").Assembly, ")
                         .Append(MessagingMethodName(assembly, model))
@@ -49,7 +49,7 @@ namespace Truss.Generators
                 {
                     foreach (var job in assembly.Jobs)
                     {
-                        builder.Append("            global::Truss.Jobs.TrussJobsGeneratedRegistry.RegisterJob<")
+                        builder.Append("            global::Truss.Jobs.Runtime.TrussJobsGeneratedRegistry.RegisterJob<")
                             .Append(job.JobType)
                             .Append(", ")
                             .Append(job.ArgsType)
@@ -83,7 +83,7 @@ namespace Truss.Generators
 
                     foreach (var prime in assembly.RequestPrimes)
                     {
-                        builder.Append("            global::Truss.Application.TrussGeneratedRegistry.PrimeRequest<")
+                        builder.Append("            global::Truss.Application.Pipeline.TrussGeneratedRegistry.PrimeRequest<")
                             .Append(prime.RequestType)
                             .Append(", ")
                             .Append(prime.ResponseType)
@@ -92,7 +92,7 @@ namespace Truss.Generators
 
                     foreach (var eventType in assembly.DomainEventPrimes)
                     {
-                        builder.Append("            global::Truss.Application.TrussGeneratedRegistry.PrimeDomainEvent<")
+                        builder.Append("            global::Truss.Application.Pipeline.TrussGeneratedRegistry.PrimeDomainEvent<")
                             .Append(eventType)
                             .AppendLine(">();");
                     }

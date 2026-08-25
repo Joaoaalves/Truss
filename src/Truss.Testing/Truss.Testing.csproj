@@ -8,11 +8,9 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Truss.Application\Truss.Application.csproj" />
-    <ProjectReference Include="..\Truss.Persistence.EntityFrameworkCore\Truss.Persistence.EntityFrameworkCore.csproj" />
+    <ProjectReference Include="..\Truss.EntityFrameworkCore\Truss.EntityFrameworkCore.csproj" />
     <ProjectReference Include="..\Truss.Messaging\Truss.Messaging.csproj" />
-    <ProjectReference Include="..\Truss.Messaging.EntityFrameworkCore\Truss.Messaging.EntityFrameworkCore.csproj" />
     <ProjectReference Include="..\Truss.Jobs\Truss.Jobs.csproj" />
-    <ProjectReference Include="..\Truss.Jobs.EntityFrameworkCore\Truss.Jobs.EntityFrameworkCore.csproj" />
   </ItemGroup>
 
   <ItemGroup>

@@ -5,11 +5,9 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\src\Truss.Jobs.EntityFrameworkCore\Truss.Jobs.EntityFrameworkCore.csproj" />
-    <ProjectReference Include="..\..\src\Truss.Jobs.AspNetCore\Truss.Jobs.AspNetCore.csproj" />
-    <ProjectReference Include="..\..\src\Truss.Messaging.EntityFrameworkCore\Truss.Messaging.EntityFrameworkCore.csproj" />
+    <ProjectReference Include="..\..\src\Truss.EntityFrameworkCore\Truss.EntityFrameworkCore.csproj" />
     <ProjectReference Include="..\..\src\Truss.Application\Truss.Application.csproj" />
-    <ProjectReference Include="..\..\src\Truss.Persistence.EntityFrameworkCore\Truss.Persistence.EntityFrameworkCore.csproj" />
+    <ProjectReference Include="..\..\src\Truss.AspNetCore\Truss.AspNetCore.csproj" />
   </ItemGroup>
 
   <ItemGroup>

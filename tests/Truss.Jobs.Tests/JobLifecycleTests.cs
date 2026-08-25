@@ -1,7 +1,10 @@
 using Microsoft.Extensions.DependencyInjection;
-using Truss.Jobs.EntityFrameworkCore;
+using Truss.EntityFrameworkCore;
 using Truss.Jobs.Tests.Fakes;
 using Xunit;
+using Truss.EntityFrameworkCore.Jobs;
+using Truss.Jobs.Runtime;
+using Truss.Jobs.Storage;
 
 namespace Truss.Jobs.Tests
 {

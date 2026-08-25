@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <PackageId>Truss.Email.Smtp</PackageId>
+    <Description>SMTP delivery for Truss: a sender over MailKit configured from options or environment variables, and address validation with RFC syntax checks plus a DNS lookup that the domain accepts mail.</Description>
+    <PackageTags>Email;Smtp;MailKit;Sender</PackageTags>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Truss.Email\Truss.Email.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="DnsClient" Version="1.*" />
+    <PackageReference Include="MailKit" Version="4.*" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.*" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.*" />
+    <PackageReference Include="Microsoft.Extensions.Options" Version="10.*" />
+  </ItemGroup>
+
+</Project>

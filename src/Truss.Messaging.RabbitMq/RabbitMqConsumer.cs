@@ -3,6 +3,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
+using Truss.Messaging.Dispatch;
 
 namespace Truss.Messaging.RabbitMq
 {

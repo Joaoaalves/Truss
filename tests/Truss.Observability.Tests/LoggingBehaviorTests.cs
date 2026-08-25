@@ -3,6 +3,7 @@ using Microsoft.Extensions.Logging;
 using Truss.Application;
 using Truss.Observability.Tests.Fakes;
 using Xunit;
+using Truss.Application.Pipeline;
 
 namespace Truss.Observability.Tests
 {

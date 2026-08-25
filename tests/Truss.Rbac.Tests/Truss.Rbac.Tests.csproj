@@ -6,7 +6,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\Truss.Rbac\Truss.Rbac.csproj" />
-    <ProjectReference Include="..\..\src\Truss.Rbac.EntityFrameworkCore\Truss.Rbac.EntityFrameworkCore.csproj" />
+    <ProjectReference Include="..\..\src\Truss.EntityFrameworkCore\Truss.EntityFrameworkCore.csproj" />
   </ItemGroup>
 
   <ItemGroup>

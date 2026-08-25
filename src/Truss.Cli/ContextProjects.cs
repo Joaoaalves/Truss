@@ -353,16 +353,13 @@ namespace Truss.Cli
             var packages = new List<string>();
 
             if (manifest.Modules.Contains("messaging"))
-                packages.Add($"""    <PackageReference Include="Truss.Messaging.Abstractions" Version="{manifest.TrussVersion}" />""");
+                packages.Add($"""    <PackageReference Include="Truss.Messaging" Version="{manifest.TrussVersion}" />""");
 
             if (manifest.Modules.Contains("jobs"))
-                packages.Add($"""    <PackageReference Include="Truss.Jobs.Abstractions" Version="{manifest.TrussVersion}" />""");
+                packages.Add($"""    <PackageReference Include="Truss.Jobs" Version="{manifest.TrussVersion}" />""");
 
             if (manifest.Modules.Contains("email"))
-                packages.Add($"""    <PackageReference Include="Truss.Email.Abstractions" Version="{manifest.TrussVersion}" />""");
-
-            if (manifest.Modules.Contains("mapping"))
-                packages.Add($"""    <PackageReference Include="Truss.Mapping" Version="{manifest.TrussVersion}" PrivateAssets="all" />""");
+                packages.Add($"""    <PackageReference Include="Truss.Email" Version="{manifest.TrussVersion}" />""");
 
             return packages.Count == 0
                 ? string.Empty

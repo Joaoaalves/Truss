@@ -2,6 +2,8 @@ using Microsoft.Extensions.DependencyInjection;
 using Truss.Application;
 using Truss.Messaging.Tests.Fakes;
 using Xunit;
+using Truss.Messaging.Dispatch;
+using Truss.Messaging.Serialization;
 
 namespace Truss.Messaging.Tests
 {

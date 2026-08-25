@@ -226,7 +226,7 @@ namespace Truss.Cli.Templates
         public const string CatalogSeeder = """
             using __NAME__.Domain.Catalog.Product;
             using Microsoft.EntityFrameworkCore;
-            using Truss.Persistence.EntityFrameworkCore;
+            using Truss.EntityFrameworkCore;
 
             namespace __NAME__.Infrastructure.Catalog
             {

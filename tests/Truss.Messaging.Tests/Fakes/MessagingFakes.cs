@@ -1,6 +1,8 @@
 using Microsoft.EntityFrameworkCore;
 using Truss.Application;
 using Truss.Messaging;
+using Truss.Messaging.Serialization;
+using Truss.Messaging.Transport;
 
 namespace Truss.Messaging.Tests.Fakes
 {

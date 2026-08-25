@@ -5,8 +5,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\src\Truss.Tenancy.EntityFrameworkCore\Truss.Tenancy.EntityFrameworkCore.csproj" />
-    <ProjectReference Include="..\..\src\Truss.Tenancy.AspNetCore\Truss.Tenancy.AspNetCore.csproj" />
+    <ProjectReference Include="..\..\src\Truss.EntityFrameworkCore\Truss.EntityFrameworkCore.csproj" />
+    <ProjectReference Include="..\..\src\Truss.AspNetCore\Truss.AspNetCore.csproj" />
   </ItemGroup>
 
   <ItemGroup>

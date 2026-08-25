@@ -69,7 +69,7 @@ namespace Truss.Cli
                 return 1;
 
             CsprojEditor.AddPackageReference(
-                CsprojPath(root, manifest.ApplicationProject), "Truss.Auth.Abstractions", manifest.TrussVersion);
+                CsprojPath(root, manifest.ApplicationProject), "Truss.Application", manifest.TrussVersion);
             CsprojEditor.AddPackageReference(
                 CsprojPath(root, manifest.ApiProject), "Truss.Auth.Jwt", manifest.TrussVersion);
 

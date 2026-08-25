@@ -4,6 +4,8 @@ using Microsoft.Extensions.DependencyInjection;
 using Truss.Application;
 using Truss.Messaging.Tests.Fakes;
 using Xunit;
+using Truss.Messaging.Outbox;
+using Truss.Messaging.Transport;
 
 namespace Truss.Messaging.Tests
 {

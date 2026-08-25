@@ -10,4 +10,8 @@
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
   </ItemGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\Truss.Application\Truss.Application.csproj" />
+  </ItemGroup>
+
 </Project>

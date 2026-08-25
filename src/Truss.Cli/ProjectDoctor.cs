@@ -41,10 +41,9 @@ namespace Truss.Cli
                 {
                     "messaging" => "Truss.Messaging",
                     "jobs" => "Truss.Jobs",
-                    "mapping" => "Truss.Mapping",
                     "auth" => "Truss.Auth.Jwt",
                     "email" => "Truss.Email",
-                    "tenancy" => "Truss.Tenancy.EntityFrameworkCore",
+                    "tenancy" => "Truss.EntityFrameworkCore",
                     "rbac" => "Truss.Rbac",
                     _ => "Truss.Observability"
                 };

@@ -2,6 +2,10 @@ using Microsoft.Extensions.DependencyInjection;
 using Truss.Application;
 using Truss.Generators.Tests.Fakes;
 using Xunit;
+using Truss.Application.Pipeline;
+using Truss.Jobs.Runtime;
+using Truss.Messaging.Dispatch;
+using Truss.Messaging.Serialization;
 
 namespace Truss.Generators.Tests
 {
@@ -48,8 +52,8 @@ namespace Truss.Generators.Tests
         {
             var assembly = typeof(GenItemCreated).Assembly;
 
-            Assert.True(Truss.Messaging.TrussMessagingGeneratedRegistry.TryGetHandlers(assembly, out _));
-            Assert.True(Truss.Messaging.TrussMessagingGeneratedRegistry.TryGetEventTypes(assembly, out var eventTypes));
+            Assert.True(Truss.Messaging.Dispatch.TrussMessagingGeneratedRegistry.TryGetHandlers(assembly, out _));
+            Assert.True(Truss.Messaging.Dispatch.TrussMessagingGeneratedRegistry.TryGetEventTypes(assembly, out var eventTypes));
             Assert.Contains(typeof(GenItemCreated), eventTypes);
         }
 
@@ -64,14 +68,14 @@ namespace Truss.Generators.Tests
             Assert.IsType<GenItemCreatedHandler>(
                 Assert.Single(provider.GetServices<Truss.Messaging.IIntegrationEventHandler<GenItemCreated>>()));
 
-            var registry = provider.GetRequiredService<Truss.Messaging.IntegrationEventTypeRegistry>();
+            var registry = provider.GetRequiredService<Truss.Messaging.Serialization.IntegrationEventTypeRegistry>();
             Assert.Equal("gen.item-created", registry.DescriptorFor(typeof(GenItemCreated)).Name);
         }
 
         [Fact]
         public void GeneratedModule_RegistersJobsWithTheirTypedInvokers()
         {
-            Assert.True(Truss.Jobs.TrussJobsGeneratedRegistry.TryGetJobs(typeof(GenReportJob).Assembly, out var jobs));
+            Assert.True(Truss.Jobs.Runtime.TrussJobsGeneratedRegistry.TryGetJobs(typeof(GenReportJob).Assembly, out var jobs));
 
             var descriptor = Assert.Single(jobs, job => job.JobType == typeof(GenReportJob));
             Assert.Equal(typeof(GenReportArgs), descriptor.ArgsType);

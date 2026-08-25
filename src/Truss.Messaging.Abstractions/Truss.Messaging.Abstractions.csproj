@@ -1,9 +1,0 @@
-<Project Sdk="Microsoft.NET.Sdk">
-
-  <PropertyGroup>
-    <PackageId>Truss.Messaging.Abstractions</PackageId>
-    <Description>Contracts for Truss integration events: events, handlers, publisher and event naming with versioning.</Description>
-    <PackageTags>Messaging;IntegrationEvents;CQRS;DDD</PackageTags>
-  </PropertyGroup>
-
-</Project>

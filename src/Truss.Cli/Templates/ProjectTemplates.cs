@@ -74,7 +74,7 @@ namespace Truss.Cli.Templates
               </ItemGroup>
 
               <ItemGroup>
-                <PackageReference Include="Truss.Application.Abstractions" Version="__TRUSS_VERSION__" />
+                <PackageReference Include="Truss.Application" Version="__TRUSS_VERSION__" />
                 <PackageReference Include="FluentValidation" Version="12.*" />
               </ItemGroup>
 
@@ -89,7 +89,7 @@ namespace Truss.Cli.Templates
               </ItemGroup>
 
               <ItemGroup>
-                <PackageReference Include="Truss.Persistence.EntityFrameworkCore" Version="__TRUSS_VERSION__" />
+                <PackageReference Include="Truss.EntityFrameworkCore" Version="__TRUSS_VERSION__" />
                 <PackageReference Include="__EF_PROVIDER_PACKAGE__" Version="10.*" />__SQLITE_NATIVE_REFERENCE__
               </ItemGroup>
 
@@ -126,7 +126,7 @@ namespace Truss.Cli.Templates
               </ItemGroup>
 
               <ItemGroup>
-                <PackageReference Include="Truss.Application.Abstractions" Version="__TRUSS_VERSION__" />
+                <PackageReference Include="Truss.Application" Version="__TRUSS_VERSION__" />
                 <PackageReference Include="FluentValidation" Version="12.*" />__MODULE_PACKAGES__
               </ItemGroup>
 
@@ -145,7 +145,7 @@ namespace Truss.Cli.Templates
               </ItemGroup>
 
               <ItemGroup>
-                <PackageReference Include="Truss.Persistence.EntityFrameworkCore" Version="__TRUSS_VERSION__" />
+                <PackageReference Include="Truss.EntityFrameworkCore" Version="__TRUSS_VERSION__" />
               </ItemGroup>
 
             </Project>

@@ -5,6 +5,8 @@ using Microsoft.Extensions.Hosting;
 using Truss.Application;
 using Truss.Jobs;
 using Truss.Messaging;
+using Truss.Messaging.Outbox;
+using Truss.Messaging.Transport;
 
 namespace Truss.Testing
 {

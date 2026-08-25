@@ -44,7 +44,6 @@ namespace Microsoft.Extensions.DependencyInjection
 
 namespace Microsoft.AspNetCore.Builder
 {
-    using Truss.Rbac;
 
     /// <summary>
     /// Provides the permission convention for endpoints.

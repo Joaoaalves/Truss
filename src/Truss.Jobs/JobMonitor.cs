@@ -1,3 +1,5 @@
+using Truss.Jobs.Storage;
+
 namespace Truss.Jobs
 {
     internal sealed class JobMonitor(IJobStore store) : IJobMonitor

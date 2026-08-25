@@ -69,11 +69,12 @@ namespace Truss.Cli
                 - Prefer value objects over primitives: --vo Name:string:3..120 --vo Calories:int:0..900 on aggregates and entities generates self-validating value objects with their rules (ranges are inclusive; gt=/gte=/lt=/lte=/pos also work; on strings bounds measure length). Commands stay primitive; handlers convert through Create.
                 - Compose or share value objects with truss g vo: -f for primitive fields, --vo for members that are value objects themselves, -a <Owner> to place it inside the owning aggregate's or entity's folder. Reference an existing one by naming it as the type (--vo Macros:MacroNutrients). Derived behavior on composites is written by hand, never generated.
                 - New entity: truss generate entity <Name> --context <Context> [--aggregate <Owner>]
+                - DTO mapping comes with the generators: declare mappers as partial methods in a static partial class marked [Mapper]; they are filled in at compile time and unmapped members fail the build.
                 - New command or query: truss generate command|query <Name> --context <Context> (own folder and namespace with record, handler and validator; map it in Program.cs)
                 - Namespaces mirror folders exactly; generated application files keep using directives inside the namespace so the aggregate type resolves over its same-named namespace.
                 - Every generator has a short alias: truss g ctx|agg|ent|cmd|qry, and truss rm ctx.
                 - Remove a bounded context: truss remove context <Name> (deletes its folders and cleans the wiring that pointed at it)
-                - Install a module: truss add messaging|jobs|observability|mapping|auth|docker
+                - Install a module: truss add messaging|jobs|observability|auth|docker
                 - Before any deploy: truss deploy check --env-file <file> lists every value the modules demand at boot; truss deploy init ssh generates compose-over-SSH artifacts
                 - Evolve the schema: truss db add <Name>, then truss db migrate (development applies pending migrations on startup)
                 - Run locally: truss dev (starts docker dependencies and watches the API with hot reload)
@@ -131,10 +132,6 @@ namespace Truss.Cli
                         block.AppendLine(dashboard is null
                             ? "- Observability: requests, messages and jobs are logged and traced automatically; correlation flows through the X-Correlation-Id header."
                             : $"- Observability: requests, messages and jobs are logged and traced automatically; correlation flows through X-Correlation-Id. Signals export over OTLP to the {dashboard} dashboard ({DashboardUrl(dashboard)} after docker compose up).");
-                        break;
-
-                    case "mapping":
-                        block.AppendLine("- Mapping: declare DTO mappers as partial methods in a static partial class marked [Mapper]; the generator fills them in at compile time and unmapped members fail the build.");
                         break;
 
                     case "auth":

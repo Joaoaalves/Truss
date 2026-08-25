@@ -1,6 +1,8 @@
 using Microsoft.EntityFrameworkCore;
-using Truss.Messaging.EntityFrameworkCore;
+using Truss.EntityFrameworkCore;
 using Xunit;
+using Truss.EntityFrameworkCore.Messaging;
+using Truss.Messaging.Outbox;
 
 namespace Truss.Messaging.Transports.Tests
 {

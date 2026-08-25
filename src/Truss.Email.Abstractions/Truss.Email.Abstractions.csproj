@@ -1,9 +1,0 @@
-<Project Sdk="Microsoft.NET.Sdk">
-
-  <PropertyGroup>
-    <PackageId>Truss.Email.Abstractions</PackageId>
-    <Description>Contracts for sending email from Truss applications: the message shape and the sender abstraction, with zero dependencies.</Description>
-    <PackageTags>Email;Abstractions;DDD;CleanArchitecture</PackageTags>
-  </PropertyGroup>
-
-</Project>

@@ -7,8 +7,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Truss.Messaging.Abstractions\Truss.Messaging.Abstractions.csproj" />
-    <ProjectReference Include="..\Truss.Application.Abstractions\Truss.Application.Abstractions.csproj" />
+    <ProjectReference Include="..\Truss.Application\Truss.Application.csproj" />
   </ItemGroup>
 
   <ItemGroup>

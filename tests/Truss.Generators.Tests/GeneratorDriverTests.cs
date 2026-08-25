@@ -1,6 +1,10 @@
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Xunit;
+using Truss.Application.Pipeline;
+using Truss.Jobs.Runtime;
+using Truss.Messaging.Dispatch;
+using Truss.Messaging.Serialization;
 
 namespace Truss.Generators.Tests
 {
@@ -12,7 +16,7 @@ namespace Truss.Generators.Tests
                 .Split(Path.PathSeparator)
                 .Append(typeof(Truss.Domain.IBusinessRule).Assembly.Location)
                 .Append(typeof(Truss.Application.ICommand<>).Assembly.Location)
-                .Append(typeof(Truss.Application.Dispatcher).Assembly.Location)
+                .Append(typeof(Truss.Application.Pipeline.Dispatcher).Assembly.Location)
                 .Append(typeof(FluentValidation.IValidator<>).Assembly.Location)
                 .Append(typeof(Microsoft.Extensions.DependencyInjection.IServiceCollection).Assembly.Location)
                 .Distinct();
@@ -21,9 +25,9 @@ namespace Truss.Generators.Tests
             {
                 paths = paths
                     .Append(typeof(Truss.Messaging.IIntegrationEvent).Assembly.Location)
-                    .Append(typeof(Truss.Messaging.IntegrationEventTypeRegistry).Assembly.Location)
+                    .Append(typeof(Truss.Messaging.Serialization.IntegrationEventTypeRegistry).Assembly.Location)
                     .Append(typeof(Truss.Jobs.IJob<>).Assembly.Location)
-                    .Append(typeof(Truss.Jobs.JobTypeRegistry).Assembly.Location)
+                    .Append(typeof(Truss.Jobs.Runtime.JobTypeRegistry).Assembly.Location)
                     .Append(typeof(Microsoft.Extensions.Logging.ILogger).Assembly.Location)
                     .Append(typeof(Microsoft.Extensions.Logging.Abstractions.NullLogger).Assembly.Location)
                     .Distinct();
@@ -125,10 +129,10 @@ namespace Truss.Generators.Tests
 
             var generated = Assert.Single(result.Results[0].GeneratedSources).SourceText.ToString();
 
-            Assert.Contains("Truss.Messaging.TrussMessagingGeneratedRegistry.RegisterAssembly", generated);
+            Assert.Contains("Truss.Messaging.Dispatch.TrussMessagingGeneratedRegistry.RegisterAssembly", generated);
             Assert.Contains("AddTransient<global::Truss.Messaging.IIntegrationEventHandler<global::TestApp.ItemCreated>, global::TestApp.ItemCreatedHandler>", generated);
             Assert.Contains("typeof(global::TestApp.ItemCreated)", generated);
-            Assert.Contains("Truss.Jobs.TrussJobsGeneratedRegistry.RegisterJob<global::TestApp.ReportJob, global::TestApp.ReportArgs>", generated);
+            Assert.Contains("Truss.Jobs.Runtime.TrussJobsGeneratedRegistry.RegisterJob<global::TestApp.ReportJob, global::TestApp.ReportArgs>", generated);
 
             var errors = output.GetDiagnostics().Where(d => d.Severity == DiagnosticSeverity.Error).ToList();
             Assert.Empty(errors);

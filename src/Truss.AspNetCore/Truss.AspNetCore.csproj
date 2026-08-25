@@ -2,7 +2,7 @@
 
   <PropertyGroup>
     <PackageId>Truss.AspNetCore</PackageId>
-    <Description>ASP.NET Core integration for Truss: endpoint mapping for commands and queries with automatic ProblemDetails error responses.</Description>
+    <Description>ASP.NET Core integration for Truss: endpoint mapping for commands and queries with automatic ProblemDetails error responses, remote context endpoints, job and outbox management endpoints, correlation and tenancy middleware.</Description>
     <PackageTags>CQRS;DDD;AspNetCore;MinimalApi;ProblemDetails</PackageTags>
   </PropertyGroup>
 
@@ -11,7 +11,10 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Truss.Application.Abstractions\Truss.Application.Abstractions.csproj" />
+    <ProjectReference Include="..\Truss.Application\Truss.Application.csproj" />
+    <ProjectReference Include="..\Truss.Messaging\Truss.Messaging.csproj" />
+    <ProjectReference Include="..\Truss.Jobs\Truss.Jobs.csproj" />
+    <ProjectReference Include="..\Truss.Observability\Truss.Observability.csproj" />
   </ItemGroup>
 
 </Project>

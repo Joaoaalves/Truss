@@ -3,6 +3,9 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Truss.Messaging.Tests.Fakes;
 using Xunit;
+using Truss.Messaging.Dispatch;
+using Truss.Messaging.Inbox;
+using Truss.Messaging.Serialization;
 
 namespace Truss.Messaging.Tests
 {

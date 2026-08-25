@@ -2,20 +2,13 @@
 
   <PropertyGroup>
     <PackageId>Truss.Email</PackageId>
-    <Description>Email senders for Truss: SMTP through MailKit configured from options or environment variables, and a console sender that prints messages during development.</Description>
-    <PackageTags>Email;Smtp;MailKit;Sender</PackageTags>
+    <Description>Email contracts for Truss: the message shape, the sender and address validation abstractions, and a console sender that prints messages during development.</Description>
+    <PackageTags>Email;Sender;Abstractions</PackageTags>
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Truss.Email.Abstractions\Truss.Email.Abstractions.csproj" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <PackageReference Include="DnsClient" Version="1.*" />
-    <PackageReference Include="MailKit" Version="4.*" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.*" />
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.*" />
-    <PackageReference Include="Microsoft.Extensions.Options" Version="10.*" />
   </ItemGroup>
 
 </Project>

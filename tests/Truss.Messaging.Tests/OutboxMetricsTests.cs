@@ -6,6 +6,7 @@ using Microsoft.Extensions.Hosting;
 using Truss.Application;
 using Truss.Messaging.Tests.Fakes;
 using Xunit;
+using Truss.Messaging.Outbox;
 
 namespace Truss.Messaging.Tests
 {

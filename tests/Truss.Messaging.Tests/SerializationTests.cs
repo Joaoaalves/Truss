@@ -1,5 +1,6 @@
 using Truss.Messaging.Tests.Fakes;
 using Xunit;
+using Truss.Messaging.Serialization;
 
 namespace Truss.Messaging.Tests
 {

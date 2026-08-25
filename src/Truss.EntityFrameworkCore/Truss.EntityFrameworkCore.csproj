@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <PackageId>Truss.EntityFrameworkCore</PackageId>
+    <Description>Entity Framework Core integration for Truss: unit of work with domain event dispatching, outbox and inbox stores, job store and scheduler lock, tenancy interceptors, role assignment store and idempotency records, all registered per feature.</Description>
+    <PackageTags>CQRS;DDD;EntityFramework;UnitOfWork;Outbox</PackageTags>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Truss.Application\Truss.Application.csproj" />
+    <ProjectReference Include="..\Truss.Messaging\Truss.Messaging.csproj" />
+    <ProjectReference Include="..\Truss.Jobs\Truss.Jobs.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Diagnostics.HealthChecks" Version="10.*" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="10.*" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" Version="10.*" />
+  </ItemGroup>
+
+</Project>

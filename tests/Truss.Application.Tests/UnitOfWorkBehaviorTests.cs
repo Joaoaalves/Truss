@@ -2,6 +2,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Truss.Application;
 using Truss.Application.Tests.Fakes;
 using Xunit;
+using Truss.Application.Pipeline;
 
 namespace Truss.Application.Tests
 {

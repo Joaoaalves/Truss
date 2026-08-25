@@ -4,7 +4,7 @@ namespace Truss.Cli
 {
     internal static class ModuleInstaller
     {
-        public static readonly string[] Modules = ["email", "messaging", "jobs", "observability", "mapping", "auth", "rbac", "tenancy", "tests", "worker", "docker"];
+        public static readonly string[] Modules = ["email", "messaging", "jobs", "observability", "auth", "rbac", "tenancy", "tests", "worker", "docker"];
 
         public static readonly string[] Transports = ["inmemory", "postgres", "rabbitmq", "redis"];
 
@@ -74,7 +74,6 @@ namespace Truss.Cli
             {
                 "messaging" => InstallMessaging(transport, manifest, root, log),
                 "jobs" => InstallJobs(manifest, root, log),
-                "mapping" => InstallMapping(manifest, root),
                 "auth" => InstallAuth(transport, auth ?? AuthAddOptions.None, manifest, root, log),
                 "tests" => InstallTests(manifest, root, log),
                 "worker" => WorkerScaffolder.Install(manifest, root, log),
@@ -113,7 +112,7 @@ namespace Truss.Cli
             var infrastructureHost = manifest.UsesEntityFramework ? manifest.InfrastructureProject : manifest.ApiProject;
             var hostCsproj = CsprojPath(root, infrastructureHost);
 
-            CsprojEditor.AddPackageReference(CsprojPath(root, manifest.ApplicationProject), "Truss.Messaging.Abstractions", version);
+            CsprojEditor.AddPackageReference(CsprojPath(root, manifest.ApplicationProject), "Truss.Messaging", version);
             CsprojEditor.AddPackageReference(hostCsproj, "Truss.Messaging", version);
 
             if (transport == "postgres")
@@ -125,8 +124,8 @@ namespace Truss.Cli
 
             if (manifest.UsesEntityFramework)
             {
-                CsprojEditor.AddPackageReference(hostCsproj, "Truss.Messaging.EntityFrameworkCore", version);
-                CsprojEditor.AddPackageReference(CsprojPath(root, manifest.ApiProject), "Truss.Messaging.AspNetCore", version);
+                CsprojEditor.AddPackageReference(hostCsproj, "Truss.EntityFrameworkCore", version);
+                CsprojEditor.AddPackageReference(CsprojPath(root, manifest.ApiProject), "Truss.AspNetCore", version);
             }
 
             var registration = $$"""
@@ -194,12 +193,12 @@ namespace Truss.Cli
             var version = manifest.TrussVersion;
             var infrastructureHost = manifest.UsesEntityFramework ? manifest.InfrastructureProject : manifest.ApiProject;
 
-            CsprojEditor.AddPackageReference(CsprojPath(root, manifest.ApplicationProject), "Truss.Jobs.Abstractions", version);
+            CsprojEditor.AddPackageReference(CsprojPath(root, manifest.ApplicationProject), "Truss.Jobs", version);
             CsprojEditor.AddPackageReference(CsprojPath(root, infrastructureHost), "Truss.Jobs", version);
-            CsprojEditor.AddPackageReference(CsprojPath(root, manifest.ApiProject), "Truss.Jobs.AspNetCore", version);
+            CsprojEditor.AddPackageReference(CsprojPath(root, manifest.ApiProject), "Truss.AspNetCore", version);
 
             if (manifest.UsesEntityFramework)
-                CsprojEditor.AddPackageReference(CsprojPath(root, infrastructureHost), "Truss.Jobs.EntityFrameworkCore", version);
+                CsprojEditor.AddPackageReference(CsprojPath(root, infrastructureHost), "Truss.EntityFrameworkCore", version);
 
             var registration = """
                 builder.Services.AddTrussJobs(options =>
@@ -298,9 +297,9 @@ namespace Truss.Cli
 
             var version = manifest.TrussVersion;
 
-            CsprojEditor.AddPackageReference(CsprojPath(root, manifest.ApplicationProject), "Truss.Tenancy.Abstractions", version);
-            CsprojEditor.AddPackageReference(CsprojPath(root, manifest.InfrastructureProject), "Truss.Tenancy.EntityFrameworkCore", version);
-            CsprojEditor.AddPackageReference(CsprojPath(root, manifest.ApiProject), "Truss.Tenancy.AspNetCore", version);
+            CsprojEditor.AddPackageReference(CsprojPath(root, manifest.ApplicationProject), "Truss.Application", version);
+            CsprojEditor.AddPackageReference(CsprojPath(root, manifest.InfrastructureProject), "Truss.EntityFrameworkCore", version);
+            CsprojEditor.AddPackageReference(CsprojPath(root, manifest.ApiProject), "Truss.AspNetCore", version);
 
             InsertServices(root, manifest, "builder.Services.AddTrussTenancy<AppDbContext>();", log);
 
@@ -328,7 +327,7 @@ namespace Truss.Cli
             var version = manifest.TrussVersion;
 
             CsprojEditor.AddPackageReference(CsprojPath(root, manifest.ApiProject), "Truss.Rbac", version);
-            CsprojEditor.AddPackageReference(CsprojPath(root, manifest.InfrastructureProject), "Truss.Rbac.EntityFrameworkCore", version);
+            CsprojEditor.AddPackageReference(CsprojPath(root, manifest.InfrastructureProject), "Truss.EntityFrameworkCore", version);
 
             var registration = """
                 builder.Services.AddTrussRbac(options =>
@@ -364,8 +363,9 @@ namespace Truss.Cli
 
             var version = manifest.TrussVersion;
 
-            CsprojEditor.AddPackageReference(CsprojPath(root, manifest.ApplicationProject), "Truss.Email.Abstractions", version);
+            CsprojEditor.AddPackageReference(CsprojPath(root, manifest.ApplicationProject), "Truss.Email", version);
             CsprojEditor.AddPackageReference(CsprojPath(root, manifest.ApiProject), "Truss.Email", version);
+            CsprojEditor.AddPackageReference(CsprojPath(root, manifest.ApiProject), "Truss.Email.Smtp", version);
 
             if (provider == "resend")
                 CsprojEditor.AddPackageReference(CsprojPath(root, manifest.ApiProject), "Truss.Email.Resend", version);
@@ -411,23 +411,13 @@ namespace Truss.Cli
             _ => "builder.Services.AddTrussConsoleEmail();"
         };
 
-        private static int InstallMapping(TrussManifest manifest, string root)
-        {
-            CsprojEditor.AddPackageReference(
-                CsprojPath(root, manifest.ApplicationProject),
-                "Truss.Mapping",
-                manifest.TrussVersion,
-                developmentDependency: true);
-
-            return 0;
-        }
 
         private static int InstallObservability(string? dashboard, TrussManifest manifest, string root, Action<string> log)
         {
             var version = manifest.TrussVersion;
 
             CsprojEditor.AddPackageReference(CsprojPath(root, manifest.ApiProject), "Truss.Observability", version);
-            CsprojEditor.AddPackageReference(CsprojPath(root, manifest.ApiProject), "Truss.Observability.AspNetCore", version);
+            CsprojEditor.AddPackageReference(CsprojPath(root, manifest.ApiProject), "Truss.AspNetCore", version);
 
             InsertServices(root, manifest, "builder.Services.AddTrussObservability();", log);
 

@@ -6,6 +6,7 @@ using Microsoft.Extensions.Logging;
 using Truss.Application;
 using Truss.Domain;
 using Xunit;
+using Truss.Application.Pipeline;
 
 namespace Truss.Remote.Tests
 {

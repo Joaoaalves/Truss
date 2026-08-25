@@ -22,11 +22,11 @@ namespace Truss.Cli.Tests
             Assert.Equal(0, exitCode);
 
             var applicationCsproj = _workspace.ReadFile("Shop", "src", "Shop.Application", "Shop.Application.csproj");
-            Assert.Contains("Truss.Messaging.Abstractions", applicationCsproj);
+            Assert.Contains("Truss.Messaging", applicationCsproj);
 
             var infrastructureCsproj = _workspace.ReadFile("Shop", "src", "Shop.Infrastructure", "Shop.Infrastructure.csproj");
             Assert.Contains("Truss.Messaging.Redis", infrastructureCsproj);
-            Assert.Contains("Truss.Messaging.EntityFrameworkCore", infrastructureCsproj);
+            Assert.Contains("Truss.EntityFrameworkCore", infrastructureCsproj);
 
             var program = _workspace.ReadFile("Shop", "src", "Shop.Api", "Program.cs");
             Assert.Contains("AddTrussMessaging", program);
@@ -36,7 +36,7 @@ namespace Truss.Cli.Tests
             Assert.Contains("app.MapTrussOutbox();", program);
 
             var apiCsproj = _workspace.ReadFile("Shop", "src", "Shop.Api", "Shop.Api.csproj");
-            Assert.Contains("Truss.Messaging.AspNetCore", apiCsproj);
+            Assert.Contains("Truss.AspNetCore", apiCsproj);
 
             var dbContext = _workspace.ReadFile("Shop", "src", "Shop.Infrastructure", "AppDbContext.cs");
             Assert.Contains("ApplyTrussOutbox", dbContext);
@@ -142,20 +142,6 @@ namespace Truss.Cli.Tests
             Assert.Equal(1, occurrences);
         }
 
-        [Fact]
-        public void AddMapping_AddsDevelopmentDependency()
-        {
-            var root = ScaffoldShop();
-
-            Assert.Equal(0, _workspace.Run("add", "mapping", "--project", root));
-
-            var applicationCsproj = _workspace.ReadFile("Shop", "src", "Shop.Application", "Shop.Application.csproj");
-            Assert.Contains("Include=\"Truss.Mapping\"", applicationCsproj);
-            Assert.Contains("PrivateAssets=\"all\"", applicationCsproj);
-
-            var manifest = TrussManifest.Load(root);
-            Assert.Contains("mapping", manifest!.Modules);
-        }
 
         [Fact]
         public void AddModule_AfterTheWorkerExists_SyncsItsProgram()
@@ -215,7 +201,7 @@ namespace Truss.Cli.Tests
             Assert.Contains("SigningKey", appsettings);
 
             var applicationCsproj = _workspace.ReadFile("Shop", "src", "Shop.Application", "Shop.Application.csproj");
-            Assert.Contains("Truss.Auth.Abstractions", applicationCsproj);
+            Assert.Contains("Truss.Application", applicationCsproj);
 
             var manifest = TrussManifest.Load(root);
             Assert.Contains("auth", manifest!.Modules);
@@ -368,7 +354,7 @@ namespace Truss.Cli.Tests
             Assert.Equal(0, _workspace.Run("add", "email", "--project", root));
 
             var applicationCsproj = _workspace.ReadFile("Shop", "src", "Shop.Application", "Shop.Application.csproj");
-            Assert.Contains("Truss.Email.Abstractions", applicationCsproj);
+            Assert.Contains("Truss.Email", applicationCsproj);
 
             var apiCsproj = _workspace.ReadFile("Shop", "src", "Shop.Api", "Shop.Api.csproj");
             Assert.Contains("Include=\"Truss.Email\"", apiCsproj);

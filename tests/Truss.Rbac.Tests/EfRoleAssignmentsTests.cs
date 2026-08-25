@@ -1,7 +1,8 @@
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
-using Truss.Rbac.EntityFrameworkCore;
+using Truss.EntityFrameworkCore;
 using Xunit;
+using Truss.EntityFrameworkCore.Rbac;
 
 namespace Truss.Rbac.Tests
 {

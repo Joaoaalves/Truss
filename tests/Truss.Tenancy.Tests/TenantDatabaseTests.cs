@@ -1,8 +1,9 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Truss.Tenancy;
-using Truss.Tenancy.EntityFrameworkCore;
+using Truss.EntityFrameworkCore;
 using Xunit;
+using Truss.EntityFrameworkCore.Tenancy;
 
 namespace Truss.Tenancy.Tests
 {

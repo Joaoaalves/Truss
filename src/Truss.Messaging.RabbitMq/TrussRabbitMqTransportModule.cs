@@ -1,5 +1,6 @@
 using Truss.Messaging;
 using Truss.Messaging.RabbitMq;
+using Truss.Messaging.Transport;
 
 namespace Microsoft.Extensions.DependencyInjection
 {

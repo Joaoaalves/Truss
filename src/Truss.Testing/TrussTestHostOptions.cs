@@ -2,6 +2,7 @@ using System.Reflection;
 using Microsoft.Extensions.DependencyInjection;
 using Truss.Jobs;
 using Truss.Messaging;
+using Truss.Messaging.Outbox;
 
 namespace Truss.Testing
 {

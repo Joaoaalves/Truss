@@ -3,6 +3,7 @@ using System.Diagnostics.Metrics;
 using Microsoft.Extensions.DependencyInjection;
 using Truss.Jobs.Tests.Fakes;
 using Xunit;
+using Truss.Jobs.Runtime;
 
 namespace Truss.Jobs.Tests
 {

@@ -6,9 +6,8 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\Truss.Observability\Truss.Observability.csproj" />
-    <ProjectReference Include="..\..\src\Truss.Observability.AspNetCore\Truss.Observability.AspNetCore.csproj" />
-    <ProjectReference Include="..\..\src\Truss.Observability.OpenTelemetry\Truss.Observability.OpenTelemetry.csproj" />
     <ProjectReference Include="..\..\src\Truss.AspNetCore\Truss.AspNetCore.csproj" />
+    <ProjectReference Include="..\..\src\Truss.Observability.OpenTelemetry\Truss.Observability.OpenTelemetry.csproj" />
     <ProjectReference Include="..\..\src\Truss.Application\Truss.Application.csproj" />
   </ItemGroup>
 

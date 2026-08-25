@@ -2,6 +2,8 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Npgsql;
+using Truss.Messaging.Dispatch;
+using Truss.Messaging.Serialization;
 
 namespace Truss.Messaging.Postgres
 {

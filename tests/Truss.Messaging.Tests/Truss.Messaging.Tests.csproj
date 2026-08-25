@@ -5,16 +5,14 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\src\Truss.Messaging.AspNetCore\Truss.Messaging.AspNetCore.csproj" />
-    <ProjectReference Include="..\..\src\Truss.Messaging.EntityFrameworkCore\Truss.Messaging.EntityFrameworkCore.csproj" />
+    <ProjectReference Include="..\..\src\Truss.EntityFrameworkCore\Truss.EntityFrameworkCore.csproj" />
     <ProjectReference Include="..\..\src\Truss.Application\Truss.Application.csproj" />
-    <ProjectReference Include="..\..\src\Truss.Persistence.EntityFrameworkCore\Truss.Persistence.EntityFrameworkCore.csproj" />
+    <ProjectReference Include="..\..\src\Truss.AspNetCore\Truss.AspNetCore.csproj" />
   </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="Microsoft.AspNetCore.TestHost" Version="10.*" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.*" />
-    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.*" />
     <PackageReference Include="SQLitePCLRaw.bundle_e_sqlite3" Version="3.*" />
   </ItemGroup>
 

@@ -2,6 +2,10 @@ using System.Diagnostics.Metrics;
 using System.Reflection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Truss.Messaging;
+using Truss.Messaging.Dispatch;
+using Truss.Messaging.Outbox;
+using Truss.Messaging.Serialization;
+using Truss.Messaging.Transport;
 
 namespace Microsoft.Extensions.DependencyInjection
 {

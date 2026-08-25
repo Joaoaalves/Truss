@@ -28,7 +28,6 @@ namespace Truss.Cli.Tests
             Assert.Equal(0, _workspace.Run("add", "messaging", "--transport", "inmemory", "--project", root));
             Assert.Equal(0, _workspace.Run("add", "jobs", "--project", root));
             Assert.Equal(0, _workspace.Run("add", "observability", "--dashboard", "aspire", "--project", root));
-            Assert.Equal(0, _workspace.Run("add", "mapping", "--project", root));
             Assert.Equal(0, _workspace.Run("add", "email", "--project", root));
             Assert.Equal(0, _workspace.Run("generate", "aggregate", "Invoice", "--context", "Billing", "--crud", "--vo", "Name:string:2..120", "--vo", "Amount:decimal:pos", "--project", root));
             Assert.Equal(0, _workspace.Run("generate", "entity", "InvoiceLine", "--context", "Billing", "--aggregate", "Invoice", "--project", root));

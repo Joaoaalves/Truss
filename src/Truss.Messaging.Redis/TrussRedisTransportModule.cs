@@ -1,5 +1,6 @@
 using Truss.Messaging;
 using Truss.Messaging.Redis;
+using Truss.Messaging.Transport;
 
 namespace Microsoft.Extensions.DependencyInjection
 {

@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Truss.Messaging.Serialization;
 
 namespace Truss.Messaging.RabbitMq
 {

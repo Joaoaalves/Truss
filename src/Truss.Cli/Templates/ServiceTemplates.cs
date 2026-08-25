@@ -32,7 +32,7 @@ namespace Truss.Cli.Templates
               </PropertyGroup>
 
               <ItemGroup>
-                <PackageReference Include="Truss.Application.Abstractions" Version="__TRUSS_VERSION__" />__MESSAGING_PACKAGE__
+                <PackageReference Include="Truss.Application" Version="__TRUSS_VERSION__" />__MESSAGING_PACKAGE__
               </ItemGroup>
 
             </Project>

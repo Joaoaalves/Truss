@@ -2,6 +2,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\Truss.Email\Truss.Email.csproj" />
+    <ProjectReference Include="..\..\src\Truss.Email.Smtp\Truss.Email.Smtp.csproj" />
     <ProjectReference Include="..\..\src\Truss.Email.Resend\Truss.Email.Resend.csproj" />
   </ItemGroup>
 

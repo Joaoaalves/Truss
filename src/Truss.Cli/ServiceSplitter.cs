@@ -161,8 +161,8 @@ namespace Truss.Cli
             if (manifest.Modules.Contains("messaging"))
             {
                 Package("Truss.Messaging", manifest.TrussVersion);
-                Package("Truss.Messaging.EntityFrameworkCore", manifest.TrussVersion);
-                Package("Truss.Messaging.AspNetCore", manifest.TrussVersion);
+                Package("Truss.EntityFrameworkCore", manifest.TrussVersion);
+                Package("Truss.AspNetCore", manifest.TrussVersion);
 
                 manifest.Settings.TryGetValue("messaging.transport", out var transport);
 
@@ -177,13 +177,14 @@ namespace Truss.Cli
             if (manifest.Modules.Contains("jobs"))
             {
                 Package("Truss.Jobs", manifest.TrussVersion);
-                Package("Truss.Jobs.EntityFrameworkCore", manifest.TrussVersion);
-                Package("Truss.Jobs.AspNetCore", manifest.TrussVersion);
+                Package("Truss.EntityFrameworkCore", manifest.TrussVersion);
+                Package("Truss.AspNetCore", manifest.TrussVersion);
             }
 
             if (manifest.Modules.Contains("email"))
             {
                 Package("Truss.Email", manifest.TrussVersion);
+                Package("Truss.Email.Smtp", manifest.TrussVersion);
 
                 if (manifest.Settings.TryGetValue("email.provider", out var email) && email == "resend")
                     Package("Truss.Email.Resend", manifest.TrussVersion);
@@ -192,7 +193,7 @@ namespace Truss.Cli
             if (manifest.Modules.Contains("observability"))
             {
                 Package("Truss.Observability", manifest.TrussVersion);
-                Package("Truss.Observability.AspNetCore", manifest.TrussVersion);
+                Package("Truss.AspNetCore", manifest.TrussVersion);
 
                 if (manifest.Settings.ContainsKey("observability.dashboard"))
                     Package("Truss.Observability.OpenTelemetry", manifest.TrussVersion);
@@ -495,7 +496,7 @@ namespace Truss.Cli
             Directory.CreateDirectory(directory);
 
             var messaging = manifest.Modules.Contains("messaging")
-                ? $"{Environment.NewLine}    <PackageReference Include=\"Truss.Messaging.Abstractions\" Version=\"{manifest.TrussVersion}\" />"
+                ? $"{Environment.NewLine}    <PackageReference Include=\"Truss.Messaging\" Version=\"{manifest.TrussVersion}\" />"
                 : string.Empty;
 
             string Render(string template) => template

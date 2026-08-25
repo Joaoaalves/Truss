@@ -2,6 +2,8 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Truss.Jobs.Tests.Fakes;
 using Xunit;
+using Truss.Jobs.Storage;
+using Truss.Messaging.Outbox;
 
 namespace Truss.Jobs.Tests
 {
@@ -32,7 +34,7 @@ namespace Truss.Jobs.Tests
             using var scope = host.Provider.CreateScope();
             var context = scope.ServiceProvider.GetRequiredService<JobsDbContext>();
             Assert.Equal(0, await context.Set<JobRecord>().CountAsync());
-            Assert.Equal(0, await context.Set<Truss.Messaging.OutboxMessage>().CountAsync());
+            Assert.Equal(0, await context.Set<Truss.Messaging.Outbox.OutboxMessage>().CountAsync());
         }
     }
 }

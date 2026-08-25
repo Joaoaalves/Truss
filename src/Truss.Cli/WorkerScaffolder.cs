@@ -83,6 +83,7 @@ namespace Truss.Cli
 
             var csproj = Path.Combine(root, workerProject, $"{manifest.Name}.Worker.csproj");
             CsprojEditor.AddPackageReference(csproj, "Truss.Email", manifest.TrussVersion);
+            CsprojEditor.AddPackageReference(csproj, "Truss.Email.Smtp", manifest.TrussVersion);
 
             if (provider == "resend")
                 CsprojEditor.AddPackageReference(csproj, "Truss.Email.Resend", manifest.TrussVersion);
@@ -153,6 +154,7 @@ namespace Truss.Cli
                 ? $"""
 
                        <PackageReference Include="Truss.Email" Version="{manifest.TrussVersion}" />
+                       <PackageReference Include="Truss.Email.Smtp" Version="{manifest.TrussVersion}" />
                    """
                 : string.Empty;
 

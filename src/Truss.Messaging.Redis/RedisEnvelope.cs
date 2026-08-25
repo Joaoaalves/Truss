@@ -1,5 +1,6 @@
 using System.Globalization;
 using StackExchange.Redis;
+using Truss.Messaging.Serialization;
 
 namespace Truss.Messaging.Redis
 {

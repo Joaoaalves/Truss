@@ -1,5 +1,7 @@
 using Microsoft.Extensions.Options;
 using RabbitMQ.Client;
+using Truss.Messaging.Serialization;
+using Truss.Messaging.Transport;
 
 namespace Truss.Messaging.RabbitMq
 {
