@@ -28,21 +28,20 @@ namespace Truss.Messaging.Transports.Tests
             {
                 await connection.OpenAsync();
 
-                // Test assemblies run in parallel and every one passes through here.
-                // The advisory lock serializes the check-and-create, otherwise two
-                // sessions race CREATE DATABASE on a fresh server and one dies on
-                // the pg_database unique index. The lock dies with the connection.
-                await using (var serialize = new NpgsqlCommand("SELECT pg_advisory_lock(776677)", connection))
-                {
-                    await serialize.ExecuteNonQueryAsync();
-                }
-
-                await using var exists = new NpgsqlCommand("SELECT 1 FROM pg_database WHERE datname = 'truss_test'", connection);
-
-                if (await exists.ExecuteScalarAsync() is null)
+                // Parallel test collections all pass through here, and on a fresh
+                // server they race CREATE DATABASE. Locks do not help: pooled
+                // connections keep their session alive, so a session-scoped lock
+                // held here would starve the next caller. Instead everyone tries
+                // and the losers swallow the two shapes the race produces:
+                // 42P04 when the database already exists, 23505 when both creates
+                // collide inside the catalog.
+                try
                 {
                     await using var create = new NpgsqlCommand("CREATE DATABASE truss_test", connection);
                     await create.ExecuteNonQueryAsync();
+                }
+                catch (PostgresException exception) when (exception.SqlState is "42P04" or "23505")
+                {
                 }
             }
 
