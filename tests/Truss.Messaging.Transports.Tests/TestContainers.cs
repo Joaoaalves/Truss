@@ -27,6 +27,16 @@ namespace Truss.Messaging.Transports.Tests
             await using (var connection = new NpgsqlConnection(PostgresAdminConnectionString))
             {
                 await connection.OpenAsync();
+
+                // Test assemblies run in parallel and every one passes through here.
+                // The advisory lock serializes the check-and-create, otherwise two
+                // sessions race CREATE DATABASE on a fresh server and one dies on
+                // the pg_database unique index. The lock dies with the connection.
+                await using (var serialize = new NpgsqlCommand("SELECT pg_advisory_lock(776677)", connection))
+                {
+                    await serialize.ExecuteNonQueryAsync();
+                }
+
                 await using var exists = new NpgsqlCommand("SELECT 1 FROM pg_database WHERE datname = 'truss_test'", connection);
 
                 if (await exists.ExecuteScalarAsync() is null)
