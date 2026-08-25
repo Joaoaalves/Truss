@@ -84,7 +84,7 @@ The guarantee holds even under concurrency: two instances handling the same dupl
 
 ### Dead letters and the retry
 
-A message that exhausts its attempts is dead-lettered with its error preserved, and the health check degrades. Once the underlying failure is fixed, return everything to the queue with the operational endpoints of `Truss.Messaging.AspNetCore`:
+A message that exhausts its attempts is dead-lettered with its error preserved, and the health check degrades. Once the underlying failure is fixed, return everything to the queue with the operational endpoints of `Truss.AspNetCore`:
 
 ```csharp
 app.MapTrussOutbox();

@@ -20,8 +20,8 @@ A typical Clean Architecture setup:
 | Layer | References |
 |---|---|
 | Domain | `Truss.Domain` |
-| Application | `Truss.Application.Abstractions` |
-| Infrastructure | `Truss.Persistence.EntityFrameworkCore` |
+| Application | `Truss.Application` |
+| Infrastructure | `Truss.EntityFrameworkCore` |
 | API / Composition root | `Truss.Application`, `Truss.AspNetCore` and infrastructure modules |
 
 ---

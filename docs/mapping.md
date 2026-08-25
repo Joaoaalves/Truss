@@ -1,12 +1,12 @@
 # DTO Mapping
 
-`Truss.Mapping` implements your mappers at compile time. You declare the signature; the generator writes the body. There is no runtime library, no reflection and no configuration API: what cannot be mapped fails the build.
+Truss implements your mappers at compile time. You declare the signature; the generator writes the body. There is no runtime library, no reflection and no configuration API: what cannot be mapped fails the build.
+
+The mapping generator ships inside `Truss.Generators`, which every scaffolded project already references. There is nothing to install: declare a mapper and the build fills it in.
 
 ```xml
-<PackageReference Include="Truss.Mapping" Version="x.y.z" PrivateAssets="all" />
+<PackageReference Include="Truss.Generators" Version="x.y.z" PrivateAssets="all" />
 ```
-
-Or, in a Truss project: `truss add mapping`.
 
 ---
 
@@ -76,4 +76,4 @@ Failing the build is the point: a DTO gains a field, and every mapper that does 
 
 ## Scope
 
-Truss.Mapping deliberately covers the framework's idiom: aggregates and value objects projected into DTO records. It does not do flattening of nested paths, enum renaming or bidirectional configuration. If you need a fully featured mapper, [Mapperly](https://github.com/riok/mapperly) is excellent, Apache-2.0 licensed and also compile-time; both can coexist in the same solution.
+The mapping generator deliberately covers the framework's idiom: aggregates and value objects projected into DTO records. It does not do flattening of nested paths, enum renaming or bidirectional configuration. If you need a fully featured mapper, [Mapperly](https://github.com/riok/mapperly) is excellent, Apache-2.0 licensed and also compile-time; both can coexist in the same solution.

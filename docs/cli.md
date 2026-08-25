@@ -36,7 +36,7 @@ MyShop/
   .vscode/settings.json      pins the solution so editors navigate across projects
   src/
     MyShop.Domain/           references Truss.Domain only
-    MyShop.Application/      references Truss.Application.Abstractions and FluentValidation
+    MyShop.Application/      references Truss.Application and FluentValidation
     MyShop.Infrastructure/   EF Core, the provider and AppDbContext
     MyShop.Api/              composition root with Truss.AspNetCore and Truss.Generators
 ```
@@ -72,7 +72,6 @@ Insertions target the comment markers the scaffold leaves behind (`// truss: ser
 | `messaging` | `--transport inmemory`, `postgres`, `rabbitmq`, `redis` | With a database, the outbox is installed automatically |
 | `jobs` | | Requires messaging |
 | `observability` | `--dashboard aspire`, `grafana`, `seq` | Logging, tracing and correlation; the dashboard option wires OTLP export and the compose service |
-| `mapping` | | Compile-time DTO mappers, added to the application layer |
 | `auth` | `--provider jwt`, `identity`; `--bind-user <Aggregate>` with `--bind-mode reference`, `merge`; `--external google,microsoft,github`; `--flows` | Scaffolds the editable Accounts context and wires JWT authentication; the identity provider runs credentials through ASP.NET Core Identity; the binding connects the account to an existing aggregate and the external option wires OAuth login providers (addable later too); `--flows` retrofits the account flows when email was installed after auth, never overwriting files you edited; requires a database |
 | `email` | `--provider console`, `smtp`, `resend` | IEmailSender for the application layer; smtp brings Mailpit to the compose file, resend delivers through the API |
 | `tenancy` | | Row-level tenant isolation: ambient resolution, query filtering and stamping; requires a database |

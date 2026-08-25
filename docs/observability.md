@@ -52,7 +52,7 @@ public class CreateUserHandler(IExecutionContext execution) : ICommandHandler<Cr
 }
 ```
 
-At the edge, `Truss.Observability.AspNetCore` bridges HTTP:
+At the edge, `Truss.AspNetCore` bridges HTTP:
 
 ```csharp
 app.UseTrussCorrelation();

@@ -53,7 +53,7 @@ TRUSS002 is an error by design: with two handlers registered, dispatch would sil
 
 ## Scope and Rules
 
-- The generator scans the current compilation plus referenced assemblies that reference `Truss.Application.Abstractions`. Framework and Truss package assemblies are never scanned.
+- The generator scans the current compilation plus referenced assemblies that reference `Truss.Application`. Framework and Truss package assemblies are never scanned.
 - Handlers and validators must be accessible from the composition root (public, or internal with `InternalsVisibleTo`). When they are not, the whole assembly falls back to runtime scanning and TRUSS003 is reported.
 - Generic handler types are ignored; register open generics manually as pipeline behaviors.
 

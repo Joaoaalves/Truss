@@ -9,8 +9,8 @@ Truss assumes a Clean Architecture layout, but does not enforce one. Each packag
 | Layer | Responsibility | Truss packages |
 |---|---|---|
 | Domain | Entities, value objects, domain events, business rules | `Truss.Domain` |
-| Application | Commands, queries, handlers, validators | `Truss.Application.Abstractions` |
-| Infrastructure | Persistence, unit of work implementation | `Truss.Persistence.EntityFrameworkCore` |
+| Application | Commands, queries, handlers, validators | `Truss.Application` |
+| Infrastructure | Persistence, unit of work implementation | `Truss.EntityFrameworkCore` |
 | API / Host | Registration, composition, endpoint mapping | `Truss.Application`, `Truss.AspNetCore` and modules |
 
 The domain layer depends on nothing but `Truss.Domain`, which itself has zero dependencies. The application layer sees only abstractions: never EF Core, never a database driver.
@@ -19,10 +19,13 @@ The domain layer depends on nothing but `Truss.Domain`, which itself has zero de
 
 ## Namespaces
 
-Truss uses flat namespaces so each layer needs a single using:
+The types you write against daily live at the root of their package, so each layer needs a single using:
 
 - `using Truss.Domain;` gives every domain building block.
-- `using Truss.Application;` gives every application contract. The Abstractions package publishes into this namespace, following the .NET convention for `.Abstractions` packages.
+- `using Truss.Application;` gives every application contract: requests, handlers, behaviors, the dispatcher interface.
+- Auth, tenancy and authorization contracts keep their own roots (`Truss.Auth`, `Truss.Tenancy`, `Truss.Rbac`) even though they ship inside `Truss.Application`; a namespace describes the concern, a package describes the dependency closure.
+
+Runtime machinery sits one level down, organized by feature: `Truss.Application.Pipeline` holds the dispatcher and behaviors, `Truss.Messaging.Outbox`, `.Inbox`, `.Transport`, `.Serialization` and `.Dispatch` partition the messaging runtime, `Truss.Jobs.Storage` and `.Runtime` do the same for jobs, and `Truss.EntityFrameworkCore` mirrors it all with `.Messaging`, `.Jobs`, `.Tenancy` and `.Rbac`. Application code rarely opens these; infrastructure and tests do.
 
 Registration extensions (`AddTruss`, `AddTrussEntityFramework`) live in `Microsoft.Extensions.DependencyInjection`, so composition roots need no Truss usings at all.
 

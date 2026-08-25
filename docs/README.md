@@ -26,42 +26,49 @@ Truss is intentionally explicit, modular and dependency-minimal.
 
 ## Packages
 
-| Package | Purpose | Layer |
-|---|---|---|
-| `Truss.Domain` | Entities, aggregate roots, value objects, typed ids, business rules, domain events. Zero dependencies. | Domain |
-| `Truss.Application.Abstractions` | Contracts for commands, queries, handlers, pipeline behaviors, dispatching and unit of work. | Application |
-| `Truss.Application` | Dispatcher, validation pipeline, handler registration. | Application / Composition root |
-| `Truss.Persistence.EntityFrameworkCore` | EF Core unit of work with automatic commit and domain event dispatching. | Infrastructure |
-| `Truss.AspNetCore` | Endpoint mapping for commands and queries with automatic ProblemDetails responses. | API / Host |
-| `Truss.Generators` | Compile-time handler discovery and dispatch, missing handlers as build diagnostics. | Build (dev dependency) |
-| `Truss.Messaging.Abstractions` | Contracts for integration events, handlers and the publisher. | Application |
-| `Truss.Messaging` | Versioned JSON serialization, outbox runtime, transport seam, in-memory transport. | Infrastructure |
-| `Truss.Messaging.EntityFrameworkCore` | Transactional outbox and inbox stored through EF Core. | Infrastructure |
-| `Truss.Messaging.AspNetCore` | Operational endpoints: outbox counters and dead-letter retry. | API / Host |
-| `Truss.Remote` | Explicit synchronous queries to a context running as another service. | API / Host |
-| `Truss.Messaging.Postgres` | Durable Postgres transport: SKIP LOCKED queue with LISTEN/NOTIFY wake-up. | Infrastructure |
-| `Truss.Messaging.RabbitMq` | Durable RabbitMQ transport: quorum queues with publisher confirms and broker-side dead-lettering. | Infrastructure |
-| `Truss.Messaging.Redis` | Durable Redis transport over Streams with consumer groups. | Infrastructure |
-| `Truss.Jobs.Abstractions` | Contracts for background jobs, scheduling and monitoring. | Application |
-| `Truss.Jobs` | Job runtime: transactional enqueueing, retry, timeout, scheduled and recurring jobs. | Infrastructure |
-| `Truss.Jobs.EntityFrameworkCore` | Job records persisted in the application database. | Infrastructure |
-| `Truss.Jobs.AspNetCore` | Progress endpoints: polling and server-sent events. | API / Host |
-| `Truss.Observability` | Structured request logging, spans, metrics and ambient correlation. | Cross-cutting |
-| `Truss.Observability.AspNetCore` | Correlation middleware bridging HTTP headers. | API / Host |
-| `Truss.Observability.OpenTelemetry` | OTLP export of the framework's traces, metrics and logs in one registration. | API / Host |
-| `Truss.Testing` | Integration test host: pipeline, throwaway database, transport and jobs in one call. | Tests |
-| `Truss.Cli` | The `truss` command line: scaffolding, module installation, code generation. | Tooling (dotnet tool) |
-| `Truss.Mapping` | Compile-time DTO mappers with typed id unwrapping and unmapped members as build errors. | Build (dev dependency) |
-| `Truss.Auth.Abstractions` | Contracts for password hashing and token issuing. | Application |
-| `Truss.Auth.Jwt` | PBKDF2 hashing, JWT issuing and JwtBearer wiring; the user model is scaffolded into your domain. | API / Host |
-| `Truss.Email.Abstractions` | Contracts for sending email from the application layer. | Application |
-| `Truss.Email` | SMTP sender through MailKit and a console sender for development. | API / Host |
-| `Truss.Email.Resend` | Delivery through the Resend API behind the same sender abstraction. | API / Host |
-| `Truss.Tenancy.Abstractions` | The ambient tenant context, readable anywhere. | Application |
-| `Truss.Tenancy.EntityFrameworkCore` | Row-level isolation: shadow column, query filter and automatic stamping. | Infrastructure |
-| `Truss.Tenancy.AspNetCore` | Tenant resolution from claims, headers or a custom strategy. | API / Host |
-| `Truss.Rbac` | Roles in code mapping to permissions, RequirePermission and claims enrichment. | API / Host |
-| `Truss.Rbac.EntityFrameworkCore` | Role assignments persisted in the application database. | Infrastructure |
+Twenty packages in three rings plus tooling. A package boundary exists only
+where it pays for itself: an external dependency it isolates or a deployment
+target it serves. Everything else is a namespace.
+
+**Kernel** - referenced by domain and application code, no external weight:
+
+| Package | Purpose |
+|---|---|
+| `Truss.Domain` | Entities, aggregate roots, value objects, typed ids, business rules, domain events. Zero dependencies. |
+| `Truss.Application` | Commands, queries, handlers, pipeline behaviors, dispatching, unit of work, plus the auth, tenancy and authorization contracts. |
+
+**Capabilities** - feature runtimes, `Microsoft.Extensions.*`-class dependencies only:
+
+| Package | Purpose |
+|---|---|
+| `Truss.Messaging` | Integration events: versioned serialization, transactional outbox and inbox, transport seam, in-memory transport. |
+| `Truss.Jobs` | Background jobs: transactional enqueueing, retry, timeout, live progress, scheduled and recurring jobs. |
+| `Truss.Email` | The message shape, sender and validation contracts, and a console sender for development. |
+| `Truss.Rbac` | Roles in code mapping to permissions, RequirePermission and claims enrichment. |
+| `Truss.Observability` | Structured request logging, spans, metrics and ambient correlation. |
+| `Truss.Remote` | Explicit synchronous queries to a context running as another service. |
+
+**Integrations** - real third-party dependencies, referenced only by hosts:
+
+| Package | Purpose |
+|---|---|
+| `Truss.EntityFrameworkCore` | Unit of work, outbox and inbox stores, job store, tenancy interceptors, role assignments and idempotency, registered per feature. |
+| `Truss.AspNetCore` | Endpoint mapping with ProblemDetails, remote context endpoints, job and outbox endpoints, correlation and tenant resolution. |
+| `Truss.Messaging.Postgres` | Durable Postgres transport: SKIP LOCKED queue with LISTEN/NOTIFY wake-up. |
+| `Truss.Messaging.RabbitMq` | Durable RabbitMQ transport: quorum queues with publisher confirms and broker-side dead-lettering. |
+| `Truss.Messaging.Redis` | Durable Redis transport over Streams with consumer groups. |
+| `Truss.Email.Smtp` | SMTP delivery through MailKit and DNS-checked address validation. |
+| `Truss.Email.Resend` | Delivery through the Resend API behind the same sender abstraction. |
+| `Truss.Auth.Jwt` | PBKDF2 hashing, JWT issuing and JwtBearer wiring; the user model is scaffolded into your domain. |
+| `Truss.Observability.OpenTelemetry` | OTLP export of the framework's traces, metrics and logs in one registration. |
+
+**Tooling** - never shipped inside the application:
+
+| Package | Purpose |
+|---|---|
+| `Truss.Generators` | Compile-time handler discovery and dispatch, missing handlers as build diagnostics, and DTO mappers generated from partial methods. |
+| `Truss.Testing` | Integration test host: pipeline, throwaway database, transport and jobs in one call. |
+| `Truss.Cli` | The `truss` command line: scaffolding, module installation, code generation, splitting and deploy artifacts. |
 
 Each layer references only the packages it needs. See [Architecture](architecture.md) for the full picture.
 
@@ -75,4 +82,4 @@ This documentation is AI-friendly: [llms.txt](https://joaoaalves.github.io/Truss
 
 ## Status
 
-Truss 0.1.x is published on [nuget.org](https://www.nuget.org/packages?q=Truss.): the domain building blocks, the pipeline, persistence, messaging with outbox and durable transports, background jobs with live progress, observability, authentication, the source generators and the CLI. APIs may still change until v1. See the [Roadmap](roadmap.md) for what comes next.
+Truss 0.5.x is published on [nuget.org](https://www.nuget.org/packages?q=Truss.): the domain building blocks, the pipeline, persistence, messaging with outbox and durable transports, background jobs with live progress, observability, authentication, service splitting with remote contexts, deploy artifacts, the source generators and the CLI. APIs may still change until v1. See the [Roadmap](roadmap.md) for what comes next.

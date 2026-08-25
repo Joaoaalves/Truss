@@ -1,6 +1,6 @@
 # Sending Email
 
-`Truss.Email.Abstractions` gives the application layer one contract; `Truss.Email` gives the host the mechanisms. Handlers never know how mail leaves the system:
+`Truss.Email` gives the application layer one contract; `Truss.Email.Smtp` and `Truss.Email.Resend` give the host the mechanisms. Handlers never know how mail leaves the system:
 
 ```csharp
 public class SendWelcomeEmail(IEmailSender email) : IIntegrationEventHandler<UserRegistered>
@@ -27,7 +27,7 @@ truss add email --provider smtp     # smtp provider with Mailpit for development
 truss add email --provider resend   # delivery through the Resend API
 ```
 
-The command references `Truss.Email.Abstractions` in the application layer, `Truss.Email` in the hosts (the worker included, when present) and registers the sender:
+The command references `Truss.Email` in the application layer, `Truss.Email.Smtp` (delivery and address validation) plus the chosen provider package in the hosts (the worker included, when present) and registers the sender:
 
 | Provider | Behavior |
 |---|---|

@@ -154,4 +154,4 @@ The mappings also register OpenAPI metadata (success status, 400 and 422) so gen
 
 ## Registration
 
-There is nothing to register. Reference `Truss.AspNetCore` from the host project and map endpoints. The package depends only on `Truss.Application.Abstractions`; the runtime comes from your existing `AddTruss` call.
+There is nothing to register. Reference `Truss.AspNetCore` from the host project and map endpoints. The package depends only on `Truss.Application`; the runtime comes from your existing `AddTruss` call.

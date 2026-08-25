@@ -34,42 +34,49 @@ Truss is intentionally explicit, modular and dependency-minimal.
 
 ## Packages
 
-| Package | Purpose | Layer |
-|---|---|---|
-| `Truss.Domain` | Entities, aggregate roots, value objects, typed ids, business rules, domain events. Zero dependencies. | Domain |
-| `Truss.Application.Abstractions` | Contracts for commands, queries, handlers, pipeline behaviors, dispatching and unit of work. | Application |
-| `Truss.Application` | Dispatcher, validation pipeline, handler registration. | Application / Composition root |
-| `Truss.Persistence.EntityFrameworkCore` | EF Core unit of work with automatic commit and domain event dispatching. | Infrastructure |
-| `Truss.AspNetCore` | Endpoint mapping for commands and queries with automatic ProblemDetails responses. | API / Host |
-| `Truss.Generators` | Compile-time handler discovery and dispatch, missing handlers as build diagnostics. | Build (dev dependency) |
-| `Truss.Messaging.Abstractions` | Contracts for integration events, handlers and the publisher. | Application |
-| `Truss.Messaging` | Versioned JSON serialization, outbox runtime, transport seam, in-memory transport. | Infrastructure |
-| `Truss.Messaging.EntityFrameworkCore` | Transactional outbox and inbox stored through EF Core. | Infrastructure |
-| `Truss.Messaging.AspNetCore` | Operational endpoints: outbox counters and dead-letter retry. | API / Host |
-| `Truss.Remote` | Explicit synchronous queries to a context running as another service. | API / Host |
-| `Truss.Messaging.Postgres` | Durable Postgres transport: SKIP LOCKED queue with LISTEN/NOTIFY wake-up. | Infrastructure |
-| `Truss.Messaging.RabbitMq` | Durable RabbitMQ transport: quorum queues with publisher confirms and broker-side dead-lettering. | Infrastructure |
-| `Truss.Messaging.Redis` | Durable Redis transport over Streams with consumer groups. | Infrastructure |
-| `Truss.Jobs.Abstractions` | Contracts for background jobs, scheduling and monitoring. | Application |
-| `Truss.Jobs` | Job runtime: transactional enqueueing, retry, timeout, scheduled and recurring jobs. | Infrastructure |
-| `Truss.Jobs.EntityFrameworkCore` | Job records persisted in the application database. | Infrastructure |
-| `Truss.Jobs.AspNetCore` | Progress endpoints: polling and server-sent events. | API / Host |
-| `Truss.Observability` | Structured request logging, spans, metrics and ambient correlation. | Cross-cutting |
-| `Truss.Observability.AspNetCore` | Correlation middleware bridging HTTP headers. | API / Host |
-| `Truss.Observability.OpenTelemetry` | OTLP export of the framework's traces, metrics and logs in one registration. | API / Host |
-| `Truss.Testing` | Integration test host: pipeline, throwaway database, transport and jobs in one call. | Tests |
-| `Truss.Cli` | The `truss` command line: scaffolding, module installation, code generation. | Tooling (dotnet tool) |
-| `Truss.Mapping` | Compile-time DTO mappers with typed id unwrapping and unmapped members as build errors. | Build (dev dependency) |
-| `Truss.Auth.Abstractions` | Contracts for password hashing and token issuing. | Application |
-| `Truss.Auth.Jwt` | PBKDF2 hashing, JWT issuing and JwtBearer wiring; the user model is scaffolded into your domain. | API / Host |
-| `Truss.Email.Abstractions` | Contracts for sending email from the application layer. | Application |
-| `Truss.Email` | SMTP sender through MailKit and a console sender for development. | API / Host |
-| `Truss.Email.Resend` | Delivery through the Resend API behind the same sender abstraction. | API / Host |
-| `Truss.Tenancy.Abstractions` | The ambient tenant context, readable anywhere. | Application |
-| `Truss.Tenancy.EntityFrameworkCore` | Row-level isolation: shadow column, query filter and automatic stamping. | Infrastructure |
-| `Truss.Tenancy.AspNetCore` | Tenant resolution from claims, headers or a custom strategy. | API / Host |
-| `Truss.Rbac` | Roles in code mapping to permissions, RequirePermission and claims enrichment. | API / Host |
-| `Truss.Rbac.EntityFrameworkCore` | Role assignments persisted in the application database. | Infrastructure |
+Twenty packages in three rings plus tooling. A package boundary exists only
+where it pays for itself: an external dependency it isolates or a deployment
+target it serves. Everything else is a namespace.
+
+**Kernel** - referenced by domain and application code, no external weight:
+
+| Package | Purpose |
+|---|---|
+| `Truss.Domain` | Entities, aggregate roots, value objects, typed ids, business rules, domain events. Zero dependencies. |
+| `Truss.Application` | Commands, queries, handlers, pipeline behaviors, dispatching, unit of work, plus the auth, tenancy and authorization contracts. |
+
+**Capabilities** - feature runtimes, `Microsoft.Extensions.*`-class dependencies only:
+
+| Package | Purpose |
+|---|---|
+| `Truss.Messaging` | Integration events: versioned serialization, transactional outbox and inbox, transport seam, in-memory transport. |
+| `Truss.Jobs` | Background jobs: transactional enqueueing, retry, timeout, live progress, scheduled and recurring jobs. |
+| `Truss.Email` | The message shape, sender and validation contracts, and a console sender for development. |
+| `Truss.Rbac` | Roles in code mapping to permissions, RequirePermission and claims enrichment. |
+| `Truss.Observability` | Structured request logging, spans, metrics and ambient correlation. |
+| `Truss.Remote` | Explicit synchronous queries to a context running as another service. |
+
+**Integrations** - real third-party dependencies, referenced only by hosts:
+
+| Package | Purpose |
+|---|---|
+| `Truss.EntityFrameworkCore` | Unit of work, outbox and inbox stores, job store, tenancy interceptors, role assignments and idempotency, registered per feature. |
+| `Truss.AspNetCore` | Endpoint mapping with ProblemDetails, remote context endpoints, job and outbox endpoints, correlation and tenant resolution. |
+| `Truss.Messaging.Postgres` | Durable Postgres transport: SKIP LOCKED queue with LISTEN/NOTIFY wake-up. |
+| `Truss.Messaging.RabbitMq` | Durable RabbitMQ transport: quorum queues with publisher confirms and broker-side dead-lettering. |
+| `Truss.Messaging.Redis` | Durable Redis transport over Streams with consumer groups. |
+| `Truss.Email.Smtp` | SMTP delivery through MailKit and DNS-checked address validation. |
+| `Truss.Email.Resend` | Delivery through the Resend API behind the same sender abstraction. |
+| `Truss.Auth.Jwt` | PBKDF2 hashing, JWT issuing and JwtBearer wiring; the user model is scaffolded into your domain. |
+| `Truss.Observability.OpenTelemetry` | OTLP export of the framework's traces, metrics and logs in one registration. |
+
+**Tooling** - never shipped inside the application:
+
+| Package | Purpose |
+|---|---|
+| `Truss.Generators` | Compile-time handler discovery and dispatch, missing handlers as build diagnostics, and DTO mappers generated from partial methods. |
+| `Truss.Testing` | Integration test host: pipeline, throwaway database, transport and jobs in one call. |
+| `Truss.Cli` | The `truss` command line: scaffolding, module installation, code generation, splitting and deploy artifacts. |
 
 Each layer references only the packages it needs. See [Architecture](architecture.md) for the full picture.
 
@@ -83,7 +90,7 @@ This documentation is AI-friendly: [llms.txt](https://joaoaalves.github.io/Truss
 
 ## Status
 
-Truss 0.1.x is published on [nuget.org](https://www.nuget.org/packages?q=Truss.): the domain building blocks, the pipeline, persistence, messaging with outbox and durable transports, background jobs with live progress, observability, authentication, the source generators and the CLI. APIs may still change until v1. See the [Roadmap](roadmap.md) for what comes next.
+Truss 0.5.x is published on [nuget.org](https://www.nuget.org/packages?q=Truss.): the domain building blocks, the pipeline, persistence, messaging with outbox and durable transports, background jobs with live progress, observability, authentication, service splitting with remote contexts, deploy artifacts, the source generators and the CLI. APIs may still change until v1. See the [Roadmap](roadmap.md) for what comes next.
 
 ---
 
@@ -111,8 +118,8 @@ A typical Clean Architecture setup:
 | Layer | References |
 |---|---|
 | Domain | `Truss.Domain` |
-| Application | `Truss.Application.Abstractions` |
-| Infrastructure | `Truss.Persistence.EntityFrameworkCore` |
+| Application | `Truss.Application` |
+| Infrastructure | `Truss.EntityFrameworkCore` |
 | API / Composition root | `Truss.Application`, `Truss.AspNetCore` and infrastructure modules |
 
 ---
@@ -221,8 +228,8 @@ Truss assumes a Clean Architecture layout, but does not enforce one. Each packag
 | Layer | Responsibility | Truss packages |
 |---|---|---|
 | Domain | Entities, value objects, domain events, business rules | `Truss.Domain` |
-| Application | Commands, queries, handlers, validators | `Truss.Application.Abstractions` |
-| Infrastructure | Persistence, unit of work implementation | `Truss.Persistence.EntityFrameworkCore` |
+| Application | Commands, queries, handlers, validators | `Truss.Application` |
+| Infrastructure | Persistence, unit of work implementation | `Truss.EntityFrameworkCore` |
 | API / Host | Registration, composition, endpoint mapping | `Truss.Application`, `Truss.AspNetCore` and modules |
 
 The domain layer depends on nothing but `Truss.Domain`, which itself has zero dependencies. The application layer sees only abstractions: never EF Core, never a database driver.
@@ -231,10 +238,13 @@ The domain layer depends on nothing but `Truss.Domain`, which itself has zero de
 
 ## Namespaces
 
-Truss uses flat namespaces so each layer needs a single using:
+The types you write against daily live at the root of their package, so each layer needs a single using:
 
 - `using Truss.Domain;` gives every domain building block.
-- `using Truss.Application;` gives every application contract. The Abstractions package publishes into this namespace, following the .NET convention for `.Abstractions` packages.
+- `using Truss.Application;` gives every application contract: requests, handlers, behaviors, the dispatcher interface.
+- Auth, tenancy and authorization contracts keep their own roots (`Truss.Auth`, `Truss.Tenancy`, `Truss.Rbac`) even though they ship inside `Truss.Application`; a namespace describes the concern, a package describes the dependency closure.
+
+Runtime machinery sits one level down, organized by feature: `Truss.Application.Pipeline` holds the dispatcher and behaviors, `Truss.Messaging.Outbox`, `.Inbox`, `.Transport`, `.Serialization` and `.Dispatch` partition the messaging runtime, `Truss.Jobs.Storage` and `.Runtime` do the same for jobs, and `Truss.EntityFrameworkCore` mirrors it all with `.Messaging`, `.Jobs`, `.Tenancy` and `.Rbac`. Application code rarely opens these; infrastructure and tests do.
 
 Registration extensions (`AddTruss`, `AddTrussEntityFramework`) live in `Microsoft.Extensions.DependencyInjection`, so composition roots need no Truss usings at all.
 
@@ -296,280 +306,231 @@ Source: https://joaoaalves.github.io/Truss/dependencies.md
 
 # Dependencies
 
-This section lists the **direct dependencies added to a project** when referencing each Truss package.
+Truss ships as twenty packages arranged in three rings plus tooling. The rule
+that decides where code lives: **a package boundary must pay for itself with an
+external dependency it isolates or a deployment target it serves**. Fewer
+moving parts, same discipline; the layer rules are enforced by the analyzer,
+not by package walls.
+
+- **Kernel**: no external dependencies worth mentioning; referenced by domain and application code.
+- **Capabilities**: feature runtimes with only `Microsoft.Extensions.*`-class dependencies; referenced where the feature is used.
+- **Integrations**: the packages that carry real third-party dependencies or a framework reference; referenced only by hosts.
+- **Tooling**: the CLI, the source generators and the test host; never shipped inside the application.
+
+This section lists the **direct dependencies added to a project** when
+referencing each package.
 
 ---
 
-## Truss.Domain
+## Kernel
 
-**Purpose:**
-Domain building blocks: entities, aggregate roots, value objects, typed identifiers, business rules and domain events.
+### Truss.Domain
 
-### Dependencies
+Domain building blocks: entities, aggregate roots, value objects, typed
+identifiers, business rules and domain events.
 
-None. `Truss.Domain` relies exclusively on the .NET runtime, making it safe to reference from any domain layer or shared kernel.
+Dependencies: none. `Truss.Domain` relies exclusively on the .NET runtime,
+making it safe to reference from any domain layer or shared kernel.
 
----
+### Truss.Application
 
-## Truss.Application.Abstractions
+The application kernel: contracts for commands, queries, handlers, pipeline
+behaviors, dispatching, validation errors and unit of work, plus the
+dispatcher and behavior implementations under `Truss.Application.Pipeline`,
+and the auth (`Truss.Auth`), tenancy (`Truss.Tenancy`) and authorization
+(`Truss.Rbac`) contracts the application layer programs against.
 
-**Purpose:**
-Contracts for commands, queries, handlers, pipeline behaviors, dispatching, validation errors and unit of work.
-
-### Dependencies
+Dependencies:
 
 - `Truss.Domain`
-
----
-
-## Truss.Application
-
-**Purpose:**
-The execution pipeline: dispatcher, domain event dispatcher, validation behavior, unit of work behavior and handler registration.
-
-### Dependencies
-
-- `Truss.Application.Abstractions`
 - `FluentValidation`
 - `Microsoft.Extensions.DependencyInjection.Abstractions`
 
 ---
 
-## Truss.Persistence.EntityFrameworkCore
+## Capabilities
 
-**Purpose:**
-EF Core implementation of the unit of work, with domain event collection from tracked entities.
+### Truss.Messaging
 
-### Dependencies
+Integration event contracts and runtime: the event marker and base record,
+versioned JSON serialization (`Truss.Messaging.Serialization`), the
+transactional outbox and inbox models (`Truss.Messaging.Outbox`,
+`Truss.Messaging.Inbox`), the transport abstraction with the in-memory
+transport (`Truss.Messaging.Transport`) and consumer dispatch
+(`Truss.Messaging.Dispatch`).
+
+Dependencies:
 
 - `Truss.Application`
-- `Microsoft.EntityFrameworkCore`
-- `Microsoft.Extensions.Diagnostics.HealthChecks`
-
----
-
-## Truss.AspNetCore
-
-**Purpose:**
-Endpoint mapping for commands and queries, with automatic ProblemDetails responses for validation and business rule failures.
-
-### Dependencies
-
-- `Truss.Application.Abstractions`
-- ASP.NET Core shared framework (framework reference, not a package)
-
----
-
-## Truss.Generators
-
-**Purpose:**
-Compile-time handler discovery, dispatch priming and build diagnostics. Development dependency: nothing is added to the published application.
-
-### Dependencies
-
-None at runtime. Referenced with `PrivateAssets="all"` in the composition root project.
-
----
-
-## Truss.Messaging.Abstractions
-
-**Purpose:**
-Contracts for integration events: the event marker and base record, the handler, the publisher and the naming attribute with versioning.
-
-### Dependencies
-
-None.
-
----
-
-## Truss.Messaging
-
-**Purpose:**
-Integration event runtime: versioned JSON serialization, outbox model and processor, transport abstraction, consumer dispatch and the in-memory transport.
-
-### Dependencies
-
-- `Truss.Messaging.Abstractions`
-- `Truss.Application.Abstractions`
 - `Microsoft.Extensions.Diagnostics.HealthChecks`
 - `Microsoft.Extensions.DependencyInjection.Abstractions`
 - `Microsoft.Extensions.Hosting.Abstractions`
 - `Microsoft.Extensions.Logging.Abstractions`
 - `Microsoft.Extensions.Options`
 
----
+### Truss.Jobs
 
-## Truss.Messaging.EntityFrameworkCore
+Background job contracts and runtime: the job interface, execution context,
+scheduler and monitor at the root, the stores under `Truss.Jobs.Storage` and
+the executor, pollers and recurring jobs under `Truss.Jobs.Runtime`.
+Enqueueing is transactional through the outbox.
 
-**Purpose:**
-Outbox and inbox persistence through EF Core: the model configurations and stores that join the message's unit of work.
-
-### Dependencies
-
-- `Truss.Messaging`
-- `Microsoft.EntityFrameworkCore.Relational`
-
----
-
-## Truss.Messaging.AspNetCore
-
-**Purpose:**
-Operational endpoints for the outbox: counters and dead-letter retry.
-
-### Dependencies
+Dependencies:
 
 - `Truss.Messaging`
+- `Microsoft.Extensions.Diagnostics.HealthChecks`
+- `Cronos`
+
+### Truss.Email
+
+Email contracts: the message shape, the sender and address validation
+abstractions, and a console sender that prints messages during development.
+
+Dependencies:
+
+- `Microsoft.Extensions.DependencyInjection.Abstractions`
+- `Microsoft.Extensions.Logging.Abstractions`
+
+### Truss.Rbac
+
+Role-based access control over standard authorization: roles defined in code,
+on-demand permission policies and per-request role claims enrichment.
+
+Dependencies:
+
+- `Truss.Application`
 - ASP.NET Core shared framework (framework reference, not a package)
 
----
+### Truss.Observability
 
-## Truss.Remote
+Structured request logging, spans and metrics through BCL diagnostics, and
+the ambient execution context.
 
-**Purpose:**
-Typed forwarding of contract queries to a context hosted as another service, with local failure semantics.
+Dependencies:
 
-### Dependencies
+- `Truss.Application`
+- `Microsoft.Extensions.DependencyInjection.Abstractions`
+- `Microsoft.Extensions.Logging.Abstractions`
 
-- `Truss.Application.Abstractions`
+### Truss.Remote
+
+Typed forwarding of contract queries to a context hosted as another service,
+with local failure semantics.
+
+Dependencies:
+
+- `Truss.Application`
 - `Microsoft.Extensions.Http`
 
 ---
 
-## Truss.Messaging.Postgres
+## Integrations
 
-**Purpose:**
-Durable Postgres transport: table-backed queue with SKIP LOCKED competing consumers, LISTEN/NOTIFY wake-up, retry with backoff and a dead-letter table.
+### Truss.EntityFrameworkCore
 
-### Dependencies
+Everything EF Core in one package, registered per feature: the unit of work
+with domain event dispatching and idempotency records at the root, outbox and
+inbox stores (`Truss.EntityFrameworkCore.Messaging`), the job store and
+scheduler lock (`Truss.EntityFrameworkCore.Jobs`), tenancy interceptors
+(`Truss.EntityFrameworkCore.Tenancy`) and the role assignment store
+(`Truss.EntityFrameworkCore.Rbac`). Nothing activates until its module is
+registered.
+
+Dependencies:
+
+- `Truss.Application`
+- `Truss.Messaging`
+- `Truss.Jobs`
+- `Microsoft.EntityFrameworkCore`
+- `Microsoft.EntityFrameworkCore.Relational`
+- `Microsoft.Extensions.Diagnostics.HealthChecks`
+
+### Truss.AspNetCore
+
+Everything ASP.NET Core in one package: endpoint mapping for commands and
+queries with automatic ProblemDetails responses, remote context endpoints,
+job progress endpoints, outbox counters and dead-letter retry, correlation
+middleware and tenant resolution.
+
+Dependencies:
+
+- `Truss.Application`
+- `Truss.Messaging`
+- `Truss.Jobs`
+- `Truss.Observability`
+- ASP.NET Core shared framework (framework reference, not a package)
+
+### Truss.Messaging.Postgres
+
+Durable Postgres transport: table-backed queue with SKIP LOCKED competing
+consumers, LISTEN/NOTIFY wake-up, retry with backoff and a dead-letter table.
+
+Dependencies:
 
 - `Truss.Messaging`
 - `Npgsql`
 
----
+### Truss.Messaging.RabbitMq
 
-## Truss.Messaging.RabbitMq
+Durable RabbitMQ transport: quorum queues with publisher confirms,
+broker-side delivery accounting and dead-lettering.
 
-**Purpose:**
-Durable RabbitMQ transport: quorum queues with publisher confirms, broker-side delivery accounting and dead-lettering.
-
-### Dependencies
+Dependencies:
 
 - `Truss.Messaging`
 - `RabbitMQ.Client`
 
----
+### Truss.Messaging.Redis
 
-## Truss.Messaging.Redis
+Durable Redis transport: Streams with consumer groups, pending message
+reclaim and a dead-letter stream.
 
-**Purpose:**
-Durable Redis transport: Streams with consumer groups, pending message reclaim and a dead-letter stream.
-
-### Dependencies
+Dependencies:
 
 - `Truss.Messaging`
 - `StackExchange.Redis`
 
----
+### Truss.Email.Smtp
 
-## Truss.Email.Abstractions
+SMTP delivery through MailKit, and the address validator combining RFC syntax
+with a DNS deliverability check.
 
-**Purpose:**
-Contracts for sending email: the message shape and the sender abstraction.
+Dependencies:
 
-### Dependencies
-
-None.
-
----
-
-## Truss.Email
-
-**Purpose:**
-Email senders and address validation: SMTP through MailKit, a console sender for development, and a validator combining RFC syntax with a DNS deliverability check.
-
-### Dependencies
-
-- `Truss.Email.Abstractions`
+- `Truss.Email`
 - `MailKit`
 - `DnsClient`
+- `Microsoft.Extensions.Options`
 
----
+### Truss.Email.Resend
 
-## Truss.Email.Resend
+Resend provider: delivery through the official API client behind the sender
+abstraction.
 
-**Purpose:**
-Resend provider: delivery through the official API client behind the sender abstraction.
+Dependencies:
 
-### Dependencies
-
-- `Truss.Email.Abstractions`
+- `Truss.Email`
 - `Resend`
+- `Microsoft.Extensions.Http`
 
----
+### Truss.Auth.Jwt
 
-## Truss.Tenancy.Abstractions
+JWT authentication mechanics: PBKDF2 password hashing, access and refresh
+token issuing, JwtBearer wiring.
 
-**Purpose:**
-The ambient tenant context of the current request.
+Dependencies:
 
-### Dependencies
+- `Truss.Application`
+- `Microsoft.AspNetCore.Authentication.JwtBearer`
+- ASP.NET Core shared framework (framework reference, not a package)
 
-None.
+### Truss.Observability.OpenTelemetry
 
----
+OTLP bridge: exports the Truss activity sources, meter and application logs
+through the OpenTelemetry SDK, with ASP.NET Core and HttpClient
+instrumentation.
 
-## Truss.Tenancy.EntityFrameworkCore
-
-**Purpose:**
-Row-level tenant isolation: the tenant-owned marking, the shadow column with its filter, and the stamp on save.
-
-### Dependencies
-
-- `Truss.Tenancy.Abstractions`
-- `Microsoft.EntityFrameworkCore`
-
----
-
-## Truss.Tenancy.AspNetCore
-
-**Purpose:**
-HTTP tenant resolution from claims, headers or a custom resolver.
-
-### Dependencies
-
-- `Truss.Tenancy.Abstractions`
-
----
-
-## Truss.Rbac
-
-**Purpose:**
-Role-based access control over standard authorization: roles defined in code, on-demand permission policies and per-request role claims enrichment.
-
-### Dependencies
-
-None beyond the shared framework.
-
----
-
-## Truss.Rbac.EntityFrameworkCore
-
-**Purpose:**
-Role assignments persisted in the application database.
-
-### Dependencies
-
-- `Truss.Rbac`
-- `Microsoft.EntityFrameworkCore.Relational`
-
----
-
-## Truss.Observability.OpenTelemetry
-
-**Purpose:**
-OTLP bridge: exports the Truss activity sources, meter and application logs through the OpenTelemetry SDK, with ASP.NET Core and HttpClient instrumentation.
-
-### Dependencies
+Dependencies:
 
 - `OpenTelemetry.Exporter.OpenTelemetryProtocol`
 - `OpenTelemetry.Extensions.Hosting`
@@ -578,141 +539,39 @@ OTLP bridge: exports the Truss activity sources, meter and application logs thro
 
 ---
 
-## Truss.Testing
+## Tooling
 
-**Purpose:**
-Integration test host: boots the pipeline, a throwaway sqlite database, the in-memory transport with the outbox and the job runtime, with helpers for sending requests, draining the outbox deterministically and awaiting jobs.
+### Truss.Cli
 
-### Dependencies
+The `truss` command line tool: project scaffolding, manifest-driven module
+installation, code generation, service splitting, deploy artifacts and
+project verification.
+
+Dependencies: `Spectre.Console` and `Spectre.Console.Cli`. Installed as a
+dotnet tool; never referenced by application code.
+
+### Truss.Generators
+
+Compile-time handler discovery, dispatch priming, build diagnostics and DTO
+mapping (mappers generated from partial method declarations). Development
+dependency: nothing is added to the published application.
+
+Dependencies: none at runtime. Referenced with `PrivateAssets="all"` in the
+composition root and application projects.
+
+### Truss.Testing
+
+Integration test host: boots the pipeline, a throwaway sqlite database, the
+in-memory transport with the outbox and the job runtime, with helpers for
+sending requests, draining the outbox deterministically and awaiting jobs.
+
+Dependencies:
 
 - `Truss.Application`
-- `Truss.Persistence.EntityFrameworkCore`
-- `Truss.Messaging` and `Truss.Messaging.EntityFrameworkCore`
-- `Truss.Jobs` and `Truss.Jobs.EntityFrameworkCore`
-- `Microsoft.EntityFrameworkCore.Sqlite`
-
----
-
-## Truss.Jobs.Abstractions
-
-**Purpose:**
-Contracts for background jobs: the job interface, the execution context, the scheduler, the monitor and the naming attribute.
-
-### Dependencies
-
-None.
-
----
-
-## Truss.Jobs
-
-**Purpose:**
-Job runtime: transactional enqueueing through the outbox, the executor with retry and timeout, scheduled and recurring jobs, and the in-memory store.
-
-### Dependencies
-
-- `Truss.Jobs.Abstractions`
 - `Truss.Messaging`
-- `Microsoft.Extensions.Diagnostics.HealthChecks`
-- `Cronos`
-
----
-
-## Truss.Jobs.EntityFrameworkCore
-
-**Purpose:**
-Job records persisted through EF Core, scheduled atomically with the command that enqueued them.
-
-### Dependencies
-
 - `Truss.Jobs`
-- `Microsoft.EntityFrameworkCore.Relational`
-
----
-
-## Truss.Jobs.AspNetCore
-
-**Purpose:**
-Progress endpoints: snapshot polling and server-sent events streaming.
-
-### Dependencies
-
-- `Truss.Jobs.Abstractions`
-- ASP.NET Core shared framework (framework reference, not a package)
-
----
-
-## Truss.Observability
-
-**Purpose:**
-Structured request logging, spans and metrics through BCL diagnostics, and the ambient execution context.
-
-### Dependencies
-
-- `Truss.Application.Abstractions`
-- `Microsoft.Extensions.DependencyInjection.Abstractions`
-- `Microsoft.Extensions.Logging.Abstractions`
-
----
-
-## Truss.Observability.AspNetCore
-
-**Purpose:**
-Correlation middleware: reads or creates the correlation id per request and echoes it back.
-
-### Dependencies
-
-- `Truss.Observability`
-- ASP.NET Core shared framework (framework reference, not a package)
-
----
-
-## Truss.Cli
-
-**Purpose:**
-The `truss` command line tool: project scaffolding, manifest-driven module installation, code generation and project verification.
-
-### Dependencies
-
-- `Spectre.Console`
-- `Spectre.Console.Cli`
-
-Installed as a dotnet global tool; never referenced by application code.
-
----
-
-## Truss.Mapping
-
-**Purpose:**
-Compile-time DTO mapping: mapper implementations generated from partial method declarations. Development dependency: nothing is added to the published application.
-
-### Dependencies
-
-None at runtime. Referenced with `PrivateAssets="all"`, usually in the application layer.
-
----
-
-## Truss.Auth.Abstractions
-
-**Purpose:**
-Contracts for authentication mechanics: password hashing and token issuing, referenced by the application layer.
-
-### Dependencies
-
-None.
-
----
-
-## Truss.Auth.Jwt
-
-**Purpose:**
-JWT authentication mechanics: PBKDF2 password hashing, access and refresh token issuing, JwtBearer wiring.
-
-### Dependencies
-
-- `Truss.Auth.Abstractions`
-- `Microsoft.AspNetCore.Authentication.JwtBearer`
-- ASP.NET Core shared framework (framework reference, not a package)
+- `Truss.EntityFrameworkCore`
+- `Microsoft.EntityFrameworkCore.Sqlite`
 
 ---
 
@@ -1251,13 +1110,13 @@ Source: https://joaoaalves.github.io/Truss/mapping.md
 
 # DTO Mapping
 
-`Truss.Mapping` implements your mappers at compile time. You declare the signature; the generator writes the body. There is no runtime library, no reflection and no configuration API: what cannot be mapped fails the build.
+Truss implements your mappers at compile time. You declare the signature; the generator writes the body. There is no runtime library, no reflection and no configuration API: what cannot be mapped fails the build.
+
+The mapping generator ships inside `Truss.Generators`, which every scaffolded project already references. There is nothing to install: declare a mapper and the build fills it in.
 
 ```xml
-<PackageReference Include="Truss.Mapping" Version="x.y.z" PrivateAssets="all" />
+<PackageReference Include="Truss.Generators" Version="x.y.z" PrivateAssets="all" />
 ```
-
-Or, in a Truss project: `truss add mapping`.
 
 ---
 
@@ -1327,7 +1186,7 @@ Failing the build is the point: a DTO gains a field, and every mapper that does 
 
 ## Scope
 
-Truss.Mapping deliberately covers the framework's idiom: aggregates and value objects projected into DTO records. It does not do flattening of nested paths, enum renaming or bidirectional configuration. If you need a fully featured mapper, [Mapperly](https://github.com/riok/mapperly) is excellent, Apache-2.0 licensed and also compile-time; both can coexist in the same solution.
+The mapping generator deliberately covers the framework's idiom: aggregates and value objects projected into DTO records. It does not do flattening of nested paths, enum renaming or bidirectional configuration. If you need a fully featured mapper, [Mapperly](https://github.com/riok/mapperly) is excellent, Apache-2.0 licensed and also compile-time; both can coexist in the same solution.
 
 ---
 
@@ -1489,7 +1348,7 @@ The mappings also register OpenAPI metadata (success status, 400 and 422) so gen
 
 ## Registration
 
-There is nothing to register. Reference `Truss.AspNetCore` from the host project and map endpoints. The package depends only on `Truss.Application.Abstractions`; the runtime comes from your existing `AddTruss` call.
+There is nothing to register. Reference `Truss.AspNetCore` from the host project and map endpoints. The package depends only on `Truss.Application`; the runtime comes from your existing `AddTruss` call.
 
 ---
 
@@ -1679,7 +1538,7 @@ The guarantee holds even under concurrency: two instances handling the same dupl
 
 ### Dead letters and the retry
 
-A message that exhausts its attempts is dead-lettered with its error preserved, and the health check degrades. Once the underlying failure is fixed, return everything to the queue with the operational endpoints of `Truss.Messaging.AspNetCore`:
+A message that exhausts its attempts is dead-lettered with its error preserved, and the health check degrades. Once the underlying failure is fixed, return everything to the queue with the operational endpoints of `Truss.AspNetCore`:
 
 ```csharp
 app.MapTrussOutbox();
@@ -2082,7 +1941,7 @@ Inside the job, report progress through the context; each report is persisted im
 await jobContext.ReportProgress(40, "Importing prices");
 ```
 
-With `Truss.Jobs.AspNetCore`, expose the progress endpoints:
+With `Truss.AspNetCore`, expose the progress endpoints:
 
 ```csharp
 app.MapTrussJobs();
@@ -2194,7 +2053,7 @@ public class CreateUserHandler(IExecutionContext execution) : ICommandHandler<Cr
 }
 ```
 
-At the edge, `Truss.Observability.AspNetCore` bridges HTTP:
+At the edge, `Truss.AspNetCore` bridges HTTP:
 
 ```csharp
 app.UseTrussCorrelation();
@@ -2291,7 +2150,7 @@ truss add auth --provider jwt
 
 Requires a database. The command:
 
-- References `Truss.Auth.Abstractions` in the application layer and `Truss.Auth.Jwt` in the host.
+- References `Truss.Application` in the application layer and `Truss.Auth.Jwt` in the host.
 - Scaffolds the `Accounts` context, laid out exactly like [generated code](cli.md#truss-generate): namespaces mirror the folders, the aggregate owns its value objects, events and rules, and each command owns a folder with its handler and validator.
 - Wires `Program.cs`: `AddTrussJwtAuth`, `UseAuthentication`, `UseAuthorization` and the three endpoints.
 - Writes a development signing key to `appsettings.json`.
@@ -2516,7 +2375,7 @@ Source: https://joaoaalves.github.io/Truss/email.md
 
 # Sending Email
 
-`Truss.Email.Abstractions` gives the application layer one contract; `Truss.Email` gives the host the mechanisms. Handlers never know how mail leaves the system:
+`Truss.Email` gives the application layer one contract; `Truss.Email.Smtp` and `Truss.Email.Resend` give the host the mechanisms. Handlers never know how mail leaves the system:
 
 ```csharp
 public class SendWelcomeEmail(IEmailSender email) : IIntegrationEventHandler<UserRegistered>
@@ -2543,7 +2402,7 @@ truss add email --provider smtp     # smtp provider with Mailpit for development
 truss add email --provider resend   # delivery through the Resend API
 ```
 
-The command references `Truss.Email.Abstractions` in the application layer, `Truss.Email` in the hosts (the worker included, when present) and registers the sender:
+The command references `Truss.Email` in the application layer, `Truss.Email.Smtp` (delivery and address validation) plus the chosen provider package in the hosts (the worker included, when present) and registers the sender:
 
 | Provider | Behavior |
 |---|---|
@@ -2866,7 +2725,7 @@ MyShop/
   .vscode/settings.json      pins the solution so editors navigate across projects
   src/
     MyShop.Domain/           references Truss.Domain only
-    MyShop.Application/      references Truss.Application.Abstractions and FluentValidation
+    MyShop.Application/      references Truss.Application and FluentValidation
     MyShop.Infrastructure/   EF Core, the provider and AppDbContext
     MyShop.Api/              composition root with Truss.AspNetCore and Truss.Generators
 ```
@@ -2902,7 +2761,6 @@ Insertions target the comment markers the scaffold leaves behind (`// truss: ser
 | `messaging` | `--transport inmemory`, `postgres`, `rabbitmq`, `redis` | With a database, the outbox is installed automatically |
 | `jobs` | | Requires messaging |
 | `observability` | `--dashboard aspire`, `grafana`, `seq` | Logging, tracing and correlation; the dashboard option wires OTLP export and the compose service |
-| `mapping` | | Compile-time DTO mappers, added to the application layer |
 | `auth` | `--provider jwt`, `identity`; `--bind-user <Aggregate>` with `--bind-mode reference`, `merge`; `--external google,microsoft,github`; `--flows` | Scaffolds the editable Accounts context and wires JWT authentication; the identity provider runs credentials through ASP.NET Core Identity; the binding connects the account to an existing aggregate and the external option wires OAuth login providers (addable later too); `--flows` retrofits the account flows when email was installed after auth, never overwriting files you edited; requires a database |
 | `email` | `--provider console`, `smtp`, `resend` | IEmailSender for the application layer; smtp brings Mailpit to the compose file, resend delivers through the API |
 | `tenancy` | | Row-level tenant isolation: ambient resolution, query filtering and stamping; requires a database |
@@ -3187,7 +3045,7 @@ TRUSS002 is an error by design: with two handlers registered, dispatch would sil
 
 ## Scope and Rules
 
-- The generator scans the current compilation plus referenced assemblies that reference `Truss.Application.Abstractions`. Framework and Truss package assemblies are never scanned.
+- The generator scans the current compilation plus referenced assemblies that reference `Truss.Application`. Framework and Truss package assemblies are never scanned.
 - Handlers and validators must be accessible from the composition root (public, or internal with `InternalsVisibleTo`). When they are not, the whole assembly falls back to runtime scanning and TRUSS003 is reported.
 - Generic handler types are ignored; register open generics manually as pipeline behaviors.
 

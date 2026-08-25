@@ -135,7 +135,7 @@ Inside the job, report progress through the context; each report is persisted im
 await jobContext.ReportProgress(40, "Importing prices");
 ```
 
-With `Truss.Jobs.AspNetCore`, expose the progress endpoints:
+With `Truss.AspNetCore`, expose the progress endpoints:
 
 ```csharp
 app.MapTrussJobs();

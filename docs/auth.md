@@ -12,7 +12,7 @@ truss add auth --provider jwt
 
 Requires a database. The command:
 
-- References `Truss.Auth.Abstractions` in the application layer and `Truss.Auth.Jwt` in the host.
+- References `Truss.Application` in the application layer and `Truss.Auth.Jwt` in the host.
 - Scaffolds the `Accounts` context, laid out exactly like [generated code](cli.md#truss-generate): namespaces mirror the folders, the aggregate owns its value objects, events and rules, and each command owns a folder with its handler and validator.
 - Wires `Program.cs`: `AddTrussJwtAuth`, `UseAuthentication`, `UseAuthorization` and the three endpoints.
 - Writes a development signing key to `appsettings.json`.
