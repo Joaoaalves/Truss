@@ -30,10 +30,27 @@ namespace Truss.Application
             RequestHandlerDelegate<TResponse> pipeline =
                 () => handler.Handle((TRequest)request, cancellationToken);
 
-            foreach (var behavior in provider.GetServices<IPipelineBehavior<TRequest, TResponse>>().Reverse())
+            // The container answers IEnumerable with an indexable array, so the
+            // chain is built walking it backwards, without a LINQ Reverse
+            // buffering a copy on every dispatch.
+            var behaviors = provider.GetServices<IPipelineBehavior<TRequest, TResponse>>();
+
+            if (behaviors is IList<IPipelineBehavior<TRequest, TResponse>> list)
             {
-                var next = pipeline;
-                pipeline = () => behavior.Handle((TRequest)request, next, cancellationToken);
+                for (var index = list.Count - 1; index >= 0; index--)
+                {
+                    var behavior = list[index];
+                    var next = pipeline;
+                    pipeline = () => behavior.Handle((TRequest)request, next, cancellationToken);
+                }
+            }
+            else
+            {
+                foreach (var behavior in behaviors.Reverse())
+                {
+                    var next = pipeline;
+                    pipeline = () => behavior.Handle((TRequest)request, next, cancellationToken);
+                }
             }
 
             return pipeline();

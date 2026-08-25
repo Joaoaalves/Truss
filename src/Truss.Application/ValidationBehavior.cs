@@ -16,14 +16,24 @@ namespace Truss.Application
         private readonly IEnumerable<IValidator<TRequest>> _validators = validators;
 
         /// <inheritdoc />
-        public async Task<TResponse> Handle(
+        public Task<TResponse> Handle(
             TRequest request,
             RequestHandlerDelegate<TResponse> next,
             CancellationToken cancellationToken)
         {
-            if (!_validators.Any())
-                return await next();
+            // A request without validators pays nothing: no enumerator, no
+            // async state machine, straight to the rest of the pipeline.
+            if (_validators is ICollection<IValidator<TRequest>> { Count: 0 } || !_validators.Any())
+                return next();
 
+            return Validate(request, next, cancellationToken);
+        }
+
+        private async Task<TResponse> Validate(
+            TRequest request,
+            RequestHandlerDelegate<TResponse> next,
+            CancellationToken cancellationToken)
+        {
             var results = await Task.WhenAll(
                 _validators.Select(v => v.ValidateAsync(new ValidationContext<TRequest>(request), cancellationToken))
             );
