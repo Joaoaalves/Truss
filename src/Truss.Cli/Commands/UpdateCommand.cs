@@ -31,7 +31,14 @@ namespace Truss.Cli.Commands
             var version = TrussVersionInfo.Current();
             var updated = 0;
 
-            foreach (var csproj in Directory.EnumerateFiles(Path.Combine(project.Root, "src"), "*.csproj", SearchOption.AllDirectories))
+            // The test projects reference Truss packages the CLI wrote too
+            // (Truss.Testing, Truss.Auth.Jwt); leaving them behind fails the
+            // restore with a version downgrade against the src projects.
+            var directories = new[] { "src", "tests" }
+                .Select(directory => Path.Combine(project.Root, directory))
+                .Where(Directory.Exists);
+
+            foreach (var csproj in directories.SelectMany(directory => Directory.EnumerateFiles(directory, "*.csproj", SearchOption.AllDirectories)))
             {
                 var content = File.ReadAllText(csproj);
                 var replaced = TrussReference().Replace(content, match =>

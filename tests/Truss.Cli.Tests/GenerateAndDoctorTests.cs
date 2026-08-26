@@ -216,13 +216,18 @@ namespace Truss.Cli.Tests
         }
 
         [Fact]
-        public void Update_PointsEveryTrussPackageAtTheCliVersion()
+        public void Update_PointsEveryTrussPackageAtTheCliVersion_TestsIncluded()
         {
             var root = ScaffoldShop();
             var current = TrussVersionInfo.Current();
 
             var csproj = Path.Combine(root, "src", "Shop.Domain", "Shop.Domain.csproj");
             File.WriteAllText(csproj, File.ReadAllText(csproj).Replace(current, "0.0.1"));
+
+            // The test projects reference Truss packages the CLI wrote too;
+            // an update that skips them fails the restore with a downgrade.
+            var testsCsproj = Path.Combine(root, "tests", "Shop.IntegrationTests", "Shop.IntegrationTests.csproj");
+            File.WriteAllText(testsCsproj, File.ReadAllText(testsCsproj).Replace(current, "0.0.1"));
 
             // --no-restore keeps the test off the network; the restore itself is
             // covered by the scaffold build test.
@@ -231,6 +236,10 @@ namespace Truss.Cli.Tests
             var updated = _workspace.ReadFile("Shop", "src", "Shop.Domain", "Shop.Domain.csproj");
             Assert.DoesNotContain("0.0.1", updated);
             Assert.Contains($"Version=\"{current}\"", updated);
+
+            var updatedTests = _workspace.ReadFile("Shop", "tests", "Shop.IntegrationTests", "Shop.IntegrationTests.csproj");
+            Assert.DoesNotContain("0.0.1", updatedTests);
+            Assert.Contains($"Version=\"{current}\"", updatedTests);
 
             var manifest = TrussManifest.Load(root);
             Assert.Equal(current, manifest!.TrussVersion);
