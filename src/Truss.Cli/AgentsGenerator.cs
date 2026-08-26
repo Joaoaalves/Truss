@@ -74,7 +74,7 @@ namespace Truss.Cli
                 - Namespaces mirror folders exactly; generated application files keep using directives inside the namespace so the aggregate type resolves over its same-named namespace.
                 - Every generator has a short alias: truss g ctx|agg|ent|cmd|qry, and truss rm ctx.
                 - Remove a bounded context: truss remove context <Name> (deletes its folders and cleans the wiring that pointed at it)
-                - Install a module: truss add messaging|jobs|observability|auth|docker
+                - Install a module: truss add messaging|jobs|observability|auth|idempotency|docker
                 - Before any deploy: truss deploy check --env-file <file> lists every value the modules demand at boot; truss deploy init ssh generates compose-over-SSH artifacts
                 - Evolve the schema: truss db add <Name>, then truss db migrate (development applies pending migrations on startup)
                 - Run locally: truss dev (starts docker dependencies and watches the API with hot reload)
@@ -140,6 +140,10 @@ namespace Truss.Cli
 
                     case "tenancy":
                         block.AppendLine("- Tenancy: requests resolve a tenant (claim \"tenant\" or X-Tenant-Id header) into an ambient context; entities marked IsTenantOwned in their EF configurations are filtered and stamped by it automatically. Domain types never carry a TenantId. Inject ITenantContext to read the current tenant.");
+                        break;
+
+                    case "idempotency":
+                        block.AppendLine("- Idempotency: commands sent with an Idempotency-Key header execute once; a repeat of the same key returns the recorded response.");
                         break;
 
                     case "rbac":

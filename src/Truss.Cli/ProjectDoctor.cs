@@ -44,6 +44,7 @@ namespace Truss.Cli
                     "auth" => "Truss.Auth.Jwt",
                     "email" => "Truss.Email",
                     "tenancy" => "Truss.EntityFrameworkCore",
+                    "idempotency" => "Truss.EntityFrameworkCore",
                     "rbac" => "Truss.Rbac",
                     _ => "Truss.Observability"
                 };

@@ -4,7 +4,7 @@ namespace Truss.Cli
 {
     internal static class ModuleInstaller
     {
-        public static readonly string[] Modules = ["email", "messaging", "jobs", "observability", "auth", "rbac", "tenancy", "tests", "worker", "docker"];
+        public static readonly string[] Modules = ["email", "messaging", "jobs", "observability", "auth", "rbac", "tenancy", "idempotency", "tests", "worker", "docker"];
 
         public static readonly string[] Transports = ["inmemory", "postgres", "rabbitmq", "redis"];
 
@@ -80,6 +80,7 @@ namespace Truss.Cli
                 "email" => InstallEmail(transport, manifest, root, log),
                 "tenancy" => InstallTenancy(manifest, root, log),
                 "rbac" => InstallRbac(manifest, root, log),
+                "idempotency" => InstallIdempotency(manifest, root, log),
                 "docker" => InstallDocker(manifest, root, log),
                 _ => InstallObservability(transport, manifest, root, log)
             };
@@ -312,6 +313,34 @@ namespace Truss.Cli
 
             log("Mark tenant-owned entities in their configurations with builder.IsTenantOwned(); the domain types stay untouched.");
             log("Requests resolve the tenant from the \"tenant\" claim or the X-Tenant-Id header; customize with UseTrussTenancy(options => ...).");
+
+            return 0;
+        }
+
+
+        private static int InstallIdempotency(TrussManifest manifest, string root, Action<string> log)
+        {
+            if (!manifest.UsesEntityFramework)
+            {
+                log("Idempotency stores its records in the database and requires one. Scaffold the project with --database first.");
+                return 1;
+            }
+
+            InsertServices(root, manifest, "builder.Services.AddTrussIdempotency<AppDbContext>();", log);
+
+            var programPath = ProgramPath(root, manifest);
+
+            // The middleware feeds the key from the Idempotency-Key header; it
+            // must run before the endpoints dispatch commands.
+            if (!SourceEditor.InsertAtMarker(programPath, Markers.Middleware, "app.UseTrussIdempotency();")
+                && !SourceEditor.InsertAfter(programPath, "var app = builder.Build();", "app.UseTrussIdempotency();"))
+            {
+                log("Could not update Program.cs automatically. Add after building the app: app.UseTrussIdempotency();");
+            }
+
+            InsertModelConfiguration(root, manifest, "modelBuilder.ApplyTrussIdempotency();", log);
+
+            log("Send the same command twice with the same Idempotency-Key header and the second call returns the recorded response without executing.");
 
             return 0;
         }
