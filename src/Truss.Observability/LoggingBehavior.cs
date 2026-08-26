@@ -24,7 +24,7 @@ namespace Truss.Observability
             CancellationToken cancellationToken)
         {
             var requestName = typeof(TRequest).Name;
-            var correlationId = ExecutionContextHolder.Current ?? Guid.NewGuid();
+            var correlationId = ExecutionContextHolder.Current ?? Guid.NewGuid().ToString();
             ExecutionContextHolder.Current = correlationId;
 
             using var scope = _logger.BeginScope(new Dictionary<string, object>

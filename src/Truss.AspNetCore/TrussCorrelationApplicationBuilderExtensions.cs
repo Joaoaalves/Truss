@@ -22,13 +22,19 @@ namespace Microsoft.AspNetCore.Builder
 
             return app.Use(async (context, next) =>
             {
-                var correlationId = context.Request.Headers.TryGetValue(headerName, out var value)
-                    && Guid.TryParse(value.ToString(), out var incoming)
+                // The id arrives from gateways and clients in whatever shape they
+                // use, so any reasonable token is accepted as-is; the cap keeps a
+                // hostile header out of every log line downstream.
+                var incoming = context.Request.Headers.TryGetValue(headerName, out var value)
+                    ? value.ToString().Trim()
+                    : string.Empty;
+
+                var correlationId = incoming.Length is > 0 and <= 128 && incoming.All(character => !char.IsControl(character))
                     ? incoming
-                    : Guid.NewGuid();
+                    : Guid.NewGuid().ToString();
 
                 ExecutionContextHolder.Current = correlationId;
-                context.Response.Headers[headerName] = correlationId.ToString();
+                context.Response.Headers[headerName] = correlationId;
 
                 await next();
             });

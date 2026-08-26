@@ -10,7 +10,7 @@ namespace Truss.Application
         /// <summary>
         /// Gets the correlation id of the current execution, or <see cref="Guid.Empty"/> when none is set.
         /// </summary>
-        Guid CorrelationId { get; }
+        string CorrelationId { get; }
 
         /// <summary>
         /// Gets whether a correlation id is set for the current execution.

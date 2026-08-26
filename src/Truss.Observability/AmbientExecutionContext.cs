@@ -4,8 +4,8 @@ namespace Truss.Observability
 {
     internal sealed class AmbientExecutionContext : IExecutionContext
     {
-        public Guid CorrelationId => ExecutionContextHolder.Current ?? Guid.Empty;
+        public string CorrelationId => ExecutionContextHolder.Current ?? string.Empty;
 
-        public bool IsAvailable => ExecutionContextHolder.Current.HasValue;
+        public bool IsAvailable => ExecutionContextHolder.Current is not null;
     }
 }

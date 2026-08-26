@@ -7,12 +7,12 @@ namespace Truss.Observability
     /// </summary>
     public static class ExecutionContextHolder
     {
-        private static readonly AsyncLocal<Guid?> Value = new();
+        private static readonly AsyncLocal<string?> Value = new();
 
         /// <summary>
         /// Gets or sets the correlation id of the current async flow.
         /// </summary>
-        public static Guid? Current
+        public static string? Current
         {
             get => Value.Value;
             set => Value.Value = value;

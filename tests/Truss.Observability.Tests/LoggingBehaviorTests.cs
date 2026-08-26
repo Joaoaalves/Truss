@@ -80,7 +80,7 @@ namespace Truss.Observability.Tests
 
             var recorder = provider.GetRequiredService<CorrelationRecorder>();
             var observed = Assert.Single(recorder.Observed);
-            Assert.NotEqual(Guid.Empty, observed);
+            Assert.NotEqual(Guid.Empty, Guid.Parse(observed));
         }
     }
 }

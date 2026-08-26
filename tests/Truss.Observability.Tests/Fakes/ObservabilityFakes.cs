@@ -55,7 +55,7 @@ namespace Truss.Observability.Tests.Fakes
 
     public class CorrelationRecorder
     {
-        public ConcurrentQueue<Guid> Observed { get; } = new();
+        public ConcurrentQueue<string> Observed { get; } = new();
     }
 
     public sealed record RecordCorrelationCommand : ICommand;

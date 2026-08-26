@@ -33,16 +33,17 @@ namespace Truss.Observability.Tests
             var (app, client) = await StartAppAsync();
             await using var _ = app;
 
-            var correlationId = Guid.NewGuid();
+            // Gateways send whatever shape they use; the id travels as-is.
+            var correlationId = "gateway-7f3a-please-echo-me";
             var request = new HttpRequestMessage(HttpMethod.Post, "/record")
             {
                 Content = JsonContent.Create(new RecordCorrelationCommand())
             };
-            request.Headers.Add("X-Correlation-Id", correlationId.ToString());
+            request.Headers.Add("X-Correlation-Id", correlationId);
 
             var response = await client.SendAsync(request);
 
-            Assert.Equal(correlationId.ToString(), response.Headers.GetValues("X-Correlation-Id").Single());
+            Assert.Equal(correlationId, response.Headers.GetValues("X-Correlation-Id").Single());
 
             var recorder = app.Services.GetRequiredService<CorrelationRecorder>();
             var observed = Assert.Single(recorder.Observed);
@@ -57,8 +58,8 @@ namespace Truss.Observability.Tests
 
             var response = await client.PostAsJsonAsync("/record", new RecordCorrelationCommand());
 
-            var returned = Guid.Parse(response.Headers.GetValues("X-Correlation-Id").Single());
-            Assert.NotEqual(Guid.Empty, returned);
+            var returned = response.Headers.GetValues("X-Correlation-Id").Single();
+            Assert.NotEqual(Guid.Empty, Guid.Parse(returned));
 
             var recorder = app.Services.GetRequiredService<CorrelationRecorder>();
             var observed = Assert.Single(recorder.Observed);
