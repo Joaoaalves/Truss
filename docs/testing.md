@@ -63,3 +63,7 @@ Assert.Equal(100, snapshot.ProgressPercent);
 ## What It Is Not
 
 The host runs your application layer against real persistence, not your HTTP surface: route bindings, auth policies and ProblemDetails responses belong to endpoint tests with `Microsoft.AspNetCore.TestHost`, which compose naturally with the same scaffolded application. And sqlite is not your production database; keep a smaller set of tests against the real provider for provider-specific behavior.
+
+The two known sqlite mines are worth naming, because both pass against Postgres and fail only under the test host. `DateTimeOffset` is not comparable in queries: a `Where(x => x.SyncedOn < threshold)` that works in production will not translate; map the column as a UTC instant with a value converter if you query over it. And `decimal` ordering and aggregation go through client evaluation or fail to translate, for the same storage reason. When one of these appears, the exception names the expression that could not be translated.
+
+Tenancy is registered by the host automatically: the context keeps its own `OnModelCreating`, so a model that applies tenant isolation arrives with its query filter, and the host registers the services feeding that filter. Set the ambient tenant inside each test method (`TenantContextHolder.Current = ...`); setting it in the class constructor does not flow into the test's async context.

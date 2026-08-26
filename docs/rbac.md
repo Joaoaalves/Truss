@@ -56,6 +56,12 @@ Configure the claim type and cache with `TrussRbacOptions`.
 
 ---
 
+## After a Split
+
+`truss split` copies the role map and the assignment store into a service whose moved routes carry `RequirePermission`. Grants do not travel: each service owns its database, so the same user needs their roles granted in each database that enforces them. A valid token answering 403 in a freshly split service almost always means the grant exists only in the monolith's database.
+
+---
+
 ## Tenant-Scoped Grants
 
 In multi-tenant applications, a grant can apply inside one tenant only:

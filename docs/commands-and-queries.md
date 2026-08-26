@@ -116,6 +116,12 @@ public class ListProductsHandler(IProductRepository products) : IQueryHandler<Li
 A client that times out and retries a `POST` should not create the order twice. Truss makes commands idempotent per client-supplied key with three registrations:
 
 ```csharp
+truss add idempotency
+```
+
+The module writes all three registrations; by hand they are:
+
+```csharp
 builder.Services.AddTrussIdempotency<AppDbContext>();   // after AddTrussEntityFramework
 
 app.UseTrussIdempotency();                              // reads the Idempotency-Key header

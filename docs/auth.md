@@ -67,7 +67,8 @@ The retrofit writes the flow slices, registers their stores, swaps `Login` and `
 - **Password hashing**: PBKDF2 with SHA-256, 210000 iterations, per-password random salt, self-describing hash format and constant-time verification. Base class library only.
 - **Access tokens**: HMAC-SHA256 signed JWTs carrying the claims you choose, with configurable issuer, audience and lifetime.
 - **Refresh tokens**: opaque random tokens. Only the SHA-256 hash is stored, so a database leak exposes nothing usable. The scaffolded `Refresh` handler rotates tokens: each refresh revokes the old one and issues a new pair, atomically with the unit of work.
-- **JwtBearer wiring**: token validation configured from the options, with inbound claim mapping disabled so claims arrive exactly as issued (`sub`, `email`).
+- **JwtBearer wiring**: token validation configured from the options, with inbound claim mapping disabled so claims arrive exactly as issued (`sub`, `email`). The identity reads roles from the compact `role` claim and the name from `sub`, so `User.IsInRole` and `[Authorize(Roles = ...)]` work with the tokens as issued.
+- **Tokens without HTTP**: `AddTrussJwtTokens` registers the hasher and the token services alone, for hosts that run the account handlers but serve no requests. The worker scaffold uses it: the account stores, the token services and a current user that throws are wired into the worker automatically, in whichever order auth and worker are installed.
 
 Configuration binds from the `Truss:Auth:Jwt` section or environment variables:
 

@@ -917,6 +917,12 @@ public class ListProductsHandler(IProductRepository products) : IQueryHandler<Li
 A client that times out and retries a `POST` should not create the order twice. Truss makes commands idempotent per client-supplied key with three registrations:
 
 ```csharp
+truss add idempotency
+```
+
+The module writes all three registrations; by hand they are:
+
+```csharp
 builder.Services.AddTrussIdempotency<AppDbContext>();   // after AddTrussEntityFramework
 
 app.UseTrussIdempotency();                              // reads the Idempotency-Key header
@@ -1405,6 +1411,22 @@ public class OrderPlacedHandler(AppDbContext context) : IDomainEventHandler<Orde
     }
 }
 ```
+
+---
+
+## What a Domain Event Handler Can See
+
+Domain events are dispatched inside the transactional boundary, before `SaveChanges`. That guarantee has a consequence worth spelling out: a LINQ query goes to the database, and the aggregate that raised the event is not there yet. A handler that looks its own aggregate up by query gets null, silently:
+
+```csharp
+// Wrong: the aggregate is still untracked rows-to-be
+var food = await context.Foods.SingleOrDefaultAsync(f => f.Barcode == domainEvent.Barcode);
+
+// Right: FindAsync consults the change tracker before the database
+var food = await context.Foods.FindAsync(domainEvent.Id);
+```
+
+Reading *other* aggregates by query is fine, which is exactly why the trap hides: examples that check stock or counts against a different aggregate work, and the one time the handler reaches for its own aggregate, the outbox stays quiet and nothing explains why. Reach for the raising aggregate by key, or carry what the handler needs on the event itself.
 
 ---
 
@@ -2059,7 +2081,7 @@ At the edge, `Truss.AspNetCore` bridges HTTP:
 app.UseTrussCorrelation();
 ```
 
-The middleware reads `X-Correlation-Id` from the request (or creates one), makes it ambient for everything the request touches and echoes it back in the response header, so clients can quote the id when reporting a problem. Outside HTTP, hosts can seed the ambient id through `ExecutionContextHolder.Current`; when nothing sets it, the logging behavior creates one per dispatch so log entries still correlate.
+The middleware reads `X-Correlation-Id` from the request (or creates one), makes it ambient for everything the request touches and echoes it back in the response header, so clients can quote the id when reporting a problem. The id is a free-form token: whatever a gateway or client sends travels as-is, up to 128 characters; anything longer, empty or carrying control characters is replaced by a generated id. Outside HTTP, hosts can seed the ambient id through `ExecutionContextHolder.Current`; when nothing sets it, the logging behavior creates one per dispatch so log entries still correlate.
 
 ---
 
@@ -2205,7 +2227,8 @@ The retrofit writes the flow slices, registers their stores, swaps `Login` and `
 - **Password hashing**: PBKDF2 with SHA-256, 210000 iterations, per-password random salt, self-describing hash format and constant-time verification. Base class library only.
 - **Access tokens**: HMAC-SHA256 signed JWTs carrying the claims you choose, with configurable issuer, audience and lifetime.
 - **Refresh tokens**: opaque random tokens. Only the SHA-256 hash is stored, so a database leak exposes nothing usable. The scaffolded `Refresh` handler rotates tokens: each refresh revokes the old one and issues a new pair, atomically with the unit of work.
-- **JwtBearer wiring**: token validation configured from the options, with inbound claim mapping disabled so claims arrive exactly as issued (`sub`, `email`).
+- **JwtBearer wiring**: token validation configured from the options, with inbound claim mapping disabled so claims arrive exactly as issued (`sub`, `email`). The identity reads roles from the compact `role` claim and the name from `sub`, so `User.IsInRole` and `[Authorize(Roles = ...)]` work with the tokens as issued.
+- **Tokens without HTTP**: `AddTrussJwtTokens` registers the hasher and the token services alone, for hosts that run the account handlers but serve no requests. The worker scaffold uses it: the account stores, the token services and a current user that throws are wired into the worker automatically, in whichever order auth and worker are installed.
 
 Configuration binds from the `Truss:Auth:Jwt` section or environment variables:
 
@@ -2527,6 +2550,12 @@ Outside HTTP (workers, tests), set `TenantContextHolder.Current` explicitly; int
 
 ---
 
+## In Tests
+
+`TrussTestHost` registers the tenancy services whenever it boots your context, so the query filter in your model has its feed and the stamp on save throws loudly without an ambient tenant, the same as production. Set the tenant inside the test method itself; an `AsyncLocal` set in the class constructor does not reach the test body.
+
+---
+
 ## Database per Tenant
 
 Row-level isolation in one shared database is the default and fits most applications. When a tenant needs its own database, register one mapping and nothing else changes:
@@ -2599,6 +2628,12 @@ A claims transformation resolves the user's stored roles on each request from th
 - Role claims already present in the token are honored too, so token-embedded roles work without the store.
 
 Configure the claim type and cache with `TrussRbacOptions`.
+
+---
+
+## After a Split
+
+`truss split` copies the role map and the assignment store into a service whose moved routes carry `RequirePermission`. Grants do not travel: each service owns its database, so the same user needs their roles granted in each database that enforces them. A valid token answering 403 in a freshly split service almost always means the grant exists only in the monolith's database.
 
 ---
 
@@ -2683,6 +2718,10 @@ Assert.Equal(100, snapshot.ProgressPercent);
 
 The host runs your application layer against real persistence, not your HTTP surface: route bindings, auth policies and ProblemDetails responses belong to endpoint tests with `Microsoft.AspNetCore.TestHost`, which compose naturally with the same scaffolded application. And sqlite is not your production database; keep a smaller set of tests against the real provider for provider-specific behavior.
 
+The two known sqlite mines are worth naming, because both pass against Postgres and fail only under the test host. `DateTimeOffset` is not comparable in queries: a `Where(x => x.SyncedOn < threshold)` that works in production will not translate; map the column as a UTC instant with a value converter if you query over it. And `decimal` ordering and aggregation go through client evaluation or fail to translate, for the same storage reason. When one of these appears, the exception names the expression that could not be translated.
+
+Tenancy is registered by the host automatically: the context keeps its own `OnModelCreating`, so a model that applies tenant isolation arrives with its query filter, and the host registers the services feeding that filter. Set the ambient tenant inside each test method (`TenantContextHolder.Current = ...`); setting it in the class constructor does not flow into the test's async context.
+
 ---
 
 Source: https://joaoaalves.github.io/Truss/cli.md
@@ -2765,6 +2804,7 @@ Insertions target the comment markers the scaffold leaves behind (`// truss: ser
 | `email` | `--provider console`, `smtp`, `resend` | IEmailSender for the application layer; smtp brings Mailpit to the compose file, resend delivers through the API |
 | `tenancy` | | Row-level tenant isolation: ambient resolution, query filtering and stamping; requires a database |
 | `rbac` | | Roles in code, permissions on endpoints and assignments in the database; requires a database |
+| `idempotency` | | The Idempotency-Key header replays stored responses instead of re-executing; requires a database |
 | `tests` | | Scaffolds the two test projects into an existing project and adds them to the solution; with the sample present, its tests come too |
 | `worker` | | Scaffolds src/Name.Worker, a separate consumer process wired with the installed modules; requires messaging |
 | `docker` | | Production Dockerfile per host (multi-stage, non-root, healthcheck) and .dockerignore; hosts created later get theirs automatically; see [deploy](deploy.md) |
@@ -2893,12 +2933,12 @@ truss split Sales --shared-database
 Extracts a bounded context into its own service. The context is converted to [its own projects](#contexts-as-projects) first when it still lives in folders, and then:
 
 - `src/MyShop.Sales.Api` is scaffolded: a composition root with the same modules the monolith runs (transport, outbox and inbox, jobs, email, observability, and JWT auth validating with the same issuer, audience and signing key, so one login works across the whole constellation).
-- The context's routes and service registrations **move** from the monolith's `Program.cs` into the new host. The handlers, aggregates and repositories do not change; only the hosting does.
+- The context's routes and service registrations **move** from the monolith's `Program.cs` into the new host, as whole statements: a route chained over several lines travels with its `RequirePermission` and `WithTags` intact. When moved routes carry permissions, the role map and the assignment store are copied into the service too (grants live per database; see [RBAC after a split](rbac.md#after-a-split)). The handlers, aggregates and repositories do not change; only the hosting does.
 - By default the service owns its database: `SalesDbContext` maps only the context's configurations plus its own outbox, inbox and job tables, and the connection string points at a database of its own. The monolith stops mapping the context's tables, so its next migration drops them; move the data before applying it. With `--shared-database` the service points at the monolith's database and the monolith keeps owning the schema.
 - `src/MyShop.Sales.Contracts` is created and referenced by both sides: the moment another service consumes one of the context's events or [queries it synchronously](remote.md), the record moves there, so no service ever references another's internals. The service already serves its contract with `MapRemoteContext`, and consumers wire it with `AddRemoteContext<SalesContracts>("Sales", url)`.
 - The context's integration tests keep passing, now booting the service's DbContext.
 
-Two honest limits: the inmemory transport does not cross processes, so a constellation needs postgres, rabbitmq or redis; and code in other contexts that references the extracted context's types directly is coupling the split cannot cut for you; the build will point at it.
+Three honest limits: the inmemory transport does not cross processes, so a constellation needs postgres, rabbitmq or redis; code in other contexts that references the extracted context's types directly is coupling the split cannot cut for you, and the build will point at it; and hand-written composition is not moved, so if the monolith's Program registers services through your own extension methods whose classes moved with the context, recreate that wiring in the service's Program (the split's summary reminds you).
 
 ---
 

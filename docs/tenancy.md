@@ -54,6 +54,12 @@ Outside HTTP (workers, tests), set `TenantContextHolder.Current` explicitly; int
 
 ---
 
+## In Tests
+
+`TrussTestHost` registers the tenancy services whenever it boots your context, so the query filter in your model has its feed and the stamp on save throws loudly without an ambient tenant, the same as production. Set the tenant inside the test method itself; an `AsyncLocal` set in the class constructor does not reach the test body.
+
+---
+
 ## Database per Tenant
 
 Row-level isolation in one shared database is the default and fits most applications. When a tenant needs its own database, register one mapping and nothing else changes:

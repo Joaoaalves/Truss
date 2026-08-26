@@ -58,7 +58,7 @@ At the edge, `Truss.AspNetCore` bridges HTTP:
 app.UseTrussCorrelation();
 ```
 
-The middleware reads `X-Correlation-Id` from the request (or creates one), makes it ambient for everything the request touches and echoes it back in the response header, so clients can quote the id when reporting a problem. Outside HTTP, hosts can seed the ambient id through `ExecutionContextHolder.Current`; when nothing sets it, the logging behavior creates one per dispatch so log entries still correlate.
+The middleware reads `X-Correlation-Id` from the request (or creates one), makes it ambient for everything the request touches and echoes it back in the response header, so clients can quote the id when reporting a problem. The id is a free-form token: whatever a gateway or client sends travels as-is, up to 128 characters; anything longer, empty or carrying control characters is replaced by a generated id. Outside HTTP, hosts can seed the ambient id through `ExecutionContextHolder.Current`; when nothing sets it, the logging behavior creates one per dispatch so log entries still correlate.
 
 ---
 

@@ -76,6 +76,7 @@ Insertions target the comment markers the scaffold leaves behind (`// truss: ser
 | `email` | `--provider console`, `smtp`, `resend` | IEmailSender for the application layer; smtp brings Mailpit to the compose file, resend delivers through the API |
 | `tenancy` | | Row-level tenant isolation: ambient resolution, query filtering and stamping; requires a database |
 | `rbac` | | Roles in code, permissions on endpoints and assignments in the database; requires a database |
+| `idempotency` | | The Idempotency-Key header replays stored responses instead of re-executing; requires a database |
 | `tests` | | Scaffolds the two test projects into an existing project and adds them to the solution; with the sample present, its tests come too |
 | `worker` | | Scaffolds src/Name.Worker, a separate consumer process wired with the installed modules; requires messaging |
 | `docker` | | Production Dockerfile per host (multi-stage, non-root, healthcheck) and .dockerignore; hosts created later get theirs automatically; see [deploy](deploy.md) |
@@ -204,12 +205,12 @@ truss split Sales --shared-database
 Extracts a bounded context into its own service. The context is converted to [its own projects](#contexts-as-projects) first when it still lives in folders, and then:
 
 - `src/MyShop.Sales.Api` is scaffolded: a composition root with the same modules the monolith runs (transport, outbox and inbox, jobs, email, observability, and JWT auth validating with the same issuer, audience and signing key, so one login works across the whole constellation).
-- The context's routes and service registrations **move** from the monolith's `Program.cs` into the new host. The handlers, aggregates and repositories do not change; only the hosting does.
+- The context's routes and service registrations **move** from the monolith's `Program.cs` into the new host, as whole statements: a route chained over several lines travels with its `RequirePermission` and `WithTags` intact. When moved routes carry permissions, the role map and the assignment store are copied into the service too (grants live per database; see [RBAC after a split](rbac.md#after-a-split)). The handlers, aggregates and repositories do not change; only the hosting does.
 - By default the service owns its database: `SalesDbContext` maps only the context's configurations plus its own outbox, inbox and job tables, and the connection string points at a database of its own. The monolith stops mapping the context's tables, so its next migration drops them; move the data before applying it. With `--shared-database` the service points at the monolith's database and the monolith keeps owning the schema.
 - `src/MyShop.Sales.Contracts` is created and referenced by both sides: the moment another service consumes one of the context's events or [queries it synchronously](remote.md), the record moves there, so no service ever references another's internals. The service already serves its contract with `MapRemoteContext`, and consumers wire it with `AddRemoteContext<SalesContracts>("Sales", url)`.
 - The context's integration tests keep passing, now booting the service's DbContext.
 
-Two honest limits: the inmemory transport does not cross processes, so a constellation needs postgres, rabbitmq or redis; and code in other contexts that references the extracted context's types directly is coupling the split cannot cut for you; the build will point at it.
+Three honest limits: the inmemory transport does not cross processes, so a constellation needs postgres, rabbitmq or redis; code in other contexts that references the extracted context's types directly is coupling the split cannot cut for you, and the build will point at it; and hand-written composition is not moved, so if the monolith's Program registers services through your own extension methods whose classes moved with the context, recreate that wiring in the service's Program (the split's summary reminds you).
 
 ---
 
