@@ -75,6 +75,7 @@ namespace Truss.Cli.Templates
 
               <ItemGroup>
                 <PackageReference Include="Truss.Application" Version="__TRUSS_VERSION__" />
+                <PackageReference Include="Truss.Generators" Version="__TRUSS_VERSION__" PrivateAssets="all" />
                 <PackageReference Include="FluentValidation" Version="12.*" />
               </ItemGroup>
 
@@ -127,6 +128,7 @@ namespace Truss.Cli.Templates
 
               <ItemGroup>
                 <PackageReference Include="Truss.Application" Version="__TRUSS_VERSION__" />
+                <PackageReference Include="Truss.Generators" Version="__TRUSS_VERSION__" PrivateAssets="all" />
                 <PackageReference Include="FluentValidation" Version="12.*" />__MODULE_PACKAGES__
               </ItemGroup>
 
