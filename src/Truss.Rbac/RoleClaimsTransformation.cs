@@ -49,8 +49,16 @@ namespace Truss.Rbac
 
             // Transformations can run more than once per request; cloning keeps
             // the incoming principal untouched and the operation repeatable.
+            // The added identity must name its own role claim type: IsInRole
+            // asks every identity through the identity's RoleClaimType, and a
+            // ClaimsIdentity born without one reads the SOAP-era default and
+            // never finds the roles it carries.
             var enriched = principal.Clone();
-            enriched.AddIdentity(new ClaimsIdentity(missing.Select(role => new Claim(_options.RoleClaimType, role))));
+            enriched.AddIdentity(new ClaimsIdentity(
+                missing.Select(role => new Claim(_options.RoleClaimType, role)),
+                authenticationType: null,
+                nameType: null,
+                roleType: _options.RoleClaimType));
 
             return enriched;
         }

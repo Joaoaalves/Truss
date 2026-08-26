@@ -79,6 +79,7 @@ namespace Truss.Rbac.Tests
             app.UseAuthentication();
             app.UseAuthorization();
             app.MapGet("/write", () => "ok").RequirePermission("catalog.write");
+            app.MapGet("/isinrole", (ClaimsPrincipal user) => user.IsInRole("admin") ? "yes" : "no");
 
             await app.StartAsync();
             return (app, app.GetTestClient());
@@ -122,6 +123,26 @@ namespace Truss.Rbac.Tests
             var response = await client.GetAsync("/write");
 
             Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+        }
+
+
+        [Fact]
+        public async Task StoredRoles_SatisfyIsInRole()
+        {
+            // The enriched identity must name its own role claim type, or
+            // IsInRole and Authorize(Roles) read the SOAP-era default and
+            // silently never match a role resolved from the store.
+            var userId = Guid.NewGuid();
+            var assignments = new FakeAssignments();
+            await assignments.Assign(userId, "admin");
+
+            var (app, client) = await StartAppAsync(assignments);
+            await using var _ = app;
+
+            var request = new HttpRequestMessage(HttpMethod.Get, "/isinrole");
+            request.Headers.Add("X-Test-Claims", $"sub={userId}");
+
+            Assert.Equal("yes", await (await client.SendAsync(request)).Content.ReadAsStringAsync());
         }
 
         [Fact]
