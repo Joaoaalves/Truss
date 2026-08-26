@@ -25,6 +25,31 @@ namespace Microsoft.Extensions.DependencyInjection
             this IServiceCollection services,
             Action<TrussJwtOptions>? configure = null)
         {
+            services.AddTrussJwtTokens(configure);
+
+            services.AddSingleton<IConfigureOptions<JwtBearerOptions>, ConfigureJwtBearerOptions>();
+
+            services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+                .AddJwtBearer();
+
+            services.AddAuthorization();
+
+            return services;
+        }
+
+        /// <summary>
+        /// Registers the password hasher and the token services without the HTTP
+        /// authentication stack. Meant for hosts that run the account handlers
+        /// but serve no requests, such as workers: JwtBearer and the ASP.NET
+        /// authorization services would not resolve outside a web host.
+        /// </summary>
+        /// <param name="services">The service collection.</param>
+        /// <param name="configure">Optional configuration of the JWT options.</param>
+        /// <returns>The updated <see cref="IServiceCollection"/>.</returns>
+        public static IServiceCollection AddTrussJwtTokens(
+            this IServiceCollection services,
+            Action<TrussJwtOptions>? configure = null)
+        {
             services.AddOptions<TrussJwtOptions>();
 
             if (configure is not null)
@@ -34,13 +59,6 @@ namespace Microsoft.Extensions.DependencyInjection
             services.TryAddSingleton<IPasswordHasher, Pbkdf2PasswordHasher>();
             services.TryAddSingleton<IJwtTokenService, JwtTokenService>();
             services.TryAddSingleton<IOneTimeTokens, OneTimeTokenService>();
-
-            services.AddSingleton<IConfigureOptions<JwtBearerOptions>, ConfigureJwtBearerOptions>();
-
-            services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
-                .AddJwtBearer();
-
-            services.AddAuthorization();
 
             return services;
         }

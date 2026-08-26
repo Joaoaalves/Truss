@@ -1,4 +1,5 @@
 using System.Text;
+using System.Text.RegularExpressions;
 
 namespace Truss.Cli
 {
@@ -29,6 +30,14 @@ namespace Truss.Cli
 
             AddToSolution(manifest, root, workerProject, log);
             ContextProjects.WireHosts(manifest, root, log);
+            HarvestRepositories(manifest, root, workerProject, log);
+
+            if (manifest.Modules.Contains("auth"))
+                AuthScaffolder.WireWorker(manifest, root, log);
+
+            var programPath = Path.Combine(root, workerProject, "Program.cs");
+            File.WriteAllText(programPath, CodeGenerator.DedupeUsings(File.ReadAllText(programPath)));
+
             DockerScaffolder.WriteHostDockerfiles(manifest, root, log);
 
             log("The worker was scaffolded. It consumes the same messages and jobs as the API; run it with dotnet run --project " + workerProject);
@@ -63,11 +72,52 @@ namespace Truss.Cli
                     SyncJobs(manifest, program, log);
                     break;
 
+                case "auth":
+                    AuthScaffolder.WireWorker(manifest, root, log);
+                    break;
+
                 default:
                     return;
             }
 
             log("The worker's Program.cs was updated too.");
+        }
+
+
+        /// <summary>
+        /// The API's Program already registers a repository per generated slice,
+        /// and the worker validates the same handlers at boot. A worker born
+        /// after the slices copies those registrations, or it dies on container
+        /// validation before its first message.
+        /// </summary>
+        private static void HarvestRepositories(TrussManifest manifest, string root, string workerProject, Action<string> log)
+        {
+            var api = Path.Combine(root, manifest.ApiProject, "Program.cs");
+            var worker = Path.Combine(root, workerProject, "Program.cs");
+
+            if (!File.Exists(api))
+                return;
+
+            var lines = File.ReadAllLines(api).Select(line => line.Trim()).ToArray();
+
+            var registrations = lines
+                .Where(line => Regex.IsMatch(line, @"^builder\.Services\.(AddScoped<I\w+Repository, Ef\w+Repository>|AddInfrastructure)\(\);$"))
+                .Distinct()
+                .ToList();
+
+            if (registrations.Count == 0)
+                return;
+
+            var usings = lines
+                .Where(line => line.StartsWith($"using {manifest.Name}.Application.", StringComparison.Ordinal)
+                    || line.StartsWith($"using {manifest.Name}.Infrastructure.", StringComparison.Ordinal))
+                .Distinct()
+                .ToList();
+
+            if (usings.Count > 0)
+                SourceEditor.InsertAfter(worker, $"using {manifest.Name}.Application;", string.Join(Environment.NewLine, usings));
+
+            InsertServices(worker, string.Join(Environment.NewLine, registrations), log);
         }
 
         private static void SyncEmail(TrussManifest manifest, string root, string workerProject, string program, Action<string> log)

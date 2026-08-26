@@ -143,6 +143,70 @@ namespace Truss.Cli.Tests
         }
 
 
+
+        [Fact]
+        public void AddIdempotency_WiresAllThreeRegistrations()
+        {
+            var root = ScaffoldShop();
+
+            Assert.Equal(0, _workspace.Run("add", "idempotency", "--project", root));
+
+            var program = _workspace.ReadFile("Shop", "src", "Shop.Api", "Program.cs");
+            Assert.Contains("builder.Services.AddTrussIdempotency<AppDbContext>();", program);
+            Assert.Contains("app.UseTrussIdempotency();", program);
+
+            var dbContext = _workspace.ReadFile("Shop", "src", "Shop.Infrastructure", "AppDbContext.cs");
+            Assert.Contains("modelBuilder.ApplyTrussIdempotency();", dbContext);
+
+            var manifest = TrussManifest.Load(root);
+            Assert.Contains("idempotency", manifest!.Modules);
+        }
+
+        [Fact]
+        public void AddAuth_AfterTheWorkerExists_WiresTheAccountsIntoTheWorker()
+        {
+            var root = ScaffoldShop();
+
+            Assert.Equal(0, _workspace.Run("add", "messaging", "--project", root));
+            Assert.Equal(0, _workspace.Run("add", "worker", "--project", root));
+            Assert.Equal(0, _workspace.Run("add", "auth", "--project", root));
+
+            AssertWorkerRunsTheAccountSlice();
+        }
+
+        [Fact]
+        public void AddWorker_AfterAuthExists_WiresTheAccountsIntoTheWorker()
+        {
+            var root = ScaffoldShop();
+
+            Assert.Equal(0, _workspace.Run("add", "messaging", "--project", root));
+            Assert.Equal(0, _workspace.Run("add", "auth", "--project", root));
+            Assert.Equal(0, _workspace.Run("add", "worker", "--project", root));
+
+            AssertWorkerRunsTheAccountSlice();
+        }
+
+        private void AssertWorkerRunsTheAccountSlice()
+        {
+            var program = _workspace.ReadFile("Shop", "src", "Shop.Worker", "Program.cs");
+            Assert.Contains("builder.Services.AddAccountsInfrastructure();", program);
+            Assert.Contains("AddScoped<ICurrentUser, WorkerCurrentUser>();", program);
+            Assert.Contains("AddTrussJwtTokens(", program);
+            Assert.DoesNotContain("AddTrussJwtAuth(", program);
+
+            Assert.True(_workspace.FileExists("Shop", "src", "Shop.Worker", "WorkerCurrentUser.cs"));
+
+            var csproj = _workspace.ReadFile("Shop", "src", "Shop.Worker", "Shop.Worker.csproj");
+            Assert.Contains("Truss.Auth.Jwt", csproj);
+
+            // The same issuer, audience and key as the API, or tokens issued
+            // by one host would not verify in the other.
+            var apiSettings = _workspace.ReadFile("Shop", "src", "Shop.Api", "appsettings.json");
+            var workerSettings = _workspace.ReadFile("Shop", "src", "Shop.Worker", "appsettings.json");
+            var key = System.Text.Json.Nodes.JsonNode.Parse(apiSettings)!["Truss"]!["Auth"]!["Jwt"]!["SigningKey"]!.GetValue<string>();
+            Assert.Contains(key, workerSettings);
+        }
+
         [Fact]
         public void AddModule_AfterTheWorkerExists_SyncsItsProgram()
         {

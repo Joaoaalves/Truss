@@ -392,6 +392,24 @@ namespace Truss.Cli
             if (!SourceEditor.InsertAtMarker(program, Markers.Services, registration))
                 log($"Could not update Program.cs automatically. Add before building the app: {registration}");
 
+            // The worker scans the same application assembly, and its container
+            // is validated at boot: a handler whose repository is registered
+            // only in the API would kill the worker before it started.
+            var worker = Path.Combine(root, "src", $"{manifest.Name}.Worker", "Program.cs");
+
+            if (File.Exists(worker))
+            {
+                var workerUsings = $"using {feature};";
+
+                if (context is not null)
+                    workerUsings += $"{Environment.NewLine}using {InfrastructureNamespace(manifest, context)};";
+
+                SourceEditor.InsertAfter(worker, $"using {manifest.Name}.Application;", workerUsings);
+
+                if (!SourceEditor.InsertAtMarker(worker, Markers.Services, registration))
+                    SourceEditor.InsertBefore(worker, "builder.Build().Run();", registration);
+            }
+
             var routes = $$"""
                 app.MapCommand<Create{{name}}, Guid>("{{route}}", id => $"{{route}}/{id}");
                 app.MapQuery<Get{{name}}ById, {{name}}Dto?>("{{route}}/{id:guid}");
@@ -607,7 +625,10 @@ namespace Truss.Cli
             if (File.Exists(path))
                 throw new InvalidOperationException($"File {path} already exists.");
 
-            File.WriteAllText(path, content + Environment.NewLine);
+            // Templates compose their using blocks from several sources (the
+            // aggregate's own namespaces plus referenced value objects), and a
+            // referenced type living in the aggregate's namespace repeats one.
+            File.WriteAllText(path, DedupeUsings(content) + Environment.NewLine);
             return path;
         }
     }

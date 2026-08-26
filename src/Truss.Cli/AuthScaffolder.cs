@@ -400,6 +400,73 @@ namespace Truss.Cli
             return ResolveBinding(aggregate, mode, manifest, root, _ => { });
         }
 
+        /// <summary>
+        /// Wires the account slice into the worker's composition root. The
+        /// account handlers live in the application assembly the worker already
+        /// scans, so without their stores and token services the worker dies on
+        /// container validation at boot. The worker gets the stores, the token
+        /// services without the HTTP stack, and a current user that throws.
+        /// </summary>
+        public static void WireWorker(TrussManifest manifest, string root, Action<string> log)
+        {
+            var workerProject = Path.Combine("src", $"{manifest.Name}.Worker");
+            var program = Path.Combine(root, workerProject, "Program.cs");
+
+            if (!File.Exists(program) || File.ReadAllText(program).Contains("AddAccountsInfrastructure", StringComparison.Ordinal))
+                return;
+
+            var bind = ResolveInstalledBinding(manifest, root);
+
+            File.WriteAllText(
+                Path.Combine(root, workerProject, "WorkerCurrentUser.cs"),
+                Render(AuthTemplates.WorkerCurrentUser, manifest, bind) + Environment.NewLine);
+
+            SourceEditor.InsertAfter(
+                program,
+                $"using {manifest.Name}.Application;",
+                $"using {manifest.Name}.Application.Accounts;{Environment.NewLine}using {manifest.Name}.Worker;");
+
+            var services = Render(AuthTemplates.WorkerServices, manifest, bind);
+
+            if (!SourceEditor.InsertAtMarker(program, Markers.Services, services)
+                && !SourceEditor.InsertBefore(program, "builder.Build().Run();", services))
+            {
+                log("Could not update the worker's Program.cs automatically. Add before builder.Build().Run():");
+                log(services);
+            }
+
+            CsprojEditor.AddPackageReference(
+                Path.Combine(root, workerProject, $"{manifest.Name}.Worker.csproj"),
+                "Truss.Auth.Jwt",
+                manifest.TrussVersion);
+
+            CopyJwtSettingsToWorker(manifest, root, workerProject, log);
+            log("The worker runs the account handlers too, so their stores and token services were wired into its Program.cs.");
+        }
+
+        private static void CopyJwtSettingsToWorker(TrussManifest manifest, string root, string workerProject, Action<string> log)
+        {
+            var apiSettings = Path.Combine(root, manifest.ApiProject, "appsettings.json");
+
+            if (!File.Exists(apiSettings))
+                return;
+
+            // The same issuer, audience and signing key as the API, so tokens
+            // issued anywhere in the constellation verify everywhere.
+            if (JsonNode.Parse(File.ReadAllText(apiSettings))?["Truss"]?["Auth"]?["Jwt"] is not JsonObject jwt)
+                return;
+
+            var values = new Dictionary<string, object>();
+
+            foreach (var pair in jwt)
+            {
+                if (pair.Value is JsonValue value && value.TryGetValue<string>(out var text))
+                    values[pair.Key] = text;
+            }
+
+            AppSettingsEditor.SetSection(Path.Combine(root, workerProject, "appsettings.json"), "Truss:Auth:Jwt", values, log);
+        }
+
         private static string? FindTypeNamespace(string domainRoot, string type)
         {
             var file = Directory.EnumerateFiles(domainRoot, $"{type}.cs", SearchOption.AllDirectories).FirstOrDefault();
@@ -522,15 +589,18 @@ namespace Truss.Cli
             CsprojEditor.AddPackageReference(CsprojPath(root, manifest.IntegrationTestsProject), "Truss.Auth.Jwt", manifest.TrussVersion);
 
             if (flows)
+            {
                 CsprojEditor.AddPackageReference(CsprojPath(root, manifest.IntegrationTestsProject), "Truss.Email", manifest.TrussVersion);
+                CsprojEditor.AddPackageReference(CsprojPath(root, manifest.IntegrationTestsProject), "Truss.Email.Smtp", manifest.TrussVersion);
+            }
 
             var template = AuthTemplates.AccountsTests.Replace(
                 "__TEST_EMAIL__",
                 flows
                     ? Environment.NewLine
-                        + "                                services.AddTrussConsoleEmail();" + Environment.NewLine
-                        + "                                // Offline: registration checks the address syntax, not DNS." + Environment.NewLine
-                        + "                                services.AddTrussEmailValidation(email => email.VerifyMailServer = false);"
+                        + "                    services.AddTrussConsoleEmail();" + Environment.NewLine
+                        + "                    // Offline: registration checks the address syntax, not DNS." + Environment.NewLine
+                        + "                    services.AddTrussEmailValidation(email => email.VerifyMailServer = false);"
                     : string.Empty);
 
             Write(root, Path.Combine(manifest.IntegrationTestsProject, "Accounts", "AccountsTests.cs"), template, manifest, bind);

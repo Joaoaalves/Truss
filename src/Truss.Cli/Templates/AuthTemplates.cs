@@ -969,6 +969,44 @@ namespace Truss.Cli.Templates
             app.UseAuthorization();
             """;
 
+        public const string WorkerCurrentUser = """
+            using __NAME__.Application.Accounts;
+            using __NS_USER_ID__;
+
+            namespace __NAME__.Worker
+            {
+                /// <summary>
+                /// The worker runs outside a request, so there is no current account.
+                /// Asking for one throws instead of silently acting as nobody: a
+                /// handler that needs a request-bound identity belongs on the API host.
+                /// </summary>
+                public sealed class WorkerCurrentUser : ICurrentUser
+                {
+                    public bool IsAuthenticated => false;
+
+                    public UserId? Id => null;
+
+                    public UserId Require()
+                    {
+                        throw new InvalidOperationException(
+                            "The worker has no current account: this handler needs a request-bound identity and belongs on the API host.");
+                    }
+                }
+            }
+            """;
+
+        public const string WorkerServices = """
+            builder.Services.AddAccountsInfrastructure();
+            builder.Services.AddScoped<ICurrentUser, WorkerCurrentUser>();
+
+            builder.Services.AddTrussJwtTokens(options =>
+            {
+                options.Issuer = builder.Configuration["Truss:Auth:Jwt:Issuer"]!;
+                options.Audience = builder.Configuration["Truss:Auth:Jwt:Audience"]!;
+                options.SigningKey = builder.Configuration["Truss:Auth:Jwt:SigningKey"]!;
+            });
+            """;
+
         public const string ProgramEndpoints = """
             app.MapCommand<RegisterUser, Guid>("/auth/register");
             app.MapCommand<Login, AuthTokensDto>("/auth/login");

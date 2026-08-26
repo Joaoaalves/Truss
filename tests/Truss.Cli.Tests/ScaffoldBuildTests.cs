@@ -34,6 +34,7 @@ namespace Truss.Cli.Tests
             Assert.Equal(0, _workspace.Run("add", "auth", "--bind-user", "Invoice", "--external", "google,github", "--project", root));
             Assert.Equal(0, _workspace.Run("add", "tenancy", "--project", root));
             Assert.Equal(0, _workspace.Run("add", "rbac", "--project", root));
+            Assert.Equal(0, _workspace.Run("add", "idempotency", "--project", root));
             Assert.Equal(0, _workspace.Run("add", "worker", "--project", root));
             Assert.Equal(0, _workspace.Run("generate", "command", "ArchiveProduct", "--context", "Catalog", "--project", root));
 
@@ -65,6 +66,12 @@ namespace Truss.Cli.Tests
             // green, not merely compiling: the sample tests, the Invoice crud
             // slice through the pipeline and the host smoke test.
             AssertTestsSucceed(root);
+
+            // The worker must not merely compile: in Development the host
+            // validates the container at boot, and a module whose services were
+            // wired only into the API dies right here. The account slice
+            // regression lived exactly in this gap.
+            AssertWorkerBoots(Path.Combine(root, "src", "Shop.Worker"));
 
             RunMigrations(root);
 
@@ -192,6 +199,7 @@ namespace Truss.Cli.Tests
 
             start.Environment["ASPNETCORE_URLS"] = url;
             start.Environment["ASPNETCORE_ENVIRONMENT"] = "Development";
+            start.Environment["DOTNET_ENVIRONMENT"] = "Development";
             start.Environment["NUGET_PACKAGES"] = _packagesCache;
             start.Environment["MSBUILDDISABLENODEREUSE"] = "1";
 
@@ -233,6 +241,53 @@ namespace Truss.Cli.Tests
             }
 
             Assert.Fail($"The host at {url} never became healthy. {last?.Message}{Environment.NewLine}{captured}");
+        }
+
+
+        private void AssertWorkerBoots(string projectDirectory)
+        {
+            // dotnet test built the solution, but not necessarily this host's
+            // apphost; build it explicitly so run --no-build has its binary.
+            var built = RunProcess(projectDirectory, "dotnet", "build -c Release --nologo", isolateNuGetCache: true);
+            Assert.True(built.ExitCode == 0, $"The worker did not build:{Environment.NewLine}{built.Output}");
+
+            var (process, output) = StartHost(projectDirectory, "http://localhost:5299");
+
+            try
+            {
+                var deadline = DateTime.UtcNow.AddSeconds(90);
+
+                while (DateTime.UtcNow < deadline)
+                {
+                    string captured;
+
+                    lock (output)
+                    {
+                        captured = output.ToString();
+                    }
+
+                    if (captured.Contains("Application started"))
+                        return;
+
+                    if (process.HasExited)
+                        Assert.Fail($"The worker exited during boot:{Environment.NewLine}{captured}");
+
+                    Thread.Sleep(500);
+                }
+
+                string final;
+
+                lock (output)
+                {
+                    final = output.ToString();
+                }
+
+                Assert.Fail($"The worker never reported started:{Environment.NewLine}{final}");
+            }
+            finally
+            {
+                Kill(process);
+            }
         }
 
         private static void Kill(Process process)
