@@ -62,6 +62,13 @@ namespace Truss.Testing
                     services.AddDbContext<TDbContext>(builder => builder.UseSqlite($"Data Source={databasePath}"));
                     services.AddTrussEntityFramework<TDbContext>();
 
+                    // The context keeps its own OnModelCreating, so a model that
+                    // applies tenant isolation arrives here with its filter. The
+                    // services feeding that filter must come along, or every
+                    // multi-tenant read returns empty with no error in sight.
+                    // Without tenant-owned entities this registers inert services.
+                    services.AddTrussTenancy<TDbContext>();
+
                     if (options.MessagingEnabled)
                     {
                         services.AddTrussOutbox<TDbContext>(outbox =>
