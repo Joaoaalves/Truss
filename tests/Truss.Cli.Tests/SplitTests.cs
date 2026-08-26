@@ -82,6 +82,46 @@ namespace Truss.Cli.Tests
             Assert.Equal("shared-db", manifest!.Settings["service.Sales"]);
         }
 
+
+        [Fact]
+        public void Split_MovesChainedRoutesWhole_AndCarriesRbacWithThem()
+        {
+            var root = ScaffoldWithSlice();
+            Assert.Equal(0, _workspace.Run("add", "rbac", "--project", root));
+
+            // The documented style: a route chained over several lines,
+            // protected by a permission. The whole statement must travel.
+            var program = System.IO.Path.Combine(root, "src", "Shop.Api", "Program.cs");
+            var content = System.IO.File.ReadAllText(program);
+            content = content.Replace(
+                "app.MapPutCommand<UpdateOrder>(\"/orders/{id:guid}\");",
+                "app.MapPutCommand<UpdateOrder>(\"/orders/{id:guid}\")\n    .RequirePermission(\"sales.write\")\n    .WithTags(\"Orders\");");
+            Assert.Contains(".WithTags(\"Orders\")", content);
+            System.IO.File.WriteAllText(program, content);
+
+            Assert.Equal(0, _workspace.Run("split", "Sales", "--project", root));
+
+            var service = _workspace.ReadFile("Shop", "src", "Shop.Sales.Api", "Program.cs");
+            Assert.Contains("app.MapPutCommand<UpdateOrder>(\"/orders/{id:guid}\")", service);
+            Assert.Contains(".RequirePermission(\"sales.write\")", service);
+            Assert.Contains(".WithTags(\"Orders\");", service);
+            Assert.Contains("AddTrussRbac(", service);
+            Assert.Contains("AddTrussRbacEntityFramework<SalesDbContext>", service);
+
+            var monolith = _workspace.ReadFile("Shop", "src", "Shop.Api", "Program.cs");
+            Assert.DoesNotContain(".WithTags(\"Orders\")", monolith);
+            Assert.DoesNotContain("sales.write", monolith);
+            Assert.Contains("AddTrussRbac(", monolith);
+
+            var dbContext = _workspace.ReadFile("Shop", "src", "Shop.Sales.Api", "SalesDbContext.cs");
+            Assert.Contains("ApplyTrussRbac();", dbContext);
+
+            var csproj = _workspace.ReadFile("Shop", "src", "Shop.Sales.Api", "Shop.Sales.Api.csproj");
+            Assert.Contains("Truss.Rbac", csproj);
+            var references = csproj.Split('\n').Select(line => line.Trim()).Where(line => line.StartsWith("<PackageReference")).ToList();
+            Assert.Equal(references.Count, references.Distinct().Count());
+        }
+
         [Fact]
         public void Split_OfAnUnknownContext_Fails()
         {

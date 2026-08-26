@@ -61,28 +61,37 @@ namespace Truss.Cli
 
             log($"The {context} service lives at src/{manifest.Name}.{context}.Api. Run it with: dotnet run --project src/{manifest.Name}.{context}.Api");
             log($"To query it synchronously from another service, put the query in the Contracts project and register: services.AddRemoteContext<{context}Contracts>(\"{context}\", new Uri(\"http://localhost:<port>\")); (package Truss.Remote)");
+            log("Hand-written composition is not moved: if the monolith's Program registers services through your own extension methods (AddSomethingInfrastructure and friends) and their classes moved with the context, recreate that wiring in the service's Program.");
+
+            if (manifest.Modules.Contains("rbac"))
+                log("Role grants live per database: users need their roles granted in the service's database too, or its protected routes answer 403.");
+
             log("The handlers did not change; only the hosting did.");
 
             return 0;
         }
 
-        private sealed record MovedLines(List<string> Usings, List<string> Services, List<string> Endpoints);
+        private sealed record MovedLines(List<string> Usings, List<string> Services, List<string> Endpoints, List<string> Rbac);
 
         /// <summary>
-        /// Lifts every line of the monolith's Program that belongs to the
+        /// Lifts everything in the monolith's Program that belongs to the
         /// context: its usings, its service registrations and its routes. The
         /// types are read from the context's project files, the same source
-        /// truss remove uses, so generated slices move completely.
+        /// truss remove uses, so generated slices move completely. Routes are
+        /// moved as whole statements, so a chained RequirePermission or
+        /// WithTags travels with its route instead of orphaning on either side.
         /// </summary>
         private static MovedLines ExtractFromProgram(TrussManifest manifest, string root, string context)
         {
             var program = Path.Combine(root, manifest.ApiProject, "Program.cs");
             var types = ContextTypes(manifest, root, context);
-            var moved = new MovedLines([], [], []);
+            var moved = new MovedLines([], [], [], []);
             var kept = new List<string>();
+            var lines = File.ReadAllLines(program);
 
-            foreach (var line in File.ReadAllLines(program))
+            for (var index = 0; index < lines.Length; index++)
             {
+                var line = lines[index];
                 var trimmed = line.Trim();
 
                 if (trimmed.StartsWith($"using {manifest.Name}.", StringComparison.Ordinal)
@@ -99,13 +108,13 @@ namespace Truss.Cli
                 {
                     if (trimmed.StartsWith("app.Map", StringComparison.Ordinal))
                     {
-                        moved.Endpoints.Add(trimmed);
+                        moved.Endpoints.Add(ReadStatement(lines, ref index));
                         continue;
                     }
 
                     if (trimmed.StartsWith("builder.Services.", StringComparison.Ordinal))
                     {
-                        moved.Services.Add(trimmed);
+                        moved.Services.Add(ReadStatement(lines, ref index));
                         continue;
                     }
                 }
@@ -114,7 +123,58 @@ namespace Truss.Cli
             }
 
             File.WriteAllLines(program, kept);
+
+            // Routes that were protected in the monolith stay protected in the
+            // service: the role map and the assignment store are copied, never
+            // moved, because the monolith's remaining routes still use them.
+            if (manifest.Modules.Contains("rbac") && moved.Endpoints.Any(endpoint => endpoint.Contains("RequirePermission", StringComparison.Ordinal)))
+            {
+                foreach (var statement in CopyStatements(kept, "builder.Services.AddTrussRbac"))
+                    moved.Rbac.Add(statement.Replace("AppDbContext", $"{context}DbContext", StringComparison.Ordinal));
+            }
+
             return moved;
+        }
+
+        /// <summary>
+        /// Reads one whole statement starting at the given line: lines are
+        /// consumed until the parentheses balance and a semicolon closes the
+        /// statement, so chained calls and lambda registrations stay intact.
+        /// Continuation lines keep their indentation relative to the first.
+        /// </summary>
+        private static string ReadStatement(string[] lines, ref int index)
+        {
+            var head = lines[index];
+            var indent = head[..(head.Length - head.TrimStart().Length)];
+            var statement = new List<string> { head.Trim() };
+            var depth = Balance(head);
+
+            while ((depth > 0 || !statement[^1].EndsWith(';')) && index + 1 < lines.Length)
+            {
+                index++;
+                var line = lines[index];
+                depth += Balance(line);
+                statement.Add(line.StartsWith(indent, StringComparison.Ordinal) ? line[indent.Length..] : line.TrimStart().Insert(0, "    "));
+            }
+
+            return string.Join(Environment.NewLine, statement);
+        }
+
+        private static int Balance(string line)
+        {
+            return line.Count(character => character is '(' or '{') - line.Count(character => character is ')' or '}');
+        }
+
+        private static IEnumerable<string> CopyStatements(List<string> lines, string prefix)
+        {
+            for (var index = 0; index < lines.Count; index++)
+            {
+                if (lines[index].TrimStart().StartsWith(prefix, StringComparison.Ordinal))
+                {
+                    var snapshot = lines.ToArray();
+                    yield return ReadStatement(snapshot, ref index);
+                }
+            }
         }
 
         private static void WriteService(TrussManifest manifest, string root, string context, bool sharedDatabase, MovedLines moved, Action<string> log)
@@ -123,9 +183,9 @@ namespace Truss.Cli
             Directory.CreateDirectory(directory);
             Directory.CreateDirectory(Path.Combine(directory, "Properties"));
 
-            File.WriteAllText(Path.Combine(directory, $"{manifest.Name}.{context}.Api.csproj"), BuildCsproj(manifest, context) + Environment.NewLine);
+            File.WriteAllText(Path.Combine(directory, $"{manifest.Name}.{context}.Api.csproj"), BuildCsproj(manifest, context, moved.Rbac.Count > 0) + Environment.NewLine);
             File.WriteAllText(Path.Combine(directory, "Program.cs"), BuildProgram(manifest, context, sharedDatabase, moved) + Environment.NewLine);
-            File.WriteAllText(Path.Combine(directory, $"{context}DbContext.cs"), BuildDbContext(manifest, context) + Environment.NewLine);
+            File.WriteAllText(Path.Combine(directory, $"{context}DbContext.cs"), BuildDbContext(manifest, context, moved.Rbac.Count > 0) + Environment.NewLine);
             File.WriteAllText(Path.Combine(directory, "appsettings.json"), BuildAppSettings(manifest, root, context, sharedDatabase) + Environment.NewLine);
             File.WriteAllText(Path.Combine(directory, "Properties", "launchSettings.json"), BuildLaunchSettings(manifest, root, context) + Environment.NewLine);
 
@@ -136,14 +196,21 @@ namespace Truss.Cli
                 log($"Could not update the solution automatically. Add to {manifest.Name}.slnx: {entry.Trim()}");
         }
 
-        private static string BuildCsproj(TrussManifest manifest, string context)
+        private static string BuildCsproj(TrussManifest manifest, string context, bool rbac)
         {
             var packages = new StringBuilder();
+            var added = new HashSet<string>(StringComparer.Ordinal);
 
-            void Package(string id, string version, bool developmentDependency = false) => packages
-                .Append("    <PackageReference Include=\"").Append(id).Append("\" Version=\"").Append(version).Append('"')
-                .Append(developmentDependency ? " PrivateAssets=\"all\"" : string.Empty)
-                .AppendLine(" />");
+            void Package(string id, string version, bool developmentDependency = false)
+            {
+                if (!added.Add(id))
+                    return;
+
+                packages
+                    .Append("    <PackageReference Include=\"").Append(id).Append("\" Version=\"").Append(version).Append('"')
+                    .Append(developmentDependency ? " PrivateAssets=\"all\"" : string.Empty)
+                    .AppendLine(" />");
+            }
 
             Package("Truss.Application", manifest.TrussVersion);
             Package("Truss.AspNetCore", manifest.TrussVersion);
@@ -201,6 +268,12 @@ namespace Truss.Cli
 
             if (manifest.Modules.Contains("auth"))
                 Package("Truss.Auth.Jwt", manifest.TrussVersion);
+
+            if (rbac)
+            {
+                Package("Truss.Rbac", manifest.TrussVersion);
+                Package("Truss.EntityFrameworkCore", manifest.TrussVersion);
+            }
 
             var references = new StringBuilder();
 
@@ -300,6 +373,12 @@ namespace Truss.Cli
                 program.AppendLine($"builder.Services.AddTrussJobsEntityFramework<{context}DbContext>();");
             }
 
+            if (manifest.Modules.Contains("idempotency"))
+            {
+                program.AppendLine();
+                program.AppendLine($"builder.Services.AddTrussIdempotency<{context}DbContext>();");
+            }
+
             if (manifest.Modules.Contains("email"))
             {
                 manifest.Settings.TryGetValue("email.provider", out var email);
@@ -332,6 +411,14 @@ namespace Truss.Cli
                     """);
             }
 
+            if (moved.Rbac.Count > 0)
+            {
+                program.AppendLine();
+
+                foreach (var statement in moved.Rbac)
+                    program.AppendLine(statement);
+            }
+
             if (moved.Services.Count > 0)
             {
                 program.AppendLine();
@@ -348,6 +435,9 @@ namespace Truss.Cli
 
             if (manifest.Modules.Contains("observability"))
                 program.AppendLine("app.UseTrussCorrelation();");
+
+            if (manifest.Modules.Contains("idempotency"))
+                program.AppendLine("app.UseTrussIdempotency();");
 
             if (manifest.Modules.Contains("auth"))
             {
@@ -415,9 +505,12 @@ namespace Truss.Cli
             return program.ToString();
         }
 
-        private static string BuildDbContext(TrussManifest manifest, string context)
+        private static string BuildDbContext(TrussManifest manifest, string context, bool rbac)
         {
             var extras = new StringBuilder();
+
+            if (rbac)
+                extras.Append(Environment.NewLine).Append("            modelBuilder.ApplyTrussRbac();");
 
             if (manifest.Modules.Contains("messaging"))
             {
@@ -427,6 +520,9 @@ namespace Truss.Cli
 
             if (manifest.Modules.Contains("jobs"))
                 extras.Append(Environment.NewLine).Append("            modelBuilder.ApplyTrussJobs();");
+
+            if (manifest.Modules.Contains("idempotency"))
+                extras.Append(Environment.NewLine).Append("            modelBuilder.ApplyTrussIdempotency();");
 
             return ServiceTemplates.DbContext
                 .Replace("__MODEL_EXTRAS__", extras.ToString())
@@ -533,8 +629,10 @@ namespace Truss.Cli
         /// </summary>
         private static void UnwireMonolith(TrussManifest manifest, string root, string context, bool sharedDatabase, Action<string> log)
         {
-            RemoveMarkerLines(Path.Combine(root, manifest.ApiProject, "Program.cs"), manifest, context);
-            RemoveMarkerLines(Path.Combine(root, "src", $"{manifest.Name}.Worker", "Program.cs"), manifest, context);
+            var types = ContextTypes(manifest, root, context);
+
+            RemoveMarkerLines(Path.Combine(root, manifest.ApiProject, "Program.cs"), manifest, context, types);
+            RemoveMarkerLines(Path.Combine(root, "src", $"{manifest.Name}.Worker", "Program.cs"), manifest, context, types);
 
             if (sharedDatabase)
                 return;
@@ -559,14 +657,19 @@ namespace Truss.Cli
             File.WriteAllLines(infrastructureCsproj, kept);
         }
 
-        private static void RemoveMarkerLines(string program, TrussManifest manifest, string context)
+        private static void RemoveMarkerLines(string program, TrussManifest manifest, string context, HashSet<string> types)
         {
             if (!File.Exists(program))
                 return;
 
+            // Beyond the assembly marker, the worker carries the context's
+            // repository registrations and usings; the context's classes now
+            // live in projects this host no longer references.
             var lines = File.ReadAllLines(program)
                 .Where(line => !line.Contains($"AddAssembly<{context}AssemblyMarker>", StringComparison.Ordinal)
-                    && line.Trim() != $"using {manifest.Name}.Application.{context};")
+                    && !(line.TrimStart().StartsWith($"using {manifest.Name}.", StringComparison.Ordinal)
+                        && (line.Contains($".{context};", StringComparison.Ordinal) || line.Contains($".{context}.", StringComparison.Ordinal)))
+                    && !(line.TrimStart().StartsWith("builder.Services.", StringComparison.Ordinal) && ReferencesAny(line, types)))
                 .ToArray();
 
             File.WriteAllLines(program, lines);
