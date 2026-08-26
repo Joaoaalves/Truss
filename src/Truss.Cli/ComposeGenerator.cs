@@ -109,6 +109,10 @@ namespace Truss.Cli
                             image: datalust/seq:latest
                             environment:
                               ACCEPT_EULA: "Y"
+                              # Recent Seq images refuse to start without a first-run
+                              # admin password or an explicit opt-out; this is a local
+                              # development sink, so it runs open.
+                              SEQ_FIRSTRUN_NOAUTHENTICATION: "true"
                             ports:
                               - "5341:5341"
                               - "8081:80"
