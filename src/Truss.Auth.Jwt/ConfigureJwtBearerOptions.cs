@@ -27,7 +27,13 @@ namespace Truss.Auth
                 ValidateAudience = true,
                 ValidateLifetime = true,
                 ValidateIssuerSigningKey = true,
-                ClockSkew = TimeSpan.FromSeconds(30)
+                ClockSkew = TimeSpan.FromSeconds(30),
+
+                // The tokens carry compact JWT claims, so the identity must read
+                // them by those names: without this, IsInRole and Authorize(Roles)
+                // silently look for the SOAP-era claim type and never match.
+                RoleClaimType = "role",
+                NameClaimType = "sub"
             };
         }
 
