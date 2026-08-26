@@ -51,6 +51,7 @@ A claims transformation resolves the user's stored roles on each request from th
 - Login handlers stay untouched and tokens stay lean; granting or revoking a role needs no re-login and applies within the cache window.
 - Any authentication that produces a `sub` or name identifier claim works: the scaffolded JWT auth, Identity, or an external provider.
 - Role claims already present in the token are honored too, so token-embedded roles work without the store.
+- The enriched identity names its role claim type, so `User.IsInRole` and `[Authorize(Roles = ...)]` see stored roles exactly like `RequirePermission` does.
 
 Configure the claim type and cache with `TrussRbacOptions`.
 
