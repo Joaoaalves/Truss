@@ -123,6 +123,9 @@ namespace Truss.Cli
             Write(Path.Combine(support, "ListMyTickets", "ListMyTicketsValidator.cs"), SupportTemplates.DeckListValidator);
             Write(Path.Combine(support, "GetMyTicket", "GetMyTicket.cs"), SupportTemplates.DeckGet);
             Write(Path.Combine(support, "GetMyTicket", "GetMyTicketHandler.cs"), SupportTemplates.DeckGetHandler);
+            Write(Path.Combine(support, "SupportNotificationHandler.cs"), manifest.Modules.Contains("email")
+                ? SupportTemplates.DeckNotificationHandlerEmail
+                : SupportTemplates.DeckNotificationHandlerLog);
 
             CsprojEditor.AddPackageReference(Path.Combine(root, manifest.ApplicationProject, Path.GetFileName(manifest.ApplicationProject) + ".csproj"), "Truss.Support", manifest.TrussVersion);
             CsprojEditor.AddPackageReference(Path.Combine(root, manifest.ApiProject, Path.GetFileName(manifest.ApiProject) + ".csproj"), "Truss.Support", manifest.TrussVersion);
@@ -134,7 +137,11 @@ namespace Truss.Cli
             if (!SourceEditor.InsertAtMarker(program, Markers.Services, Render(SupportTemplates.DeckProgramServices)))
                 log("Could not update Program.cs automatically. Register: AddTrussSupportDeck and the ISupportRequesterSource.");
 
-            if (!SourceEditor.InsertAtMarker(program, Markers.Endpoints, Render(SupportTemplates.DeckProgramEndpoints)))
+            var endpoints = Render(SupportTemplates.DeckProgramEndpoints)
+                + Environment.NewLine
+                + Render(SupportTemplates.DeckWebhookEndpoint);
+
+            if (!SourceEditor.InsertAtMarker(program, Markers.Endpoints, endpoints))
                 log("Could not update Program.cs automatically. Map the support routes before app.Run().");
 
             AppSettingsEditor.SetSection(root, manifest, "Truss:Support:Deck", new Dictionary<string, object>

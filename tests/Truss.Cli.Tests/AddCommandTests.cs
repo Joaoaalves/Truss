@@ -281,7 +281,12 @@ namespace Truss.Cli.Tests
             var program = _workspace.ReadFile("Shop", "src", "Shop.Api", "Program.cs");
             Assert.Contains("AddTrussSupportDeck(", program);
             Assert.Contains("app.MapCommand<OpenTicket, Guid>(\"/support/tickets\"", program);
+            Assert.Contains("/support/deck-webhook", program);
             Assert.DoesNotContain("/support/queue", program);
+
+            // Without email there is no channel; the handler logs and explains.
+            var notification = _workspace.ReadFile("Shop", "src", "Shop.Application", "Support", "SupportNotificationHandler.cs");
+            Assert.Contains("ILogger<SupportNotificationHandler>", notification);
 
             var settings = _workspace.ReadFile("Shop", "src", "Shop.Api", "appsettings.json");
             Assert.Contains("http://deck.local:8080", settings);

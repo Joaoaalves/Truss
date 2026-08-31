@@ -2809,6 +2809,19 @@ There are no staff routes in this mode: attendance happens on the deck, where
 agents see the whole fleet's queue, filter by application, keep internal
 notes and carry permissions per app.
 
+### Notifications
+
+When an agent answers or resolves, the deck notifies the application with a
+signed webhook: `POST /fleet/apps/{id}/webhook` on the deck sets the
+destination and answers the signing secret exactly once; set it as
+`Truss__Support__Deck__WebhookSecret`. The scaffolded receiver at
+`/support/deck-webhook` verifies the HMAC of the raw body (fail closed) and
+hands the event to `SupportNotificationHandler`, your code: with the email
+module it mails the requester; without it, it logs. Deliveries ride the
+deck's outbox with retry and dead-letter, and internal notes never leave the
+deck. Notifications are cosmetic by contract: the message lives on the deck,
+so a missed webhook delays an email and loses nothing.
+
 ---
 
 ## Migrating From Standalone to the Deck

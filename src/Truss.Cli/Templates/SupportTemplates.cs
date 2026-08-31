@@ -1487,6 +1487,7 @@ namespace Truss.Cli.Templates
         public const string DeckProgramServices = """
             builder.Services.AddTrussSupportDeck(options => builder.Configuration.GetSection("Truss:Support:Deck").Bind(options));
             builder.Services.AddScoped<ISupportRequesterSource, AccountRequesterSource>();
+            builder.Services.AddScoped<SupportNotificationHandler>();
             """;
 
         public const string DeckProgramEndpoints = """
@@ -1494,6 +1495,82 @@ namespace Truss.Cli.Templates
             app.MapCommand<ReplyToMyTicket, Guid>("/support/tickets/{ticketId:guid}/messages").RequireAuthorization();
             app.MapQuery<ListMyTickets, PageResult<SupportTicketSummary>>("/support/tickets").RequireAuthorization();
             app.MapQuery<GetMyTicket, SupportTicket?>("/support/tickets/{ticketId:guid}").RequireAuthorization();
+            """;
+
+
+        public const string DeckNotificationHandlerEmail = """
+            using __NAME__.Application.Accounts;
+            using Truss.Email;
+            using Truss.Support;
+
+            namespace __NAME__.Application.Support
+            {
+                /// <summary>
+                /// What happens when the deck notifies this application. The
+                /// default emails the requester through your sender; edit freely.
+                /// Notifications are cosmetic: the message lives on the deck, so
+                /// doing nothing here loses nothing.
+                /// </summary>
+                public class SupportNotificationHandler(IUserRepository users, IEmailSender email)
+                {
+                    public async Task Handle(SupportWebhookEvent webhookEvent, CancellationToken cancellationToken = default)
+                    {
+                        if (webhookEvent.Type != "deck.support.agent-replied" || !Guid.TryParse(webhookEvent.ExternalUserId, out var userId))
+                            return;
+
+                        var user = await users.GetById(new(userId), cancellationToken);
+
+                        if (user is null)
+                            return;
+
+                        await email.Send(new EmailMessage(
+                            user.Email,
+                            $"Your ticket has a new answer: {webhookEvent.Subject}",
+                            "<p>Support answered your ticket. Open the app to read the reply.</p>"), cancellationToken);
+                    }
+                }
+            }
+            """;
+
+        public const string DeckNotificationHandlerLog = """
+            using Microsoft.Extensions.Logging;
+            using Truss.Support;
+
+            namespace __NAME__.Application.Support
+            {
+                /// <summary>
+                /// What happens when the deck notifies this application. Without
+                /// the email module there is no channel to reach the requester, so
+                /// the default only logs; the requester sees the answer on their
+                /// next visit. Notifications are cosmetic: nothing is lost here.
+                /// </summary>
+                public class SupportNotificationHandler(ILogger<SupportNotificationHandler> logger)
+                {
+                    public Task Handle(SupportWebhookEvent webhookEvent, CancellationToken cancellationToken = default)
+                    {
+                        logger.LogInformation(
+                            "The deck sent {Type} for ticket {TicketId}.", webhookEvent.Type, webhookEvent.TicketId);
+
+                        return Task.CompletedTask;
+                    }
+                }
+            }
+            """;
+
+        public const string DeckWebhookEndpoint = """
+            app.MapPost("/support/deck-webhook", async (HttpRequest request, SupportNotificationHandler handler, IConfiguration configuration, CancellationToken cancellationToken) =>
+            {
+                using var reader = new StreamReader(request.Body);
+                var body = await reader.ReadToEndAsync(cancellationToken);
+
+                // Fail closed: without the secret, or with a signature that does
+                // not match the raw body, the delivery is nobody's business.
+                if (!SupportWebhook.TryParse(body, request.Headers[SupportWebhook.SignatureHeader], configuration["Truss:Support:Deck:WebhookSecret"] ?? string.Empty, out var webhookEvent))
+                    return Results.Unauthorized();
+
+                await handler.Handle(webhookEvent!, cancellationToken);
+                return Results.NoContent();
+            });
             """;
 
         public const string DomainTests = """
