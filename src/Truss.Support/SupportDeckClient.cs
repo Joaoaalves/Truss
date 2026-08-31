@@ -50,6 +50,54 @@ namespace Truss.Support
             return await Read<SupportTicket>(response, "GetTicket", cancellationToken);
         }
 
+        public async Task<SupportAttachmentReceipt> UploadAttachment(Guid ticketId, string externalUserId, string fileName, string contentType, Stream content, CancellationToken cancellationToken = default)
+        {
+            using var form = new MultipartFormDataContent();
+            var file = new StreamContent(content);
+            file.Headers.ContentType = System.Net.Http.Headers.MediaTypeHeaderValue.Parse(contentType);
+            form.Add(file, "file", fileName);
+
+            var request = new HttpRequestMessage(
+                HttpMethod.Post, $"v1/tickets/{ticketId}/attachments?externalUserId={Uri.EscapeDataString(externalUserId)}")
+            {
+                Content = form
+            };
+            request.Headers.Add("Idempotency-Key", Guid.NewGuid().ToString("n"));
+
+            var response = await Send(request, cancellationToken);
+            return await Read<SupportAttachmentReceipt>(response, "UploadAttachment", cancellationToken);
+        }
+
+        public async Task<SupportDownload?> DownloadAttachment(Guid ticketId, Guid attachmentId, string externalUserId, CancellationToken cancellationToken = default)
+        {
+            var response = await Send(
+                new HttpRequestMessage(HttpMethod.Get, $"v1/tickets/{ticketId}/attachments/{attachmentId}?externalUserId={Uri.EscapeDataString(externalUserId)}"),
+                cancellationToken);
+
+            if (response.StatusCode == HttpStatusCode.NotFound)
+            {
+                response.Dispose();
+                return null;
+            }
+
+            if (!response.IsSuccessStatusCode)
+            {
+                using (response)
+                {
+                    await ThrowAsTheLocalOutcome(response, cancellationToken);
+                    throw new SupportDeckException($"The deck answered DownloadAttachment with {(int)response.StatusCode}.");
+                }
+            }
+
+            // The stream owns the response; disposing the download releases it.
+            var contentType = response.Content.Headers.ContentType?.MediaType ?? "application/octet-stream";
+            var fileName = response.Content.Headers.ContentDisposition?.FileNameStar
+                ?? response.Content.Headers.ContentDisposition?.FileName?.Trim('"')
+                ?? "attachment";
+
+            return new SupportDownload(await response.Content.ReadAsStreamAsync(cancellationToken), contentType, fileName);
+        }
+
         private async Task<HttpResponseMessage> Post<TBody>(string path, TBody body, CancellationToken cancellationToken)
         {
             var request = new HttpRequestMessage(HttpMethod.Post, path) { Content = JsonContent.Create(body) };

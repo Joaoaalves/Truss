@@ -139,6 +139,8 @@ namespace Truss.Cli
 
             var endpoints = Render(SupportTemplates.DeckProgramEndpoints)
                 + Environment.NewLine
+                + Render(SupportTemplates.DeckAttachmentEndpoints)
+                + Environment.NewLine
                 + Render(SupportTemplates.DeckWebhookEndpoint);
 
             if (!SourceEditor.InsertAtMarker(program, Markers.Endpoints, endpoints))

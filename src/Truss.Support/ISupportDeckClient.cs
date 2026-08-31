@@ -24,5 +24,18 @@ namespace Truss.Support
         Task<PageResult<SupportTicketSummary>> ListTickets(string externalUserId, int page = 1, int size = 20, CancellationToken cancellationToken = default);
 
         Task<SupportTicket?> GetTicket(Guid ticketId, string externalUserId, CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Uploads a file onto the ticket. The deck validates the content
+        /// before storing a byte and may hold the file in Scanning when a
+        /// malware gate is configured; the receipt says which.
+        /// </summary>
+        Task<SupportAttachmentReceipt> UploadAttachment(Guid ticketId, string externalUserId, string fileName, string contentType, Stream content, CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Downloads a file of the ticket, or null while it is not available:
+        /// missing, still scanning and rejected all answer the same.
+        /// </summary>
+        Task<SupportDownload?> DownloadAttachment(Guid ticketId, Guid attachmentId, string externalUserId, CancellationToken cancellationToken = default);
     }
 }

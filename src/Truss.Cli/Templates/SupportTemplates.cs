@@ -1573,6 +1573,33 @@ namespace Truss.Cli.Templates
             });
             """;
 
+
+        public const string DeckAttachmentEndpoints = """
+            app.MapPost("/support/tickets/{ticketId:guid}/attachments", async (Guid ticketId, IFormFile file, ISupportDeckClient deck, ISupportRequesterSource requester, CancellationToken cancellationToken) =>
+            {
+                var current = await requester.Current(cancellationToken);
+
+                await using var content = file.OpenReadStream();
+                var receipt = await deck.UploadAttachment(ticketId, current.ExternalUserId, file.FileName, file.ContentType, content, cancellationToken);
+
+                return Results.Created((string?)null, receipt);
+            }).DisableAntiforgery().RequireAuthorization().AddTrussErrorHandling();
+
+            app.MapGet("/support/tickets/{ticketId:guid}/attachments/{attachmentId:guid}", async (Guid ticketId, Guid attachmentId, HttpContext http, ISupportDeckClient deck, ISupportRequesterSource requester, CancellationToken cancellationToken) =>
+            {
+                var current = await requester.Current(cancellationToken);
+                var download = await deck.DownloadAttachment(ticketId, attachmentId, current.ExternalUserId, cancellationToken);
+
+                if (download is null)
+                    return Results.NotFound();
+
+                // Files leave as attachments with sniffing disabled, here like
+                // on the deck: evidence, never markup.
+                http.Response.Headers.XContentTypeOptions = "nosniff";
+                return Results.Stream(download.Content, download.ContentType, download.FileName);
+            }).RequireAuthorization().AddTrussErrorHandling();
+            """;
+
         public const string DomainTests = """
             using __NAME__.Domain.Support;
             using __NAME__.Domain.Support.Ticket;

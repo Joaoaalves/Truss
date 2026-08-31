@@ -140,6 +140,18 @@ There are no staff routes in this mode: attendance happens on the deck, where
 agents see the whole fleet's queue, filter by application, keep internal
 notes and carry permissions per app.
 
+### Attachments
+
+Files ride the same routes on both sides: the customer uploads through
+`POST /support/tickets/{id}/attachments` (multipart) and downloads through
+`GET .../attachments/{attachmentId}`; the deck stores the bytes in an
+S3-compatible store and answers whether a malware scan still holds the file.
+Every upload passes a structural gate before a byte is stored: an allowlist
+of content types (images, pdf, plain text and csv) with magic bytes that
+must match, SVG and HTML refused on purpose. Downloads leave as attachments
+with sniffing disabled, only when available; missing, scanning and rejected
+answer the same 404. Caps: 10 MB per file, 20 files per ticket.
+
 ### Notifications
 
 When an agent answers or resolves, the deck notifies the application with a

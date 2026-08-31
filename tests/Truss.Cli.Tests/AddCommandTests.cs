@@ -282,6 +282,7 @@ namespace Truss.Cli.Tests
             Assert.Contains("AddTrussSupportDeck(", program);
             Assert.Contains("app.MapCommand<OpenTicket, Guid>(\"/support/tickets\"", program);
             Assert.Contains("/support/deck-webhook", program);
+            Assert.Contains("/support/tickets/{ticketId:guid}/attachments", program);
             Assert.DoesNotContain("/support/queue", program);
 
             // Without email there is no channel; the handler logs and explains.

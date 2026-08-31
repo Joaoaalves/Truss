@@ -52,6 +52,28 @@ namespace Truss.Support
         string Body,
         DateTimeOffset SentOn);
 
+    /// <summary>
+    /// The life of a file on the deck: Scanning while the malware gate holds
+    /// it, Available when it downloads, Rejected when the scan said no and
+    /// the bytes are gone.
+    /// </summary>
+    [JsonConverter(typeof(JsonStringEnumConverter<SupportAttachmentStatus>))]
+    public enum SupportAttachmentStatus
+    {
+        Scanning,
+        Available,
+        Rejected
+    }
+
+    public sealed record SupportAttachment(
+        Guid Id,
+        SupportMessageAuthor Author,
+        string FileName,
+        string ContentType,
+        long SizeBytes,
+        SupportAttachmentStatus Status,
+        DateTimeOffset UploadedOn);
+
     public sealed record SupportTicket(
         Guid Id,
         string Subject,
@@ -59,5 +81,18 @@ namespace Truss.Support
         SupportTicketPriority Priority,
         Guid? LinkedFromTicketId,
         DateTimeOffset OpenedOn,
-        IReadOnlyList<SupportTicketMessage> Messages);
+        IReadOnlyList<SupportTicketMessage> Messages,
+        IReadOnlyList<SupportAttachment>? Attachments = null);
+
+    /// <summary>What an upload answers: the record's id and whether a scan holds it.</summary>
+    public sealed record SupportAttachmentReceipt(Guid AttachmentId, SupportAttachmentStatus Status);
+
+    /// <summary>A downloaded file: the caller owns the stream.</summary>
+    public sealed record SupportDownload(Stream Content, string ContentType, string FileName) : IAsyncDisposable
+    {
+        public ValueTask DisposeAsync()
+        {
+            return Content.DisposeAsync();
+        }
+    }
 }

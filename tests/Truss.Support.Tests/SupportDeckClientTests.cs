@@ -116,6 +116,58 @@ namespace Truss.Support.Tests
             Assert.Null(await client.GetTicket(Guid.NewGuid(), "user-42"));
         }
 
+
+        [Fact]
+        public async Task UploadAttachment_TravelsAsMultipart_WithTheFileNamed()
+        {
+            var attachmentId = Guid.NewGuid();
+            var (client, deck) = Client(_ => Json(HttpStatusCode.Created,
+                $$"""{"attachmentId":"{{attachmentId}}","status":"Scanning"}"""));
+
+            using var content = new MemoryStream("%PDF-1.7 evidence"u8.ToArray());
+            var receipt = await client.UploadAttachment(Guid.NewGuid(), "user-42", "invoice.pdf", "application/pdf", content);
+
+            Assert.Equal(attachmentId, receipt.AttachmentId);
+            Assert.Equal(SupportAttachmentStatus.Scanning, receipt.Status);
+            Assert.Contains("externalUserId=user-42", deck.LastRequest!.RequestUri!.Query);
+            Assert.True(deck.LastRequest.Headers.Contains("Idempotency-Key"));
+            Assert.StartsWith("multipart/form-data", deck.LastRequest.Content!.Headers.ContentType!.MediaType);
+            Assert.Contains("filename=invoice.pdf", deck.LastBody!);
+        }
+
+        [Fact]
+        public async Task DownloadAttachment_CarriesTheBytes_AndTheName()
+        {
+            var (client, _) = Client(_ =>
+            {
+                var response = new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new ByteArrayContent("evidence"u8.ToArray())
+                };
+                response.Content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/pdf");
+                response.Content.Headers.ContentDisposition = new System.Net.Http.Headers.ContentDispositionHeaderValue("attachment")
+                {
+                    FileName = "\"invoice.pdf\""
+                };
+                return response;
+            });
+
+            await using var download = await client.DownloadAttachment(Guid.NewGuid(), Guid.NewGuid(), "user-42");
+
+            Assert.Equal("invoice.pdf", download!.FileName);
+            Assert.Equal("application/pdf", download.ContentType);
+            using var reader = new StreamReader(download.Content);
+            Assert.Equal("evidence", await reader.ReadToEndAsync());
+        }
+
+        [Fact]
+        public async Task DownloadAttachment_WhileHeldOrMissing_IsNull()
+        {
+            var (client, _) = Client(_ => new HttpResponseMessage(HttpStatusCode.NotFound));
+
+            Assert.Null(await client.DownloadAttachment(Guid.NewGuid(), Guid.NewGuid(), "user-42"));
+        }
+
         [Fact]
         public async Task ThePage_ComesBackWithItsCounters()
         {
