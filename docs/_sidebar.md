@@ -42,6 +42,9 @@
 * Authorization
     - [RBAC](rbac.md)
 
+* Support
+    - [User Support](support.md)
+
 * Testing
     - [Integration Testing](testing.md)
 

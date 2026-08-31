@@ -31,6 +31,7 @@ Every page below is plain Markdown and can be fetched directly. The whole docume
 
 - [Sending Email](https://joaoaalves.github.io/Truss/email.md): IEmailSender, console and smtp providers, Mailpit development inbox
 - [Tenant Isolation](https://joaoaalves.github.io/Truss/tenancy.md): IsTenantOwned, ambient resolution, shadow column filtering and stamping
+- [User Support](https://joaoaalves.github.io/Truss/support.md): the scaffolded support desk, its ticket state machine, customer and staff routes, internal notes, auto-close sweep
 - [RBAC](https://joaoaalves.github.io/Truss/rbac.md): roles in code, RequirePermission, assignments store and claims enrichment
 - [Integration Testing](https://joaoaalves.github.io/Truss/testing.md): TrussTestHost, throwaway database, deterministic outbox drain, job helpers
 - [The truss CLI](https://joaoaalves.github.io/Truss/cli.md): truss new, add, generate and doctor; the truss.json manifest
