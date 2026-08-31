@@ -50,6 +50,22 @@ namespace Truss.Support
             return await Read<SupportTicket>(response, "GetTicket", cancellationToken);
         }
 
+        public async Task MarkRead(Guid ticketId, string externalUserId, CancellationToken cancellationToken = default)
+        {
+            var response = await Send(
+                new HttpRequestMessage(HttpMethod.Post, $"v1/tickets/{ticketId}/read?externalUserId={Uri.EscapeDataString(externalUserId)}"),
+                cancellationToken);
+
+            using (response)
+            {
+                if (response.IsSuccessStatusCode)
+                    return;
+
+                await ThrowAsTheLocalOutcome(response, cancellationToken);
+                throw new SupportDeckException($"The deck answered MarkRead with {(int)response.StatusCode}.");
+            }
+        }
+
         public async Task<SupportAttachmentReceipt> UploadAttachment(Guid ticketId, string externalUserId, string fileName, string contentType, Stream content, CancellationToken cancellationToken = default)
         {
             using var form = new MultipartFormDataContent();

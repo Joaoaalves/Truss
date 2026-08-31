@@ -1600,6 +1600,119 @@ namespace Truss.Cli.Templates
             }).RequireAuthorization().AddTrussErrorHandling();
             """;
 
+
+        public const string DeckReadEndpoint = """
+            app.MapPost("/support/tickets/{ticketId:guid}/read", async (Guid ticketId, ISupportDeckClient deck, ISupportRequesterSource requester, CancellationToken cancellationToken) =>
+            {
+                var current = await requester.Current(cancellationToken);
+                await deck.MarkRead(ticketId, current.ExternalUserId, cancellationToken);
+                return Results.NoContent();
+            }).RequireAuthorization().AddTrussErrorHandling();
+            """;
+
+        public const string DeckOfflineJobs = """
+            using Truss.Jobs;
+            using Truss.Support;
+
+            namespace __NAME__.Application.Support.Offline
+            {
+                public sealed record DeliverTicketArgs(SupportRequester Requester, string Subject, string Body);
+
+                /// <summary>
+                /// A ticket typed while the deck was unreachable. The job retries
+                /// through the runtime until the deck answers; the requester was
+                /// captured at submission, so the snapshot is honest.
+                /// </summary>
+                public class DeliverTicketJob(ISupportDeckClient deck) : IJob<DeliverTicketArgs>
+                {
+                    public Task Execute(DeliverTicketArgs args, JobContext context, CancellationToken cancellationToken)
+                    {
+                        return deck.OpenTicket(args.Requester, args.Subject, args.Body, metadata: null, cancellationToken);
+                    }
+                }
+
+                public sealed record DeliverReplyArgs(Guid TicketId, SupportRequester Requester, string Body);
+
+                public class DeliverReplyJob(ISupportDeckClient deck) : IJob<DeliverReplyArgs>
+                {
+                    public Task Execute(DeliverReplyArgs args, JobContext context, CancellationToken cancellationToken)
+                    {
+                        return deck.Reply(args.TicketId, args.Requester, args.Body, cancellationToken);
+                    }
+                }
+            }
+            """;
+
+        public const string DeckOpenTicketHandlerQueued = """
+            namespace __NAME__.Application.Support.OpenTicket
+            {
+                using __NAME__.Application.Support;
+                using __NAME__.Application.Support.Offline;
+                using Truss.Application;
+                using Truss.Jobs;
+                using Truss.Support;
+
+                public class OpenTicketHandler(ISupportDeckClient deck, ISupportRequesterSource requester, IJobScheduler scheduler) : ICommandHandler<OpenTicket, Guid>
+                {
+                    public async Task<Guid> Handle(OpenTicket command, CancellationToken cancellationToken)
+                    {
+                        var current = await requester.Current(cancellationToken);
+
+                        try
+                        {
+                            return await deck.OpenTicket(current, command.Subject, command.Body, metadata: null, cancellationToken);
+                        }
+                        catch (SupportDeckException)
+                        {
+                            // The deck is unreachable, and a ticket the user typed
+                            // is not something to drop: the job delivers it when
+                            // the deck answers again. The returned id is the
+                            // submission's, not the ticket's; the ticket appears
+                            // in the listing once delivered. Remove this fallback
+                            // if you prefer an honest 502 over the ambiguity.
+                            return await scheduler.Enqueue<DeliverTicketJob, DeliverTicketArgs>(
+                                new DeliverTicketArgs(current, command.Subject, command.Body), cancellationToken);
+                        }
+                    }
+                }
+            }
+            """;
+
+        public const string DeckReplyHandlerQueued = """
+            namespace __NAME__.Application.Support.ReplyToMyTicket
+            {
+                using __NAME__.Application.Support;
+                using __NAME__.Application.Support.Offline;
+                using Truss.Application;
+                using Truss.Jobs;
+                using Truss.Support;
+
+                public class ReplyToMyTicketHandler(ISupportDeckClient deck, ISupportRequesterSource requester, IJobScheduler scheduler) : ICommandHandler<ReplyToMyTicket, Guid>
+                {
+                    public async Task<Guid> Handle(ReplyToMyTicket command, CancellationToken cancellationToken)
+                    {
+                        var current = await requester.Current(cancellationToken);
+
+                        try
+                        {
+                            return await deck.Reply(command.TicketId, current, command.Body, cancellationToken);
+                        }
+                        catch (SupportDeckException)
+                        {
+                            // The reply targets a ticket that already exists, so
+                            // queueing it changes nothing for the caller: the same
+                            // id comes back, and the job delivers when the deck
+                            // answers again.
+                            await scheduler.Enqueue<DeliverReplyJob, DeliverReplyArgs>(
+                                new DeliverReplyArgs(command.TicketId, current, command.Body), cancellationToken);
+
+                            return command.TicketId;
+                        }
+                    }
+                }
+            }
+            """;
+
         public const string DomainTests = """
             using __NAME__.Domain.Support;
             using __NAME__.Domain.Support.Ticket;

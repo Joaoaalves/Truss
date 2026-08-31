@@ -152,6 +152,19 @@ must match, SVG and HTML refused on purpose. Downloads leave as attachments
 with sniffing disabled, only when available; missing, scanning and rejected
 answer the same 404. Caps: 10 MB per file, 20 files per ticket.
 
+### Read Receipts and the Offline Queue
+
+Summaries carry an `unread` badge: any public agent message after the
+requester's last read receipt. `POST /support/tickets/{id}/read` clears it;
+internal notes never light it.
+
+With the jobs module installed, a ticket or reply typed while the deck is
+unreachable is queued through the job runtime and delivered when the deck
+answers again. A queued reply changes nothing for the caller; a queued
+opening returns the submission's id rather than the ticket's, and the
+scaffolded handler says so in place, with the fallback yours to remove if
+you prefer an honest 502 over the ambiguity.
+
 ### Notifications
 
 When an agent answers or resolves, the deck notifies the application with a

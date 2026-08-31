@@ -37,5 +37,11 @@ namespace Truss.Support
         /// missing, still scanning and rejected all answer the same.
         /// </summary>
         Task<SupportDownload?> DownloadAttachment(Guid ticketId, Guid attachmentId, string externalUserId, CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Marks the conversation read for the requester, which clears the
+        /// unread badge in the summaries. Idempotent.
+        /// </summary>
+        Task MarkRead(Guid ticketId, string externalUserId, CancellationToken cancellationToken = default);
     }
 }

@@ -44,7 +44,8 @@ namespace Truss.Support
         SupportTicketStatus Status,
         SupportTicketPriority Priority,
         DateTimeOffset OpenedOn,
-        DateTimeOffset LastMessageOn);
+        DateTimeOffset LastMessageOn,
+        bool Unread = false);
 
     public sealed record SupportTicketMessage(
         Guid Id,

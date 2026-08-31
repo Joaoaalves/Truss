@@ -283,6 +283,12 @@ namespace Truss.Cli.Tests
             Assert.Contains("app.MapCommand<OpenTicket, Guid>(\"/support/tickets\"", program);
             Assert.Contains("/support/deck-webhook", program);
             Assert.Contains("/support/tickets/{ticketId:guid}/attachments", program);
+            Assert.Contains("/support/tickets/{ticketId:guid}/read", program);
+
+            // Without jobs there is no queue: the plain handler propagates.
+            var openHandler = _workspace.ReadFile("Shop", "src", "Shop.Application", "Support", "OpenTicket", "OpenTicketHandler.cs");
+            Assert.DoesNotContain("IJobScheduler", openHandler);
+            Assert.False(_workspace.FileExists("Shop", "src", "Shop.Application", "Support", "Offline", "OfflineDelivery.cs"));
             Assert.DoesNotContain("/support/queue", program);
 
             // Without email there is no channel; the handler logs and explains.
@@ -301,6 +307,27 @@ namespace Truss.Cli.Tests
 
             var manifest = TrussManifest.Load(root);
             Assert.Equal("deck", manifest!.Settings["support.mode"]);
+        }
+
+
+        [Fact]
+        public void AddSupport_DeckMode_WithJobs_QueuesWhileTheDeckIsDown()
+        {
+            var root = ScaffoldShop();
+
+            Assert.Equal(0, _workspace.Run("add", "messaging", "--project", root));
+            Assert.Equal(0, _workspace.Run("add", "jobs", "--project", root));
+            Assert.Equal(0, _workspace.Run("add", "auth", "--project", root));
+            Assert.Equal(0, _workspace.Run("add", "support", "--deck", "http://deck.local:8080", "--project", root));
+
+            Assert.True(_workspace.FileExists("Shop", "src", "Shop.Application", "Support", "Offline", "OfflineDelivery.cs"));
+
+            var openHandler = _workspace.ReadFile("Shop", "src", "Shop.Application", "Support", "OpenTicket", "OpenTicketHandler.cs");
+            Assert.Contains("IJobScheduler", openHandler);
+            Assert.Contains("SupportDeckException", openHandler);
+
+            var replyHandler = _workspace.ReadFile("Shop", "src", "Shop.Application", "Support", "ReplyToMyTicket", "ReplyToMyTicketHandler.cs");
+            Assert.Contains("DeliverReplyJob", replyHandler);
         }
 
         [Fact]

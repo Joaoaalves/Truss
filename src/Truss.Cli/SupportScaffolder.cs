@@ -113,10 +113,19 @@ namespace Truss.Cli
             Write(Path.Combine(support, "ISupportRequesterSource.cs"), SupportTemplates.DeckRequesterSource);
             Write(Path.Combine(support, "AccountRequesterSource.cs"), SupportTemplates.DeckAccountRequesterSource);
             Write(Path.Combine(support, "OpenTicket", "OpenTicket.cs"), SupportTemplates.DeckOpenTicket);
-            Write(Path.Combine(support, "OpenTicket", "OpenTicketHandler.cs"), SupportTemplates.DeckOpenTicketHandler);
+            var queued = manifest.Modules.Contains("jobs");
+
+            if (queued)
+                Write(Path.Combine(support, "Offline", "OfflineDelivery.cs"), SupportTemplates.DeckOfflineJobs);
+
+            Write(Path.Combine(support, "OpenTicket", "OpenTicketHandler.cs"), queued
+                ? SupportTemplates.DeckOpenTicketHandlerQueued
+                : SupportTemplates.DeckOpenTicketHandler);
             Write(Path.Combine(support, "OpenTicket", "OpenTicketValidator.cs"), SupportTemplates.DeckOpenTicketValidator);
             Write(Path.Combine(support, "ReplyToMyTicket", "ReplyToMyTicket.cs"), SupportTemplates.DeckReply);
-            Write(Path.Combine(support, "ReplyToMyTicket", "ReplyToMyTicketHandler.cs"), SupportTemplates.DeckReplyHandler);
+            Write(Path.Combine(support, "ReplyToMyTicket", "ReplyToMyTicketHandler.cs"), queued
+                ? SupportTemplates.DeckReplyHandlerQueued
+                : SupportTemplates.DeckReplyHandler);
             Write(Path.Combine(support, "ReplyToMyTicket", "ReplyToMyTicketValidator.cs"), SupportTemplates.DeckReplyValidator);
             Write(Path.Combine(support, "ListMyTickets", "ListMyTickets.cs"), SupportTemplates.DeckList);
             Write(Path.Combine(support, "ListMyTickets", "ListMyTicketsHandler.cs"), SupportTemplates.DeckListHandler);
@@ -139,6 +148,8 @@ namespace Truss.Cli
 
             var endpoints = Render(SupportTemplates.DeckProgramEndpoints)
                 + Environment.NewLine
+                + Render(SupportTemplates.DeckReadEndpoint)
+                + Environment.NewLine
                 + Render(SupportTemplates.DeckAttachmentEndpoints)
                 + Environment.NewLine
                 + Render(SupportTemplates.DeckWebhookEndpoint);
@@ -158,6 +169,9 @@ namespace Truss.Cli
 
             log($"The support surface now speaks to the deck at {deckUrl}. Register this application there and set the key per environment: Truss__Support__Deck__ApiKey.");
             log("Attendance happens on the deck; this application keeps only the customer routes. If the deck is unreachable, the support routes degrade and the rest of the application does not care.");
+
+            if (manifest.Modules.Contains("jobs"))
+                log("With jobs installed, a ticket or reply typed while the deck is down is queued and delivered when it answers again.");
 
             return 0;
         }

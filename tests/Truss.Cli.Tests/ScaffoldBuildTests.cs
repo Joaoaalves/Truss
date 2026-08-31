@@ -120,6 +120,8 @@ namespace Truss.Cli.Tests
             Assert.Equal(0, _workspace.Scaffold("Hub", "sqlite", "--local-packages", _feed));
             var root = _workspace.Root("Hub");
 
+            Assert.Equal(0, _workspace.Run("add", "messaging", "--project", root));
+            Assert.Equal(0, _workspace.Run("add", "jobs", "--project", root));
             Assert.Equal(0, _workspace.Run("add", "auth", "--project", root));
             Assert.Equal(0, _workspace.Run("add", "support", "--deck", "http://localhost:5301", "--project", root));
 

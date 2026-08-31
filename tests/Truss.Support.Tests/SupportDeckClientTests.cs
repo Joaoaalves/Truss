@@ -168,6 +168,28 @@ namespace Truss.Support.Tests
             Assert.Null(await client.DownloadAttachment(Guid.NewGuid(), Guid.NewGuid(), "user-42"));
         }
 
+
+        [Fact]
+        public async Task MarkRead_HitsTheReadRoute_ForTheRequester()
+        {
+            var (client, deck) = Client(_ => new HttpResponseMessage(HttpStatusCode.NoContent));
+
+            var ticketId = Guid.NewGuid();
+            await client.MarkRead(ticketId, "user-42");
+
+            Assert.Equal(HttpMethod.Post, deck.LastRequest!.Method);
+            Assert.EndsWith($"/v1/tickets/{ticketId}/read?externalUserId=user-42", deck.LastRequest.RequestUri!.ToString());
+        }
+
+        [Fact]
+        public async Task TheSummary_CarriesTheUnreadBadge()
+        {
+            var (client, _) = Client(_ => Json(HttpStatusCode.OK,
+                """{"items":[{"id":"5e0e5c3a-0b32-4f0e-9d3a-111111111111","subject":"Hi","status":"WaitingOnCustomer","priority":"Normal","openedOn":"2026-01-10T12:00:00+00:00","lastMessageOn":"2026-01-10T12:05:00+00:00","unread":true}],"page":1,"size":20,"totalCount":1}"""));
+
+            Assert.True(Assert.Single((await client.ListTickets("user-42")).Items).Unread);
+        }
+
         [Fact]
         public async Task ThePage_ComesBackWithItsCounters()
         {
