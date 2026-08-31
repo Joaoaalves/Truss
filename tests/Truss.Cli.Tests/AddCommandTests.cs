@@ -207,6 +207,60 @@ namespace Truss.Cli.Tests
             Assert.Contains(key, workerSettings);
         }
 
+
+        [Fact]
+        public void AddSupport_ScaffoldsTheContext_AndWiresBothHosts()
+        {
+            var root = ScaffoldShop();
+
+            Assert.Equal(0, _workspace.Run("add", "messaging", "--project", root));
+            Assert.Equal(0, _workspace.Run("add", "auth", "--project", root));
+            Assert.Equal(0, _workspace.Run("add", "worker", "--project", root));
+            Assert.Equal(0, _workspace.Run("add", "support", "--project", root));
+
+            Assert.True(_workspace.FileExists("Shop", "src", "Shop.Domain", "Support", "Ticket", "Ticket.cs"));
+            Assert.True(_workspace.FileExists("Shop", "src", "Shop.Application", "Support", "ITicketRepository.cs"));
+            Assert.True(_workspace.FileExists("Shop", "src", "Shop.Infrastructure", "Support", "EfTicketRepository.cs"));
+
+            var program = _workspace.ReadFile("Shop", "src", "Shop.Api", "Program.cs");
+            Assert.Contains("builder.Services.AddSupportInfrastructure();", program);
+            Assert.Contains("app.MapCommand<OpenTicket, Guid>(\"/support/tickets\"", program);
+
+            // Without rbac the staff surface still demands a signed-in caller.
+            Assert.Contains("app.MapQuery<ListSupportQueue, PageResult<TicketSummaryDto>>(\"/support/queue\").RequireAuthorization();", program);
+
+            var worker = _workspace.ReadFile("Shop", "src", "Shop.Worker", "Program.cs");
+            Assert.Contains("builder.Services.AddSupportInfrastructure();", worker);
+
+            var manifest = TrussManifest.Load(root);
+            Assert.Contains("support", manifest!.Modules);
+            Assert.Equal("standalone", manifest.Settings["support.mode"]);
+        }
+
+        [Fact]
+        public void AddSupport_WithRbac_PutsThePermissionOnTheStaffRoutes()
+        {
+            var root = ScaffoldShop();
+
+            Assert.Equal(0, _workspace.Run("add", "messaging", "--project", root));
+            Assert.Equal(0, _workspace.Run("add", "auth", "--project", root));
+            Assert.Equal(0, _workspace.Run("add", "rbac", "--project", root));
+            Assert.Equal(0, _workspace.Run("add", "support", "--project", root));
+
+            var program = _workspace.ReadFile("Shop", "src", "Shop.Api", "Program.cs");
+            Assert.Contains(".RequirePermission(\"support.manage\");", program);
+            Assert.Contains("options.AddRole(\"support\", \"support.manage\");", program);
+        }
+
+        [Fact]
+        public void AddSupport_WithoutAuth_FailsWithGuidance()
+        {
+            var root = ScaffoldShop();
+
+            Assert.Equal(0, _workspace.Run("add", "messaging", "--project", root));
+            Assert.Equal(1, _workspace.Run("add", "support", "--project", root));
+        }
+
         [Fact]
         public void AddModule_AfterTheWorkerExists_SyncsItsProgram()
         {

@@ -391,6 +391,22 @@ namespace Truss.Cli
             return new BindContext(aggregate, idType, ns, idNs, folder, Merge: true);
         }
 
+
+        /// <summary>
+        /// The type and namespace of the account id, as installed: the
+        /// scaffolded UserId by default, the bound aggregate's id under a
+        /// merge binding. Scaffolds that reference the account (the support
+        /// module among them) render against it.
+        /// </summary>
+        internal static (string IdType, string IdNamespace) InstalledAccountIdentity(TrussManifest manifest, string root)
+        {
+            var bind = ResolveInstalledBinding(manifest, root);
+
+            return bind is { Merge: true }
+                ? (bind.IdType, bind.IdNamespace)
+                : ("UserId", $"{manifest.Name}.Domain.Accounts.User.ValueObjects");
+        }
+
         private static BindContext? ResolveInstalledBinding(TrussManifest manifest, string root)
         {
             if (!manifest.Settings.TryGetValue("auth.bind", out var aggregate))

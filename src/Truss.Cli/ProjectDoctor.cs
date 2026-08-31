@@ -37,6 +37,12 @@ namespace Truss.Cli
                     continue;
                 }
 
+                if (module == "support")
+                {
+                    Check(Directory.Exists(Path.Combine(root, manifest.ApplicationProject, "Support")), "support context", log, ref problems);
+                    continue;
+                }
+
                 var package = module switch
                 {
                     "messaging" => "Truss.Messaging",

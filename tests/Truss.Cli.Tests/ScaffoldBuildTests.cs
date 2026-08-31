@@ -35,6 +35,7 @@ namespace Truss.Cli.Tests
             Assert.Equal(0, _workspace.Run("add", "tenancy", "--project", root));
             Assert.Equal(0, _workspace.Run("add", "rbac", "--project", root));
             Assert.Equal(0, _workspace.Run("add", "idempotency", "--project", root));
+            Assert.Equal(0, _workspace.Run("add", "support", "--project", root));
             Assert.Equal(0, _workspace.Run("add", "worker", "--project", root));
             Assert.Equal(0, _workspace.Run("generate", "command", "ArchiveProduct", "--context", "Catalog", "--project", root));
 
@@ -94,6 +95,10 @@ namespace Truss.Cli.Tests
                 "add", "auth", "--provider", "identity",
                 "--bind-user", "Member", "--bind-mode", "merge",
                 "--external", "microsoft", "--project", identityRoot));
+
+            // Support renders against the account's id; under a merge binding
+            // that is the bound aggregate's id, not a scaffolded UserId.
+            Assert.Equal(0, _workspace.Run("add", "support", "--project", identityRoot));
 
             AssertBuildSucceeds(identityRoot, "IdShop");
         }

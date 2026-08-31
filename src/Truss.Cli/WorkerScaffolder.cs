@@ -101,7 +101,7 @@ namespace Truss.Cli
             var lines = File.ReadAllLines(api).Select(line => line.Trim()).ToArray();
 
             var registrations = lines
-                .Where(line => Regex.IsMatch(line, @"^builder\.Services\.(AddScoped<I\w+Repository, Ef\w+Repository>|AddInfrastructure)\(\);$"))
+                .Where(line => Regex.IsMatch(line, @"^builder\.Services\.(AddScoped<I\w+Repository, Ef\w+Repository>|Add(?!Accounts)\w*Infrastructure)\(\);$"))
                 .Distinct()
                 .ToList();
 

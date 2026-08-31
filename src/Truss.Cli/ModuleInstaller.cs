@@ -4,7 +4,7 @@ namespace Truss.Cli
 {
     internal static class ModuleInstaller
     {
-        public static readonly string[] Modules = ["email", "messaging", "jobs", "observability", "auth", "rbac", "tenancy", "idempotency", "tests", "worker", "docker"];
+        public static readonly string[] Modules = ["email", "messaging", "jobs", "observability", "auth", "rbac", "tenancy", "idempotency", "support", "tests", "worker", "docker"];
 
         public static readonly string[] Transports = ["inmemory", "postgres", "rabbitmq", "redis"];
 
@@ -81,6 +81,7 @@ namespace Truss.Cli
                 "tenancy" => InstallTenancy(manifest, root, log),
                 "rbac" => InstallRbac(manifest, root, log),
                 "idempotency" => InstallIdempotency(manifest, root, log),
+                "support" => SupportScaffolder.Install(manifest, root, log),
                 "docker" => InstallDocker(manifest, root, log),
                 _ => InstallObservability(transport, manifest, root, log)
             };
