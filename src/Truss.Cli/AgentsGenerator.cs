@@ -143,7 +143,9 @@ namespace Truss.Cli
                         break;
 
                     case "support":
-                        block.AppendLine("- Support: the Support context (Ticket aggregate, customer routes under /support/tickets, staff routes under /support/queue) is scaffolded editable code; the reopen window lives in SupportPolicy.cs.");
+                        block.AppendLine(manifest.Settings.GetValueOrDefault("support.mode") == "deck"
+                            ? "- Support: the customer routes under /support/tickets forward to the Truss Deck at " + manifest.Settings.GetValueOrDefault("support.deck.url", "?") + " through the typed client; attendance happens on the deck, and the key comes from Truss__Support__Deck__ApiKey."
+                            : "- Support: the Support context (Ticket aggregate, customer routes under /support/tickets, staff routes under /support/queue) is scaffolded editable code; the reopen window lives in SupportPolicy.cs.");
                         break;
 
                     case "idempotency":

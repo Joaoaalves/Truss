@@ -35,6 +35,9 @@ namespace Truss.Cli
             if (manifest.Modules.Contains("auth"))
                 AuthScaffolder.WireWorker(manifest, root, log);
 
+            if (manifest.Settings.TryGetValue("support.mode", out var supportMode) && supportMode == "deck")
+                SupportScaffolder.WireWorkerDeck(manifest, root, log);
+
             var programPath = Path.Combine(root, workerProject, "Program.cs");
             File.WriteAllText(programPath, CodeGenerator.DedupeUsings(File.ReadAllText(programPath)));
 

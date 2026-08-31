@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Net.Http.Json;
 using Xunit;
 
 namespace Truss.Cli.Tests
@@ -103,6 +104,77 @@ namespace Truss.Cli.Tests
             AssertBuildSucceeds(identityRoot, "IdShop");
         }
 
+
+        /// <summary>
+        /// The 0.6 promise, application side: a scaffolded app in deck mode
+        /// goes live and holds a whole support conversation it never stored,
+        /// over real HTTP against a contract-faithful deck: the credential
+        /// travels, writes carry idempotency keys, the requester is the
+        /// signed-in account, and the agent's reply comes back to the user.
+        /// </summary>
+        [Fact]
+        public async Task DeckMode_HoldsAConversation_OverRealHttp()
+        {
+            PackFramework();
+
+            Assert.Equal(0, _workspace.Scaffold("Hub", "sqlite", "--local-packages", _feed));
+            var root = _workspace.Root("Hub");
+
+            Assert.Equal(0, _workspace.Run("add", "auth", "--project", root));
+            Assert.Equal(0, _workspace.Run("add", "support", "--deck", "http://localhost:5301", "--project", root));
+
+            AssertBuildSucceeds(root, "Hub");
+
+            using var deck = new StubDeck(5301, "deck_e2e");
+
+            var (app, output) = StartHost(
+                Path.Combine(root, "src", "Hub.Api"),
+                "http://localhost:5302",
+                new Dictionary<string, string> { ["Truss__Support__Deck__ApiKey"] = "deck_e2e" });
+
+            try
+            {
+                using var client = new HttpClient { BaseAddress = new Uri("http://localhost:5302") };
+                await WaitForHealth(client, "http://localhost:5302/health", output);
+
+                var registered = await client.PostAsJsonAsync("/auth/register",
+                    new { email = "maria@example.com", name = "Maria", password = "Str0ng!Passw0rd" });
+                var userId = await registered.Content.ReadFromJsonAsync<Guid>();
+
+                var login = await client.PostAsJsonAsync("/auth/login",
+                    new { email = "maria@example.com", password = "Str0ng!Passw0rd" });
+                using var tokens = System.Text.Json.JsonDocument.Parse(await login.Content.ReadAsStringAsync());
+                client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue(
+                    "Bearer", tokens.RootElement.GetProperty("accessToken").GetString());
+
+                var opened = await client.PostAsJsonAsync("/support/tickets",
+                    new { subject = "The export is broken", body = "It fails with a 500." });
+                Assert.Equal(System.Net.HttpStatusCode.Created, opened.StatusCode);
+                var ticketId = await opened.Content.ReadFromJsonAsync<Guid>();
+
+                // The wire carried what the contract demands.
+                Assert.Equal(userId.ToString(), deck.LastRequesterExternalUserId);
+                Assert.All(deck.PresentedKeys, key => Assert.Equal("deck_e2e", key));
+                Assert.All(deck.IdempotencyKeys, key => Assert.False(string.IsNullOrEmpty(key)));
+
+                // The application shows a conversation it never stored.
+                using var mine = System.Text.Json.JsonDocument.Parse(
+                    await client.GetStringAsync("/support/tickets"));
+                var summary = Assert.Single(mine.RootElement.GetProperty("items").EnumerateArray().ToList());
+                Assert.Equal("WaitingOnCustomer", summary.GetProperty("status").GetString());
+
+                using var detail = System.Text.Json.JsonDocument.Parse(
+                    await client.GetStringAsync($"/support/tickets/{ticketId}"));
+                var messages = detail.RootElement.GetProperty("messages").EnumerateArray().ToList();
+                Assert.Equal(2, messages.Count);
+                Assert.Contains(messages, message => message.GetProperty("body").GetString() == "We are on it.");
+            }
+            finally
+            {
+                Kill(app);
+            }
+        }
+
         /// <summary>
         /// The proof of the v1.0 promise: a scaffolded project is split, both
         /// processes go live, and a query dispatched in the monolith is
@@ -193,7 +265,7 @@ namespace Truss.Cli.Tests
             }
             """;
 
-        private (Process Process, System.Text.StringBuilder Output) StartHost(string projectDirectory, string url)
+        private (Process Process, System.Text.StringBuilder Output) StartHost(string projectDirectory, string url, IReadOnlyDictionary<string, string>? environment = null)
         {
             var start = new ProcessStartInfo("dotnet", "run -c Release --no-build --no-launch-profile")
             {
@@ -207,6 +279,9 @@ namespace Truss.Cli.Tests
             start.Environment["DOTNET_ENVIRONMENT"] = "Development";
             start.Environment["NUGET_PACKAGES"] = _packagesCache;
             start.Environment["MSBUILDDISABLENODEREUSE"] = "1";
+
+            foreach (var pair in environment ?? new Dictionary<string, string>())
+                start.Environment[pair.Key] = pair.Value;
 
             var output = new System.Text.StringBuilder();
             var process = Process.Start(start)!;

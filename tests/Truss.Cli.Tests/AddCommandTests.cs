@@ -261,6 +261,57 @@ namespace Truss.Cli.Tests
             Assert.Equal(1, _workspace.Run("add", "support", "--project", root));
         }
 
+
+        [Fact]
+        public void AddSupport_DeckMode_WiresTheThinSurface_InBothHosts()
+        {
+            var root = ScaffoldShop();
+
+            Assert.Equal(0, _workspace.Run("add", "messaging", "--project", root));
+            Assert.Equal(0, _workspace.Run("add", "auth", "--project", root));
+            Assert.Equal(0, _workspace.Run("add", "worker", "--project", root));
+            Assert.Equal(0, _workspace.Run("add", "support", "--deck", "http://deck.local:8080", "--project", root));
+
+            // No local domain in deck mode: attendance happens on the deck.
+            Assert.False(_workspace.FileExists("Shop", "src", "Shop.Domain", "Support", "Ticket", "Ticket.cs"));
+
+            var handler = _workspace.ReadFile("Shop", "src", "Shop.Application", "Support", "OpenTicket", "OpenTicketHandler.cs");
+            Assert.Contains("ISupportDeckClient", handler);
+
+            var program = _workspace.ReadFile("Shop", "src", "Shop.Api", "Program.cs");
+            Assert.Contains("AddTrussSupportDeck(", program);
+            Assert.Contains("app.MapCommand<OpenTicket, Guid>(\"/support/tickets\"", program);
+            Assert.DoesNotContain("/support/queue", program);
+
+            var settings = _workspace.ReadFile("Shop", "src", "Shop.Api", "appsettings.json");
+            Assert.Contains("http://deck.local:8080", settings);
+            Assert.DoesNotContain("ApiKey", settings);
+
+            var worker = _workspace.ReadFile("Shop", "src", "Shop.Worker", "Program.cs");
+            Assert.Contains("AddTrussSupportDeck(", worker);
+
+            var applicationCsproj = _workspace.ReadFile("Shop", "src", "Shop.Application", "Shop.Application.csproj");
+            Assert.Contains("Truss.Support", applicationCsproj);
+
+            var manifest = TrussManifest.Load(root);
+            Assert.Equal("deck", manifest!.Settings["support.mode"]);
+        }
+
+        [Fact]
+        public void AddWorker_AfterDeckModeSupport_WiresTheClientIntoTheWorker()
+        {
+            var root = ScaffoldShop();
+
+            Assert.Equal(0, _workspace.Run("add", "messaging", "--project", root));
+            Assert.Equal(0, _workspace.Run("add", "auth", "--project", root));
+            Assert.Equal(0, _workspace.Run("add", "support", "--deck", "http://deck.local:8080", "--project", root));
+            Assert.Equal(0, _workspace.Run("add", "worker", "--project", root));
+
+            var worker = _workspace.ReadFile("Shop", "src", "Shop.Worker", "Program.cs");
+            Assert.Contains("AddTrussSupportDeck(", worker);
+            Assert.Contains("ISupportRequesterSource", worker);
+        }
+
         [Fact]
         public void AddModule_AfterTheWorkerExists_SyncsItsProgram()
         {

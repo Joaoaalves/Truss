@@ -10,14 +10,8 @@ namespace Truss.Cli
     /// </summary>
     internal static class SupportScaffolder
     {
-        public static int Install(TrussManifest manifest, string root, Action<string> log)
+        public static int Install(TrussManifest manifest, string root, string? deckUrl, Action<string> log)
         {
-            if (!manifest.UsesEntityFramework)
-            {
-                log("The support module stores tickets in the database and requires one. Scaffold the project with --database first.");
-                return 1;
-            }
-
             if (!manifest.Modules.Contains("auth"))
             {
                 log("Tickets belong to signed-in users, so the auth module comes first. Run: truss add auth");
@@ -27,6 +21,15 @@ namespace Truss.Cli
             if (Directory.Exists(Path.Combine(root, manifest.ApplicationProject, "Support")))
             {
                 log("A Support context already exists; refusing to overwrite it.");
+                return 1;
+            }
+
+            if (deckUrl is not null)
+                return InstallDeckMode(manifest, root, deckUrl, log);
+
+            if (!manifest.UsesEntityFramework)
+            {
+                log("Standalone support stores tickets in the database and requires one. Scaffold with --database, or point at a deck with --deck <url>.");
                 return 1;
             }
 
@@ -79,6 +82,116 @@ namespace Truss.Cli
                 log("Without the jobs module, resolved tickets close only when staff closes them. Install jobs to get the hourly auto-close sweep.");
 
             return 0;
+        }
+
+
+        /// <summary>
+        /// The centralized mode: no local domain, only the thin surface. The
+        /// same four customer routes as standalone, backed by the deck's
+        /// ingestion API through the typed client; attendance happens on the
+        /// deck, so no staff routes exist here.
+        /// </summary>
+        private static int InstallDeckMode(TrussManifest manifest, string root, string deckUrl, Action<string> log)
+        {
+            if (!Uri.TryCreate(deckUrl, UriKind.Absolute, out _))
+            {
+                log($"'{deckUrl}' is not an absolute url. Pass the deck's base address: --deck https://deck.example.com");
+                return 1;
+            }
+
+            string Render(string template) => CodeGenerator.DedupeUsings(template.Replace("__NAME__", manifest.Name));
+
+            void Write(string relativePath, string template)
+            {
+                var path = Path.Combine(root, relativePath);
+                Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+                File.WriteAllText(path, Render(template) + Environment.NewLine);
+            }
+
+            var support = Path.Combine(manifest.ApplicationProject, "Support");
+
+            Write(Path.Combine(support, "ISupportRequesterSource.cs"), SupportTemplates.DeckRequesterSource);
+            Write(Path.Combine(support, "AccountRequesterSource.cs"), SupportTemplates.DeckAccountRequesterSource);
+            Write(Path.Combine(support, "OpenTicket", "OpenTicket.cs"), SupportTemplates.DeckOpenTicket);
+            Write(Path.Combine(support, "OpenTicket", "OpenTicketHandler.cs"), SupportTemplates.DeckOpenTicketHandler);
+            Write(Path.Combine(support, "OpenTicket", "OpenTicketValidator.cs"), SupportTemplates.DeckOpenTicketValidator);
+            Write(Path.Combine(support, "ReplyToMyTicket", "ReplyToMyTicket.cs"), SupportTemplates.DeckReply);
+            Write(Path.Combine(support, "ReplyToMyTicket", "ReplyToMyTicketHandler.cs"), SupportTemplates.DeckReplyHandler);
+            Write(Path.Combine(support, "ReplyToMyTicket", "ReplyToMyTicketValidator.cs"), SupportTemplates.DeckReplyValidator);
+            Write(Path.Combine(support, "ListMyTickets", "ListMyTickets.cs"), SupportTemplates.DeckList);
+            Write(Path.Combine(support, "ListMyTickets", "ListMyTicketsHandler.cs"), SupportTemplates.DeckListHandler);
+            Write(Path.Combine(support, "ListMyTickets", "ListMyTicketsValidator.cs"), SupportTemplates.DeckListValidator);
+            Write(Path.Combine(support, "GetMyTicket", "GetMyTicket.cs"), SupportTemplates.DeckGet);
+            Write(Path.Combine(support, "GetMyTicket", "GetMyTicketHandler.cs"), SupportTemplates.DeckGetHandler);
+
+            CsprojEditor.AddPackageReference(Path.Combine(root, manifest.ApplicationProject, Path.GetFileName(manifest.ApplicationProject) + ".csproj"), "Truss.Support", manifest.TrussVersion);
+            CsprojEditor.AddPackageReference(Path.Combine(root, manifest.ApiProject, Path.GetFileName(manifest.ApiProject) + ".csproj"), "Truss.Support", manifest.TrussVersion);
+
+            var program = Path.Combine(root, manifest.ApiProject, "Program.cs");
+
+            SourceEditor.InsertAfter(program, $"using {manifest.Name}.Application;", Render(SupportTemplates.DeckProgramUsings));
+
+            if (!SourceEditor.InsertAtMarker(program, Markers.Services, Render(SupportTemplates.DeckProgramServices)))
+                log("Could not update Program.cs automatically. Register: AddTrussSupportDeck and the ISupportRequesterSource.");
+
+            if (!SourceEditor.InsertAtMarker(program, Markers.Endpoints, Render(SupportTemplates.DeckProgramEndpoints)))
+                log("Could not update Program.cs automatically. Map the support routes before app.Run().");
+
+            AppSettingsEditor.SetSection(root, manifest, "Truss:Support:Deck", new Dictionary<string, object>
+            {
+                ["Url"] = deckUrl
+            }, log);
+
+            manifest.Settings["support.mode"] = "deck";
+            manifest.Settings["support.deck.url"] = deckUrl;
+
+            WireWorkerDeck(manifest, root, log);
+
+            log($"The support surface now speaks to the deck at {deckUrl}. Register this application there and set the key per environment: Truss__Support__Deck__ApiKey.");
+            log("Attendance happens on the deck; this application keeps only the customer routes. If the deck is unreachable, the support routes degrade and the rest of the application does not care.");
+
+            return 0;
+        }
+
+        /// <summary>
+        /// The worker validates the same handlers at boot, so the deck client
+        /// and the requester source must be registered there too, in whichever
+        /// order the worker and support arrive.
+        /// </summary>
+        internal static void WireWorkerDeck(TrussManifest manifest, string root, Action<string> log)
+        {
+            var workerProject = Path.Combine("src", $"{manifest.Name}.Worker");
+            var program = Path.Combine(root, workerProject, "Program.cs");
+
+            if (!File.Exists(program) || File.ReadAllText(program).Contains("AddTrussSupportDeck", StringComparison.Ordinal))
+                return;
+
+            SourceEditor.InsertAfter(
+                program,
+                $"using {manifest.Name}.Application;",
+                $"using {manifest.Name}.Application.Support;");
+
+            var services = "builder.Services.AddTrussSupportDeck(options => builder.Configuration.GetSection(\"Truss:Support:Deck\").Bind(options));"
+                + Environment.NewLine
+                + "builder.Services.AddScoped<ISupportRequesterSource, AccountRequesterSource>();";
+
+            if (!SourceEditor.InsertAtMarker(program, Markers.Services, services)
+                && !SourceEditor.InsertBefore(program, "builder.Build().Run();", services))
+            {
+                log("Could not update the worker's Program.cs automatically. Register the deck client and the requester source there too.");
+                return;
+            }
+
+            CsprojEditor.AddPackageReference(
+                Path.Combine(root, workerProject, $"{manifest.Name}.Worker.csproj"), "Truss.Support", manifest.TrussVersion);
+
+            AppSettingsEditor.SetSection(
+                Path.Combine(root, workerProject, "appsettings.json"),
+                "Truss:Support:Deck",
+                new Dictionary<string, object> { ["Url"] = manifest.Settings.GetValueOrDefault("support.deck.url", string.Empty) },
+                log);
+
+            log("The worker's Program.cs was updated too.");
         }
 
         private static void WriteDomain(TrussManifest manifest, Action<string, string> write)

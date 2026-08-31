@@ -57,6 +57,14 @@ namespace Truss.Cli
                     requirements.Add(new DeployRequirement("Truss__Email__Smtp__Host", "the SMTP server; appsettings.json points at the development Mailpit", Secret: false));
             }
 
+            if (manifest.Settings.TryGetValue("support.mode", out var supportMode) && supportMode == "deck")
+            {
+                requirements.Add(new DeployRequirement(
+                    "Truss__Support__Deck__ApiKey",
+                    "support: the service credential the deck issued when this application was registered",
+                    Secret: true));
+            }
+
             if (manifest.Settings.ContainsKey("observability.dashboard"))
             {
                 requirements.Add(new DeployRequirement(

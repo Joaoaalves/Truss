@@ -30,6 +30,9 @@ namespace Truss.Cli.Commands
             [CommandOption("--flows")]
             public bool Flows { get; init; }
 
+            [CommandOption("--deck <URL>")]
+            public string? Deck { get; init; }
+
             [CommandOption("-p|--project <PATH>")]
             public string? Project { get; init; }
         }
@@ -50,6 +53,7 @@ namespace Truss.Cli.Commands
             {
                 "auth" or "email" => settings.Provider,
                 "observability" => settings.Dashboard,
+                "support" => settings.Deck,
                 _ => settings.Transport
             };
 

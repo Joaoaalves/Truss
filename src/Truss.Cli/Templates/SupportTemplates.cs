@@ -1272,6 +1272,230 @@ namespace Truss.Cli.Templates
                     "0 * * * *", new __NAME__.Application.Support.CloseExpiredTickets.CloseExpiredTicketsArgs()));
             """;
 
+
+        public const string DeckRequesterSource = """
+            using Truss.Support;
+
+            namespace __NAME__.Application.Support
+            {
+                /// <summary>
+                /// Who the deck should see behind this request. The default pulls
+                /// the signed-in account; edit it freely if your requester's
+                /// display data lives elsewhere.
+                /// </summary>
+                public interface ISupportRequesterSource
+                {
+                    Task<SupportRequester> Current(CancellationToken cancellationToken = default);
+                }
+            }
+            """;
+
+        public const string DeckAccountRequesterSource = """
+            using __NAME__.Application.Accounts;
+            using Truss.Support;
+
+            namespace __NAME__.Application.Support
+            {
+                public class AccountRequesterSource(ICurrentUser currentUser, IUserRepository users) : ISupportRequesterSource
+                {
+                    public async Task<SupportRequester> Current(CancellationToken cancellationToken = default)
+                    {
+                        var id = currentUser.Require();
+
+                        var user = await users.GetById(id, cancellationToken)
+                            ?? throw new InvalidOperationException("The signed-in account was not found.");
+
+                        return new SupportRequester(id.Value.ToString(), user.Email, user.Name);
+                    }
+                }
+            }
+            """;
+
+        public const string DeckOpenTicket = """
+            namespace __NAME__.Application.Support.OpenTicket
+            {
+                using Truss.Application;
+
+                public sealed record OpenTicket(string Subject, string Body) : ICommand<Guid>;
+            }
+            """;
+
+        public const string DeckOpenTicketHandler = """
+            namespace __NAME__.Application.Support.OpenTicket
+            {
+                using __NAME__.Application.Support;
+                using Truss.Application;
+                using Truss.Support;
+
+                public class OpenTicketHandler(ISupportDeckClient deck, ISupportRequesterSource requester) : ICommandHandler<OpenTicket, Guid>
+                {
+                    public async Task<Guid> Handle(OpenTicket command, CancellationToken cancellationToken)
+                    {
+                        return await deck.OpenTicket(
+                            await requester.Current(cancellationToken), command.Subject, command.Body, metadata: null, cancellationToken);
+                    }
+                }
+            }
+            """;
+
+        public const string DeckOpenTicketValidator = """
+            namespace __NAME__.Application.Support.OpenTicket
+            {
+                using FluentValidation;
+
+                public class OpenTicketValidator : AbstractValidator<OpenTicket>
+                {
+                    public OpenTicketValidator()
+                    {
+                        RuleFor(command => command.Subject).NotEmpty().MaximumLength(200);
+                        RuleFor(command => command.Body).NotEmpty().MaximumLength(10_000);
+                    }
+                }
+            }
+            """;
+
+        public const string DeckReply = """
+            namespace __NAME__.Application.Support.ReplyToMyTicket
+            {
+                using Truss.Application;
+
+                /// <summary>
+                /// Returns the id of the ticket that received the reply: the same
+                /// ticket normally, a new linked one when the deck no longer
+                /// accepts replies there.
+                /// </summary>
+                public sealed record ReplyToMyTicket(Guid TicketId, string Body) : ICommand<Guid>;
+            }
+            """;
+
+        public const string DeckReplyHandler = """
+            namespace __NAME__.Application.Support.ReplyToMyTicket
+            {
+                using __NAME__.Application.Support;
+                using Truss.Application;
+                using Truss.Support;
+
+                public class ReplyToMyTicketHandler(ISupportDeckClient deck, ISupportRequesterSource requester) : ICommandHandler<ReplyToMyTicket, Guid>
+                {
+                    public async Task<Guid> Handle(ReplyToMyTicket command, CancellationToken cancellationToken)
+                    {
+                        return await deck.Reply(
+                            command.TicketId, await requester.Current(cancellationToken), command.Body, cancellationToken);
+                    }
+                }
+            }
+            """;
+
+        public const string DeckReplyValidator = """
+            namespace __NAME__.Application.Support.ReplyToMyTicket
+            {
+                using FluentValidation;
+
+                public class ReplyToMyTicketValidator : AbstractValidator<ReplyToMyTicket>
+                {
+                    public ReplyToMyTicketValidator()
+                    {
+                        RuleFor(command => command.TicketId).NotEmpty();
+                        RuleFor(command => command.Body).NotEmpty().MaximumLength(10_000);
+                    }
+                }
+            }
+            """;
+
+        public const string DeckList = """
+            namespace __NAME__.Application.Support.ListMyTickets
+            {
+                using Truss.Application;
+                using Truss.Support;
+
+                public sealed record ListMyTickets(int Page = 1, int Size = 20) : IQuery<PageResult<SupportTicketSummary>>;
+            }
+            """;
+
+        public const string DeckListHandler = """
+            namespace __NAME__.Application.Support.ListMyTickets
+            {
+                using __NAME__.Application.Support;
+                using Truss.Application;
+                using Truss.Support;
+
+                public class ListMyTicketsHandler(ISupportDeckClient deck, ISupportRequesterSource requester) : IQueryHandler<ListMyTickets, PageResult<SupportTicketSummary>>
+                {
+                    public async Task<PageResult<SupportTicketSummary>> Handle(ListMyTickets query, CancellationToken cancellationToken)
+                    {
+                        var current = await requester.Current(cancellationToken);
+                        return await deck.ListTickets(current.ExternalUserId, query.Page, query.Size, cancellationToken);
+                    }
+                }
+            }
+            """;
+
+        public const string DeckListValidator = """
+            namespace __NAME__.Application.Support.ListMyTickets
+            {
+                using FluentValidation;
+
+                public class ListMyTicketsValidator : AbstractValidator<ListMyTickets>
+                {
+                    public ListMyTicketsValidator()
+                    {
+                        RuleFor(query => query.Page).GreaterThan(0);
+                        RuleFor(query => query.Size).InclusiveBetween(1, 100);
+                    }
+                }
+            }
+            """;
+
+        public const string DeckGet = """
+            namespace __NAME__.Application.Support.GetMyTicket
+            {
+                using Truss.Application;
+                using Truss.Support;
+
+                public sealed record GetMyTicket(Guid TicketId) : IQuery<SupportTicket?>;
+            }
+            """;
+
+        public const string DeckGetHandler = """
+            namespace __NAME__.Application.Support.GetMyTicket
+            {
+                using __NAME__.Application.Support;
+                using Truss.Application;
+                using Truss.Support;
+
+                public class GetMyTicketHandler(ISupportDeckClient deck, ISupportRequesterSource requester) : IQueryHandler<GetMyTicket, SupportTicket?>
+                {
+                    public async Task<SupportTicket?> Handle(GetMyTicket query, CancellationToken cancellationToken)
+                    {
+                        var current = await requester.Current(cancellationToken);
+                        return await deck.GetTicket(query.TicketId, current.ExternalUserId, cancellationToken);
+                    }
+                }
+            }
+            """;
+
+        public const string DeckProgramUsings = """
+            using __NAME__.Application.Support;
+            using __NAME__.Application.Support.GetMyTicket;
+            using __NAME__.Application.Support.ListMyTickets;
+            using __NAME__.Application.Support.OpenTicket;
+            using __NAME__.Application.Support.ReplyToMyTicket;
+            using Truss.Application;
+            using Truss.Support;
+            """;
+
+        public const string DeckProgramServices = """
+            builder.Services.AddTrussSupportDeck(options => builder.Configuration.GetSection("Truss:Support:Deck").Bind(options));
+            builder.Services.AddScoped<ISupportRequesterSource, AccountRequesterSource>();
+            """;
+
+        public const string DeckProgramEndpoints = """
+            app.MapCommand<OpenTicket, Guid>("/support/tickets", id => $"/support/tickets/{id}").RequireAuthorization();
+            app.MapCommand<ReplyToMyTicket, Guid>("/support/tickets/{ticketId:guid}/messages").RequireAuthorization();
+            app.MapQuery<ListMyTickets, PageResult<SupportTicketSummary>>("/support/tickets").RequireAuthorization();
+            app.MapQuery<GetMyTicket, SupportTicket?>("/support/tickets/{ticketId:guid}").RequireAuthorization();
+            """;
+
         public const string DomainTests = """
             using __NAME__.Domain.Support;
             using __NAME__.Domain.Support.Ticket;
