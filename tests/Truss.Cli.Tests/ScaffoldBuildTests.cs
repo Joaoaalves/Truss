@@ -168,6 +168,13 @@ namespace Truss.Cli.Tests
                 var messages = detail.RootElement.GetProperty("messages").EnumerateArray().ToList();
                 Assert.Equal(2, messages.Count);
                 Assert.Contains(messages, message => message.GetProperty("body").GetString() == "We are on it.");
+
+                // The reply rides a POST under the resource: the route id must
+                // merge into the command like on every other verb.
+                var replied = await client.PostAsJsonAsync($"/support/tickets/{ticketId}/messages",
+                    new { body = "It is the yearly report." });
+                Assert.Equal(System.Net.HttpStatusCode.OK, replied.StatusCode);
+                Assert.Equal(ticketId, await replied.Content.ReadFromJsonAsync<Guid>());
             }
             finally
             {

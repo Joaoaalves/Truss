@@ -78,6 +78,21 @@ namespace Truss.AspNetCore.Tests
         }
 
         [Fact]
+        public async Task MapCommand_MergesTheRouteLikeEveryOtherVerb()
+        {
+            // A POST under a resource (/items/{id}/rename) must see the route
+            // id like PUT and PATCH do; the body may omit it entirely.
+            var (app, client) = await StartAppAsync(app => app.MapCommand<RenameItemCommand, string>("/items/{id}/rename"));
+            await using var _ = app;
+
+            var routeId = Guid.NewGuid();
+            var response = await client.PostAsJsonAsync($"/items/{routeId}/rename", new { Name = "renamed" });
+
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            Assert.Equal($"{routeId}:renamed", await response.Content.ReadFromJsonAsync<string>());
+        }
+
+        [Fact]
         public async Task MapPatchCommand_MergesTheRouteLikePut()
         {
             var (app, client) = await StartAppAsync(app => app.MapPatchCommand<RenameItemCommand, string>("/items/{id}"));

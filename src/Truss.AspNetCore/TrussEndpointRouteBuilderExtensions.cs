@@ -13,8 +13,9 @@ namespace Microsoft.AspNetCore.Builder
     public static class TrussEndpointRouteBuilderExtensions
     {
         /// <summary>
-        /// Maps a POST endpoint that binds the request body to the command, dispatches it
-        /// and returns 204 No Content on success.
+        /// Maps a POST endpoint that binds the request body to the command, copies route
+        /// values over it, dispatches it and returns 204 No Content on success.
+        /// Route values win over the body, like on every other verb.
         /// </summary>
         /// <typeparam name="TCommand">The command type bound from the request body.</typeparam>
         /// <param name="endpoints">The endpoint route builder.</param>
@@ -24,9 +25,9 @@ namespace Microsoft.AspNetCore.Builder
             where TCommand : ICommand
         {
             return endpoints
-                .MapPost(pattern, async (TCommand command, IDispatcher dispatcher, CancellationToken cancellationToken) =>
+                .MapPost(pattern, async (TCommand command, IDispatcher dispatcher, HttpContext httpContext, CancellationToken cancellationToken) =>
                 {
-                    await dispatcher.Send(command, cancellationToken);
+                    await dispatcher.Send(RouteValueMerger.Merge(command, httpContext), cancellationToken);
                     return Results.NoContent();
                 })
                 .AddTrussErrorHandling()
@@ -34,8 +35,9 @@ namespace Microsoft.AspNetCore.Builder
         }
 
         /// <summary>
-        /// Maps a POST endpoint that binds the request body to the command, dispatches it
-        /// and returns 200 OK with the command result.
+        /// Maps a POST endpoint that binds the request body to the command, copies route
+        /// values over it, dispatches it and returns 200 OK with the command result.
+        /// Route values win over the body, like on every other verb.
         /// </summary>
         /// <typeparam name="TCommand">The command type bound from the request body.</typeparam>
         /// <typeparam name="TResult">The result type returned by the command.</typeparam>
@@ -46,9 +48,9 @@ namespace Microsoft.AspNetCore.Builder
             where TCommand : ICommand<TResult>
         {
             return endpoints
-                .MapPost(pattern, async (TCommand command, IDispatcher dispatcher, CancellationToken cancellationToken) =>
+                .MapPost(pattern, async (TCommand command, IDispatcher dispatcher, HttpContext httpContext, CancellationToken cancellationToken) =>
                 {
-                    var result = await dispatcher.Send(command, cancellationToken);
+                    var result = await dispatcher.Send(RouteValueMerger.Merge(command, httpContext), cancellationToken);
                     return Results.Ok(result);
                 })
                 .AddTrussErrorHandling()
@@ -56,8 +58,9 @@ namespace Microsoft.AspNetCore.Builder
         }
 
         /// <summary>
-        /// Maps a POST endpoint that binds the request body to the command, dispatches it
-        /// and returns 201 Created with the command result and a Location header.
+        /// Maps a POST endpoint that binds the request body to the command, copies route
+        /// values over it, dispatches it and returns 201 Created with the command result
+        /// and a Location header. Route values win over the body, like on every other verb.
         /// </summary>
         /// <typeparam name="TCommand">The command type bound from the request body.</typeparam>
         /// <typeparam name="TResult">The result type returned by the command.</typeparam>
@@ -74,9 +77,9 @@ namespace Microsoft.AspNetCore.Builder
             ArgumentNullException.ThrowIfNull(createdAtLocation);
 
             return endpoints
-                .MapPost(pattern, async (TCommand command, IDispatcher dispatcher, CancellationToken cancellationToken) =>
+                .MapPost(pattern, async (TCommand command, IDispatcher dispatcher, HttpContext httpContext, CancellationToken cancellationToken) =>
                 {
-                    var result = await dispatcher.Send(command, cancellationToken);
+                    var result = await dispatcher.Send(RouteValueMerger.Merge(command, httpContext), cancellationToken);
                     return Results.Created(createdAtLocation(result), result);
                 })
                 .AddTrussErrorHandling()

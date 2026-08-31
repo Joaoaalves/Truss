@@ -139,3 +139,23 @@ support surface degrades; the rest of the application does not care.
 There are no staff routes in this mode: attendance happens on the deck, where
 agents see the whole fleet's queue, filter by application, keep internal
 notes and carry permissions per app.
+
+---
+
+## Migrating From Standalone to the Deck
+
+The two modes share their routes, so the migration never touches your
+clients. The honest sequence:
+
+1. Register the application on the deck; keep the key.
+2. Export the standalone tickets (the `SupportTickets` and
+   `SupportTicketMessages` tables) and import them through the deck's
+   ingestion API or directly into its database, mapping your `RequesterId`
+   to `ExternalUserId`. History is worth moving; the state machine is the
+   same on both sides.
+3. Remove the local Support context (`truss remove context Support` cleans
+   the wiring) and run `truss add support --deck <url>`.
+4. Set `Truss__Support__Deck__ApiKey` in every environment and drop the
+   local tables with your next migration.
+
+Moving back is the same walk in reverse; a "no" to the deck is never final.
