@@ -378,6 +378,12 @@ namespace Truss.Cli
 
         private static int InstallDocker(TrussManifest manifest, string root, Action<string> log)
         {
+            // The flag drives everything docker-shaped downstream: the compose
+            // generator, truss dev's container startup and the doctor's checks.
+            // Without it, a late docker install wrote images for a project the
+            // rest of the tooling kept treating as docker-less.
+            manifest.Docker = true;
+
             return DockerScaffolder.Install(manifest, root, log);
         }
 

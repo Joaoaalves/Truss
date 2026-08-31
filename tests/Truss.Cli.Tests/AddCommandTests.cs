@@ -317,6 +317,22 @@ namespace Truss.Cli.Tests
             Assert.Contains("ISupportRequesterSource", worker);
         }
 
+
+        [Fact]
+        public void AddDocker_Late_TurnsTheFlagAndWritesTheCompose()
+        {
+            // Postgres gives the compose a service to hold; sqlite composes
+            // nothing and the generator rightly stays quiet.
+            Assert.Equal(0, _workspace.Scaffold("Shop", "postgres"));
+            var root = _workspace.Root("Shop");
+
+            Assert.Equal(0, _workspace.Run("add", "docker", "--project", root));
+
+            var manifest = TrussManifest.Load(root);
+            Assert.True(manifest!.Docker);
+            Assert.True(_workspace.FileExists("Shop", "docker-compose.yml"));
+        }
+
         [Fact]
         public void AddModule_AfterTheWorkerExists_SyncsItsProgram()
         {
