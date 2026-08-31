@@ -1,0 +1,7 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Truss.Support\Truss.Support.csproj" />
+  </ItemGroup>
+
+</Project>

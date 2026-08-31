@@ -18,6 +18,7 @@
     <Project Path="src/Truss.Observability/Truss.Observability.csproj" />
     <Project Path="src/Truss.Observability.OpenTelemetry/Truss.Observability.OpenTelemetry.csproj" />
     <Project Path="src/Truss.Rbac/Truss.Rbac.csproj" />
+    <Project Path="src/Truss.Support/Truss.Support.csproj" />
     <Project Path="src/Truss.Remote/Truss.Remote.csproj" />
     <Project Path="src/Truss.Testing/Truss.Testing.csproj" />
   </Folder>
@@ -36,6 +37,7 @@
     <Project Path="tests/Truss.Remote.Tests/Truss.Remote.Tests.csproj" />
     <Project Path="tests/Truss.Observability.Tests/Truss.Observability.Tests.csproj" />
     <Project Path="tests/Truss.Rbac.Tests/Truss.Rbac.Tests.csproj" />
+    <Project Path="tests/Truss.Support.Tests/Truss.Support.Tests.csproj" />
     <Project Path="tests/Truss.Tenancy.Tests/Truss.Tenancy.Tests.csproj" />
     <Project Path="tests/Truss.Testing.Tests/Truss.Testing.Tests.csproj" />
   </Folder>
