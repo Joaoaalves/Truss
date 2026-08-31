@@ -8,7 +8,7 @@ Full documentation: **https://joaoaalves.github.io/Truss**
 
 ## Packages
 
-Twenty packages in three rings plus tooling. A package boundary exists only
+Twenty-one packages in three rings plus tooling. A package boundary exists only
 where it pays for itself: an external dependency it isolates or a deployment
 target it serves.
 
@@ -22,6 +22,7 @@ target it serves.
 | `Truss.Rbac` | Roles in code mapping to permissions, RequirePermission and claims enrichment. | Capability |
 | `Truss.Observability` | Structured request logging, spans, metrics and ambient correlation. | Capability |
 | `Truss.Remote` | Explicit synchronous queries to a context running as another service. | Capability |
+| `Truss.Support` | The support surface of an application: wire contracts and the typed client for the Truss Deck. | Capability |
 | `Truss.EntityFrameworkCore` | Unit of work, outbox and inbox stores, job store, tenancy interceptors, role assignments and idempotency, registered per feature. | Integration |
 | `Truss.AspNetCore` | Endpoint mapping with ProblemDetails, remote context endpoints, job and outbox endpoints, correlation and tenant resolution. | Integration |
 | `Truss.Messaging.Postgres` | Durable Postgres transport: SKIP LOCKED queue with LISTEN/NOTIFY wake-up. | Integration |

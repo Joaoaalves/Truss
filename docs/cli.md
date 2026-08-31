@@ -77,7 +77,7 @@ Insertions target the comment markers the scaffold leaves behind (`// truss: ser
 | `tenancy` | | Row-level tenant isolation: ambient resolution, query filtering and stamping; requires a database |
 | `rbac` | | Roles in code, permissions on endpoints and assignments in the database; requires a database |
 | `idempotency` | | The Idempotency-Key header replays stored responses instead of re-executing; requires a database |
-| `support` | | A complete support desk scaffolded as your code: Ticket aggregate, customer and staff routes, tests; requires a database and auth ([guide](support.md)) |
+| `support` | `--deck <url>` | A complete support desk as your code, or a thin surface speaking to a central Truss Deck; requires auth ([guide](support.md)) |
 | `tests` | | Scaffolds the two test projects into an existing project and adds them to the solution; with the sample present, its tests come too |
 | `worker` | | Scaffolds src/Name.Worker, a separate consumer process wired with the installed modules; requires messaging |
 | `docker` | | Production Dockerfile per host (multi-stage, non-root, healthcheck) and .dockerignore; hosts created later get theirs automatically; see [deploy](deploy.md) |

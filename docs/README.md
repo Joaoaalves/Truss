@@ -26,7 +26,7 @@ Truss is intentionally explicit, modular and dependency-minimal.
 
 ## Packages
 
-Twenty packages in three rings plus tooling. A package boundary exists only
+Twenty-one packages in three rings plus tooling. A package boundary exists only
 where it pays for itself: an external dependency it isolates or a deployment
 target it serves. Everything else is a namespace.
 
@@ -47,6 +47,7 @@ target it serves. Everything else is a namespace.
 | `Truss.Rbac` | Roles in code mapping to permissions, RequirePermission and claims enrichment. |
 | `Truss.Observability` | Structured request logging, spans, metrics and ambient correlation. |
 | `Truss.Remote` | Explicit synchronous queries to a context running as another service. |
+| `Truss.Support` | The support surface of an application: wire contracts and the typed client for the Truss Deck. |
 
 **Integrations** - real third-party dependencies, referenced only by hosts:
 

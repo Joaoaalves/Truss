@@ -9,10 +9,15 @@ rules, the routes and the policy freely.
 truss add support
 ```
 
-Requires a database and the auth module (tickets belong to signed-in users).
-This is the standalone mode: tickets live in your application's database. The
-centralized mode, where a fleet of applications shares one attendance surface
-through Truss Deck, arrives later in the 0.6 line.
+Requires the auth module (tickets belong to signed-in users). Two modes share
+the same four customer routes, so switching never changes your public API:
+
+- **Standalone** (`truss add support`): the whole desk lives in your
+  application: the Ticket aggregate, the staff routes, your database.
+  Requires a database.
+- **Deck** (`truss add support --deck <url>`): your application keeps only
+  the thin customer surface; tickets live on the [Truss Deck](#the-deck-mode),
+  where one team attends a whole fleet of applications.
 
 ---
 
@@ -102,3 +107,35 @@ and the install says so.
 - Tests: the state machine in the domain suite, and integration tests through
   the real pipeline, including one proving internal notes never reach the
   requester and one proving another user's ticket answers as missing.
+
+---
+
+## The Deck Mode
+
+```
+truss add support --deck https://deck.example.com
+```
+
+With a deck, the application stores nothing: the scaffolded handlers forward
+to the deck's ingestion API through the typed client in `Truss.Support`. What
+the install writes:
+
+- The same four customer routes, now backed by `ISupportDeckClient`.
+- `AccountRequesterSource`, your code: it tells the deck who is behind the
+  request (the signed-in account's id, email and name). Edit it if your
+  display data lives elsewhere.
+- `Truss:Support:Deck:Url` in appsettings; the key never goes there. Register
+  the application on the deck, take the key it answers **once**, and set it
+  per environment: `Truss__Support__Deck__ApiKey`. `truss deploy check`
+  demands it.
+
+Every call carries the service credential; writes carry an idempotency key,
+so a retried request can never duplicate a ticket or a message. Failures come
+back as the exceptions your pipeline already speaks: validation problems and
+broken rules rebuild locally with their stable codes, and an unreachable deck
+throws `SupportDeckException` naming the operation and the address. The
+support surface degrades; the rest of the application does not care.
+
+There are no staff routes in this mode: attendance happens on the deck, where
+agents see the whole fleet's queue, filter by application, keep internal
+notes and carry permissions per app.

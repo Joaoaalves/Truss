@@ -1,6 +1,6 @@
 # Dependencies
 
-Truss ships as twenty packages arranged in three rings plus tooling. The rule
+Truss ships as twenty-one packages arranged in three rings plus tooling. The rule
 that decides where code lives: **a package boundary must pay for itself with an
 external dependency it isolates or a deployment target it serves**. Fewer
 moving parts, same discipline; the layer rules are enforced by the analyzer,
@@ -105,6 +105,19 @@ Dependencies:
 - `Truss.Application`
 - `Microsoft.Extensions.DependencyInjection.Abstractions`
 - `Microsoft.Extensions.Logging.Abstractions`
+
+### Truss.Support
+
+The support surface of an application in deck mode: the wire contracts of
+the Truss Deck ingestion API and a typed client that carries the service
+credential, maps failures back to the local exceptions and makes retries
+safe with idempotency keys.
+
+Dependencies:
+
+- `Truss.Application`
+- `Microsoft.Extensions.Http`
+- `Microsoft.Extensions.Options`
 
 ### Truss.Remote
 
